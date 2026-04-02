@@ -1,11 +1,11 @@
 # Handoff
 
 ## main (updated 2026-04-03)
-**What**: Harness Health MVP — scanner + scorer pipeline working
-**Where**: F001-F003 done. F004 next (plan-generator + skill).
+**What**: Harness Health — full pipeline working (scan → score → plan → fix → report)
+**Where**: F001-F006 + F009 + F010 done. F007 (AI deep) + F008 (session analysis) remain.
 **Next**:
-1. F004: plan-generator.js (scanner results → fix plan with evidence)
-2. F005: skills/hh.md (full interactive flow with AskUserQuestion)
-3. Fix F5 false positives (path extraction grabs rule text like `.env*`)
-4. Fix C4 plans detection (add `docs/plans/` pattern)
+1. F007: AI deep analysis (contradictions, dead weight, vague rules via subagent)
+2. F008: Session analysis (read ~/.claude/projects/ logs for repeated instructions, friction)
+3. Fix F5 false positives further (autosearch shows 128 broken refs — most are rule-text fragments)
+4. Plugin packaging (claude plugin add)
 **Plan**: `~/.claude/plans/hh-0402-product-launch.md`
