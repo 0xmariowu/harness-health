@@ -1,0 +1,233 @@
+{
+  "$schema": "harness-health/standards/v1",
+  "version": "0.1.0",
+  "sources": {
+    "anthropic-265": {
+      "name": "Anthropic Claude Code System Prompt Evolution",
+      "description": "265 sequential versions of Claude Code system prompt (v1.0.0 through v2.1.81)",
+      "url": "https://cchistory.mariozechner.at",
+      "type": "primary-data"
+    },
+    "ifscale": {
+      "name": "IFScale: Benchmarking Instruction-Following at Scale",
+      "citation": "Jaroslawicz et al., NeurIPS, arXiv:2507.11538",
+      "type": "peer-reviewed"
+    },
+    "eth-zurich": {
+      "name": "Evaluating AGENTS.md: Do Context Files Help Coding Agents?",
+      "citation": "Gloaguen et al., ETH Zurich, arXiv:2602.11988",
+      "type": "peer-reviewed"
+    },
+    "codified-context": {
+      "name": "Codified Context: How Structured AI Specifications Transform Agentic Software Development",
+      "citation": "Vasilopoulos, arXiv:2602.20478",
+      "type": "case-study",
+      "note": "n=1 case study, useful reference point not universal benchmark"
+    },
+    "agent-readmes": {
+      "name": "Agent READMEs: An Empirical Study of Documentation for LLM-Based Software Engineering Agents",
+      "citation": "Chatlatanagulchai et al., arXiv:2511.12884",
+      "type": "peer-reviewed"
+    },
+    "harness-engineering": {
+      "name": "Harness Engineering Guide",
+      "description": "Industry practice guide on building AI-friendly development environments",
+      "type": "industry-practice"
+    },
+    "openai-agents": {
+      "name": "OpenAI AGENTS.md Practice",
+      "description": "88 AGENTS.md files across OpenAI codebase, 6 core areas identified",
+      "type": "industry-practice"
+    },
+    "practical-audit": {
+      "name": "9-Project Dev Discipline Audit (2026-04-01)",
+      "description": "Cross-project audit finding real issues: broken references, empty-shell CI, stale docs",
+      "type": "first-party-data"
+    },
+    "claude-insights": {
+      "name": "Claude Code /insights Architecture",
+      "description": "Session log analysis for repeated instructions, friction detection, CLAUDE.md suggestions",
+      "type": "first-party-data"
+    }
+  },
+  "checks": {
+    "F1": {
+      "dimension": "findability",
+      "name": "Entry file exists",
+      "evidence_sources": ["anthropic-265", "openai-agents"],
+      "evidence_text": "Anthropic: CLAUDE.md is auto-loaded by Claude Code as the entry point. OpenAI: 88 AGENTS.md files, one per subsystem, each as a local entry point."
+    },
+    "F2": {
+      "dimension": "findability",
+      "name": "Entry file describes the project",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "AI-Friendly Standard: CLAUDE.md answers three questions — what is this, what can I do, what to read first. First paragraph must state what the project does."
+    },
+    "F3": {
+      "dimension": "findability",
+      "name": "Conditional loading guidance",
+      "evidence_sources": ["anthropic-265", "eth-zurich"],
+      "evidence_text": "Session Checklist ('if X → read Y') is the single most effective AI-friendly pattern. ETH Zurich found that generic repo overviews hurt performance — targeted loading helps."
+    },
+    "F4": {
+      "dimension": "findability",
+      "name": "Large directories have index",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Directories with >10 content files need INDEX for AI navigation. Without it, AI defaults to 'read everything' which fills context with irrelevant content."
+    },
+    "F5": {
+      "dimension": "findability",
+      "name": "All references resolve",
+      "evidence_sources": ["practical-audit", "codified-context"],
+      "evidence_text": "2026-04-01 audit found 12 broken references in project-a INDEX, 32 in external INDEX. Broken links waste AI tokens on dead-end file reads. Codified Context: stale references are a primary failure mode."
+    },
+    "F6": {
+      "dimension": "findability",
+      "name": "Predictable file naming",
+      "evidence_sources": ["openai-agents", "harness-engineering"],
+      "evidence_text": "Standard filenames (CLAUDE.md, AGENTS.md, README.md) are recognized by AI tools. Non-standard names require explicit documentation to be discovered."
+    },
+    "I1": {
+      "dimension": "instructions",
+      "name": "Emphasis keyword usage",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Across 265 versions: IMPORTANT 12→4, MUST 7→1, NEVER 4→1, VERY IMPORTANT 2→0 (eliminated). Keyword-imperative instructions dropped from 34% to 5% of the system prompt.",
+      "reference_values": {
+        "IMPORTANT": {"anthropic_start": 12, "anthropic_end": 4},
+        "MUST": {"anthropic_start": 7, "anthropic_end": 1},
+        "NEVER": {"anthropic_start": 4, "anthropic_end": 1},
+        "VERY_IMPORTANT": {"anthropic_start": 2, "anthropic_end": 0}
+      }
+    },
+    "I2": {
+      "dimension": "instructions",
+      "name": "Keyword density",
+      "evidence_sources": ["anthropic-265", "ifscale"],
+      "evidence_text": "Anthropic density: 7.5 rules/1K words (v1.0.0) → 1.4 (v2.1.81). IFScale: at 500 instructions, best model (Gemini 2.5 Pro) scores 68.9%, Claude Sonnet 42.9%. Every instruction weakens every other instruction.",
+      "reference_values": {
+        "anthropic_start": 7.5,
+        "anthropic_end": 1.4,
+        "unit": "keyword-marked rules per 1K words"
+      }
+    },
+    "I3": {
+      "dimension": "instructions",
+      "name": "Rule specificity",
+      "evidence_sources": ["anthropic-265", "agent-readmes"],
+      "evidence_text": "Anthropic converged on: 'Don't [anti-pattern]. Instead [correct]. Because [reason].' — the golden formula after 265 versions. Agent READMEs study: concrete instructions (F1=0.94) understood 2x better than abstract ones (F1=0.42)."
+    },
+    "I4": {
+      "dimension": "instructions",
+      "name": "Action-oriented organization",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Section titles evolved: Phase 1 'Tone and style' (identity) → Phase 2 'Professional objectivity' (attitude) → Phase 3 'Executing actions with care' (action). All identity sections were deleted."
+    },
+    "I5": {
+      "dimension": "instructions",
+      "name": "No identity language",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "'Following conventions' — an entire 12-line section telling the model to mimic code style — was deleted in v2.0.0. The model already does this without being told. Identity descriptions are dead weight."
+    },
+    "I6": {
+      "dimension": "instructions",
+      "name": "Entry file length",
+      "evidence_sources": ["anthropic-265", "codified-context", "ifscale"],
+      "evidence_text": "Anthropic main agent: 15K-22K token baseline. Codified Context: 660-line constitution (n=1 reference point). IFScale: compliance degrades beyond ~150 instructions. No single 'right' length — measure and compare.",
+      "reference_values": {
+        "anthropic_baseline_tokens": "15000-22000",
+        "codified_context_lines": 660,
+        "note": "Reference points, not thresholds"
+      }
+    },
+    "W1": {
+      "dimension": "workability",
+      "name": "Build/test commands documented",
+      "evidence_sources": ["openai-agents"],
+      "evidence_text": "GitHub analysis of 2500+ repos: 'Build and test commands' is one of the 6 core areas of effective AGENTS.md. AI cannot run what it cannot find."
+    },
+    "W2": {
+      "dimension": "workability",
+      "name": "CI exists",
+      "evidence_sources": ["harness-engineering"],
+      "evidence_text": "Harness Engineering: 'Put rules in CI mechanical checks, not just documentation.' CI is the enforcement mechanism."
+    },
+    "W3": {
+      "dimension": "workability",
+      "name": "Tests exist and are non-empty",
+      "evidence_sources": ["practical-audit"],
+      "evidence_text": "2026-04-01 audit: project-d had 'uv run pytest' in CI but 0 test files. CI always 'passed' because there was nothing to fail. Empty-shell CI creates false confidence."
+    },
+    "W4": {
+      "dimension": "workability",
+      "name": "Linter configured",
+      "evidence_sources": ["harness-engineering"],
+      "evidence_text": "Harness Engineering: 'Configure code format enforcement in CI.' Linters catch style issues mechanically so AI doesn't need to guess conventions."
+    },
+    "C1": {
+      "dimension": "continuity",
+      "name": "Document freshness",
+      "evidence_sources": ["codified-context", "harness-engineering"],
+      "evidence_text": "Codified Context: stale content is the #1 failure mode — 'not missing rules, but rules that were once correct and no longer are.' Harness Engineering: 'CI Job checks document freshness relative to code.'"
+    },
+    "C2": {
+      "dimension": "continuity",
+      "name": "Handoff information exists",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Anthropic: 'Structured progress files that let a new agent quickly understand the state of work.' Without handoff, every new session starts from zero."
+    },
+    "C3": {
+      "dimension": "continuity",
+      "name": "Changelog has why",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "'Updated INDEX.jsonl' tells a future session nothing. 'Fixed broken file path — entry referenced old directory structure' tells it what happened and whether it's relevant."
+    },
+    "C4": {
+      "dimension": "continuity",
+      "name": "Plans in repo",
+      "evidence_sources": ["harness-engineering"],
+      "evidence_text": "Harness Engineering: 'Plans in Jira, Confluence, Slack — for Agent, these don't exist.' Plans must be in the repo as first-class artifacts."
+    },
+    "D1": {
+      "dimension": "deep",
+      "name": "Contradictory rules",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "When the same rule exists at two levels with different wording, AI averages the signals instead of choosing one, producing unpredictable behavior."
+    },
+    "D2": {
+      "dimension": "deep",
+      "name": "Dead-weight rules",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Deletion test: 'Follow coding conventions' deleted because model already does this. Four conditions must hold: model can't self-derive, prevents real failure, has decision boundary, doesn't create worse edge cases."
+    },
+    "D3": {
+      "dimension": "deep",
+      "name": "Vague rules without decision boundary",
+      "evidence_sources": ["anthropic-265", "agent-readmes"],
+      "evidence_text": "'Follow security best practices' was deleted — no decision boundary. Agent READMEs: abstract instructions (F1=0.42) understood at half the rate of concrete ones (F1=0.94)."
+    },
+    "S1": {
+      "dimension": "session",
+      "name": "Repeated instructions",
+      "evidence_sources": ["claude-insights"],
+      "evidence_text": "Claude Code /insights: 'PRIORITIZE instructions that appear MULTIPLE TIMES in user data. If user told Claude the same thing in 2+ sessions, that's a PRIME candidate for CLAUDE.md.'"
+    },
+    "S2": {
+      "dimension": "session",
+      "name": "Ignored rules",
+      "evidence_sources": ["anthropic-265", "claude-insights"],
+      "evidence_text": "A rule that exists in CLAUDE.md but is repeatedly violated in sessions may be too abstract, poorly worded, or conflicting with another rule. Signal for rewriting, not deleting."
+    },
+    "S3": {
+      "dimension": "session",
+      "name": "Friction hotspots",
+      "evidence_sources": ["claude-insights"],
+      "evidence_text": "Claude Code /insights friction_analysis: categorized friction by type (misunderstood_request, wrong_approach, buggy_code, excessive_changes). File/directory level aggregation reveals structural issues."
+    },
+    "S4": {
+      "dimension": "session",
+      "name": "Missing rule suggestions",
+      "evidence_sources": ["claude-insights"],
+      "evidence_text": "Claude Code /insights claude_md_additions: 'A specific line or block to add to CLAUDE.md based on workflow patterns.' Derived from user corrections and repeated instructions."
+    }
+  }
+}

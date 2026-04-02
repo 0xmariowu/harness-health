@@ -1,0 +1,12 @@
+{
+  "name": "harness-health",
+  "version": "0.1.0",
+  "description": "Lighthouse for AI-Friendly repos — diagnose, plan, fix.",
+  "skills": [
+    {
+      "name": "hh",
+      "description": "Run Harness Health diagnostic. Use when: user says /hh, 'check my repo', 'harness health', 'AI-friendly check', or wants to improve their CLAUDE.md / AGENTS.md quality.",
+      "path": "skills/hh.md"
+    }
+  ]
+}

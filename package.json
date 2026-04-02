@@ -1,0 +1,29 @@
+{
+  "name": "harness-health",
+  "version": "0.1.0",
+  "description": "Lighthouse for AI-Friendly repos — diagnose, plan, fix. Claude Code plugin.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xmariowu/harness-health"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "ai-friendly",
+    "harness",
+    "health-check",
+    "claude-md",
+    "agents-md",
+    "developer-tools"
+  ],
+  "files": [
+    "src/",
+    "standards/",
+    "skills/",
+    "plugin.json"
+  ],
+  "bin": {
+    "hh-scan": "src/scanner.sh"
+  }
+}
