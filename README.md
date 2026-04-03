@@ -1,6 +1,6 @@
 # Harness Health
 
-**Check how well your repo supports AI coding agents.** One command: scan, score, fix.
+**Check if your repo is AI-friendly.** One command: scan, score, fix.
 
 20 evidence-backed checks across findability, instruction quality, workability, and continuity. Based on [Anthropic's 265 Claude Code system prompt versions](https://cchistory.mariozechner.at), academic research, and real-world audits.
 
