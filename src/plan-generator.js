@@ -342,15 +342,23 @@ function main() {
           ...item,
           projects: [item.project],
           item_ids: [item.id],
+          measured_values: [{ project: item.project, value: item.measured_value }],
           project_count: 1,
         };
       } else {
-        byCheck[item.check_id].projects.push(item.project);
-        byCheck[item.check_id].item_ids.push(item.id);
-        byCheck[item.check_id].project_count++;
-        byCheck[item.check_id].description =
-          `${byCheck[item.check_id].project_count} projects: ${byCheck[item.check_id].name}`;
-        byCheck[item.check_id].project = byCheck[item.check_id].projects.join(', ');
+        const merged = byCheck[item.check_id];
+        merged.projects.push(item.project);
+        merged.item_ids.push(item.id);
+        merged.measured_values.push({ project: item.project, value: item.measured_value });
+        merged.project_count++;
+        // Aggregate measured_value: sum for numbers, count for booleans
+        const numericValues = merged.measured_values
+          .map(v => typeof v.value === 'number' ? v.value : 0);
+        const totalMeasured = numericValues.reduce((a, b) => a + b, 0);
+        merged.measured_value = totalMeasured;
+        merged.description =
+          `${merged.project_count} projects: ${merged.name} (${totalMeasured} total)`;
+        merged.project = merged.projects.join(', ');
       }
     }
     return Object.values(byCheck);
