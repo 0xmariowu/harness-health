@@ -175,7 +175,7 @@ Clean up temp files.
 After Step 4, before Step 5, for each project with an entry file:
 
 ```bash
-tasks=$(node "$HH_DIR/src/deep-analyzer.js" --project-dir ~/Projects/project-a)
+tasks=$(node "$HH_DIR/src/deep-analyzer.js" --project-dir ~/Projects/my-project)
 ```
 
 For each task, spawn a subagent (model: sonnet):
