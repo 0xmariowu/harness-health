@@ -1,0 +1,26 @@
+{
+  "name": "harness-health",
+  "owner": {
+    "name": "0xmariowu"
+  },
+  "metadata": {
+    "description": "Lighthouse for AI-Friendly repos — diagnose, plan, fix.",
+    "version": "0.1.3"
+  },
+  "plugins": [
+    {
+      "name": "harness-health",
+      "source": "./",
+      "description": "Lighthouse for AI-Friendly repos — diagnose, plan, fix.",
+      "version": "0.1.3",
+      "author": {
+        "name": "0xmariowu"
+      },
+      "homepage": "https://github.com/0xmariowu/harness-health",
+      "repository": "https://github.com/0xmariowu/harness-health",
+      "license": "MIT",
+      "keywords": ["claude-code", "ai-friendly", "code-quality", "developer-tools"],
+      "category": "developer-tools"
+    }
+  ]
+}
