@@ -4,6 +4,49 @@
 
 Based on empirical evidence: [Anthropic's 265 versions of Claude Code system prompts](https://cchistory.mariozechner.at), 10 academic papers, and real-world audits across 9 production projects.
 
+## Install
+
+### As Claude Code plugin (recommended)
+
+Add to your `~/.claude/settings.json`:
+
+```json
+{
+  "enabledPlugins": {
+    "harness-health@harness-health": true
+  },
+  "extraKnownMarketplaces": {
+    "harness-health": {
+      "source": {
+        "source": "github",
+        "repo": "0xmariowu/harness-health"
+      }
+    }
+  }
+}
+```
+
+Then in Claude Code:
+
+```
+/hh
+```
+
+### Run directly (no install)
+
+```bash
+git clone https://github.com/0xmariowu/harness-health
+cd harness-health
+bash src/scanner.sh | node src/scorer.js
+```
+
+### Requirements
+
+- `bash` (macOS or Linux)
+- `jq` (for JSON processing)
+- `node` 20+ (for scoring and reports)
+- `gh` CLI (optional, for PR history checks)
+
 ## What it does
 
 ```
@@ -79,26 +122,6 @@ Four dimensions, 20 evidence-backed checks:
 - Detect instructions you repeat across sessions
 - Find rules that AI keeps ignoring
 - Identify friction hotspots by file/directory
-
-## Install
-
-```bash
-# Clone and use directly
-git clone https://github.com/0xmariowu/harness-health
-cd harness-health
-bash src/scanner.sh | node src/scorer.js
-
-# Or as Claude Code plugin (coming soon)
-claude plugin add harness-health
-/hh
-```
-
-### Requirements
-
-- `bash` (macOS or Linux)
-- `jq` (for JSON processing)
-- `node` (for scoring and reports)
-- `gh` CLI (optional, for PR history checks)
 
 ## Usage
 
