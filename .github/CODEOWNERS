@@ -1,0 +1,11 @@
+# Protect ownership rules
+/.github/CODEOWNERS @0xmariowu
+
+# CI/CD pipeline
+/.github/workflows/* @0xmariowu
+
+# Release pipeline
+/scripts/release* @0xmariowu
+
+# Project harness
+/CLAUDE.md @0xmariowu

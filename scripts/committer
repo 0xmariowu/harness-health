@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2059
+# committer — scoped atomic commit tool
+# Usage: scripts/committer [--dry-run] [-f|--force] "<message>" <file...>
+# Ensures each commit contains only explicitly listed files.
+
+set -euo pipefail
+
+RED='\033[0;31m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'
+DIM='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+
+die()  { printf "${RED}error:${NC} %s\n" "$*" >&2; exit 1; }
+warn() { printf "${YELLOW}warning:${NC} %s\n" "$*" >&2; }
+info() { printf "${GREEN}ok:${NC} %s\n" "$*"; }
+
+# --- Parse flags ---
+DRY_RUN=false; FORCE=false; ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run)       DRY_RUN=true ;;
+    -f|--force)      FORCE=true ;;
+    *)               ARGS+=("$arg") ;;
+  esac
+done
+
+[[ ${#ARGS[@]} -lt 2 ]] && die "usage: scripts/committer \"<message>\" <file...>"
+
+MSG="${ARGS[0]}"; FILES=("${ARGS[@]:1}")
+
+[[ -z "$MSG" ]] && die "commit message cannot be empty"
+
+# Guard against swapped args
+if [[ "$MSG" != *" "* ]] && [[ "$MSG" =~ \.(ts|js|py|md|json|sh|yml|yaml)$ || "$MSG" == */* ]]; then
+  die "first argument looks like a file path — put message first"
+fi
+
+# --- Block dangerous paths ---
+for file in "${FILES[@]}"; do
+  [[ "$file" == "." ]]            && die "refusing to stage '.' — list files explicitly"
+  [[ "$file" == .env* ]]          && die "refusing to stage '$file' — .env files blocked"
+  [[ "$file" == ".git" || "$file" == .git/* ]] && die "refusing to stage '$file' — .git/ blocked"
+  [[ "$file" == *node_modules* ]] && die "refusing to stage '$file' — node_modules blocked"
+  [[ "$file" == *__pycache__* ]]  && die "refusing to stage '$file' — __pycache__ blocked"
+  [[ "$file" == *.pyc ]]          && die "refusing to stage '$file' — .pyc files blocked"
+  [[ "$(basename "$file")" == .env* ]] && die "refusing to stage '$file' — .env files blocked"
+  if [[ ! -e "$file" ]] && ! git ls-files --error-unmatch "$file" &>/dev/null; then
+    die "file not found: $file"
+  fi
+done
+
+# --- Wait for git lock ---
+LOCK="$(git rev-parse --git-dir)/index.lock"
+if [[ -f "$LOCK" ]]; then
+  printf "${DIM}waiting for git lock...${NC}\n"
+  for i in $(seq 1 10); do
+    [[ ! -f "$LOCK" ]] && break
+    sleep 0.5
+    [[ $i -eq 10 ]] && die "index.lock still present after 5s"
+  done
+fi
+
+# --- Clean slate: unstage everything, then stage only our files ---
+git restore --staged :/ 2>/dev/null || true
+git add -- "${FILES[@]}"
+
+if git diff --cached --quiet; then
+  die "no changes staged — files may already match HEAD"
+fi
+
+# --- Smart warnings ---
+if [[ "$FORCE" == false ]]; then
+  W=()
+  [[ ${#FILES[@]} -gt 5 ]] && W+=("${#FILES[@]} files in one commit — is this one logical change?")
+  DIFF_LINES=$(git diff --cached --numstat | awk '{s+=$1+$2} END {print s+0}')
+  [[ "$DIFF_LINES" -gt 300 ]] && W+=("${DIFF_LINES} lines changed — consider splitting")
+
+  for w in "${W[@]+"${W[@]}"}"; do warn "$w"; done
+  (( ${#W[@]} > 0 )) && warn "use -f to suppress these warnings"
+fi
+
+# --- Dry run ---
+if [[ "$DRY_RUN" == true ]]; then
+  printf "${BOLD}dry run — would commit:${NC}\n"
+  printf "${DIM}message:${NC} %s\n\n" "$MSG"
+  git diff --cached --stat
+  git restore --staged :/ 2>/dev/null || true
+  exit 0
+fi
+
+# --- Commit ---
+PROJECT_COMMITTER=1 git commit -m "$MSG"
+info "committed \"$MSG\" with ${#FILES[@]} file(s)"
