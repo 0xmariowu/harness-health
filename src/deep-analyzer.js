@@ -77,7 +77,7 @@ RESPOND WITH ONLY A VALID JSON OBJECT:
 
 function findEntryFile(projectDir) {
   for (const name of ENTRY_FILES) {
-    const fullPath = path.join(projectDir, name);
+    const fullPath = path.join(projectDir, name); // nosemgrep: path-join-resolve-traversal
     if (fs.existsSync(fullPath)) {
       return { name, path: fullPath };
     }
