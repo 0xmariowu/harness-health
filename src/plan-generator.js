@@ -323,6 +323,7 @@ function sortItems(items) {
       fix_action: item.fix_action,
       measured_value: item.measured_value,
       reference_value: item.reference_value,
+      score: item.score,
     };
   });
 }
