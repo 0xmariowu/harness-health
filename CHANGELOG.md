@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.1.4 (2026-04-04)
+
+You can now see what needs fixing before choosing. Scanner finds nested repos.
+
+- Fix plan prints a readable summary before asking which items to fix (was hidden in collapsed output)
+- Scanner discovers projects up to 3 levels deep (was 1 — missed nested repos)
+- Fix: plan-generator now includes score in output items (was dropped, showed as -1)
+- Fix: severity thresholds in docs now match code (<0.5 = high)
+- Fix: 3 security workflows using nonexistent actions/checkout@v6
+- Fix: broken reference to docs/evidence-sources.md in README
+- Removed personal dev diary from experience/
+- Cleaned .gitignore, package.json, hardcoded paths
+- Upgraded issue templates to YAML form format
+- Added Dependabot grouped updates
+- Added 10 fixer.js tests (auto-fix, assisted, guided, backup)
+- Suppressed 17 Semgrep false positives (path-traversal on local CLI tool)
+- All CI checks green (24 tests, shellcheck, semgrep, gitleaks, trivy)
+
 ## v0.1.3 (2026-04-03)
 
 Fix: plugin was not discoverable — missing marketplace.json.
