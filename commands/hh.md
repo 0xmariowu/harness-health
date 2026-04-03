@@ -72,45 +72,53 @@ Run plan generator:
 node "$HH_DIR/src/plan-generator.js" /tmp/hh-scores.json > /tmp/hh-plan.json
 ```
 
-Read plan, **group by severity**, **merge similar items**, present via AskUserQuestion with **defaults**:
+Read `/tmp/hh-plan.json`. **First print the full plan as readable text**, then AskUserQuestion.
+
+**Step 5a: Print fix plan (no interaction)**
+
+Read the grouped items from the plan JSON and output a summary like this:
 
 ```
-📋 修复计划 — 50 项
+📋 Fix Plan — 47 items
 
-🔴 高优先 (12 项) ← 默认全选
-  
-  Findability:
-  ☑ [auto] 5 个项目有断链引用 (共 38 个)
-  ☑ [assisted] harness-health: 缺少入口文件
-  
-  Workability:
-  ☑ [guided] 3 个项目没有测试文件
-  ☑ [guided] 2 个项目没有 linter 配置
+🔴 High (39 items):
+  [auto] All references resolve — 10 projects (project-e, project-d, project-a, ...)
+  [assisted] Missing HANDOFF — project-e, project-g, project-b, project-i, project-h
+  [assisted] Missing plans directory — project-e, project-g, project-b, project-i, project-h
+  [guided] Missing tests — project-e, project-b, project-d
+  [guided] Missing linter config — project-e, harness-health, project-b, project-g, project-h
+  [guided] No build/test commands in entry file — project-d, harness-health, project-b, project-h
+  [auto] Identity language lines — project-g
+  [guided] Missing CI — project-e
 
-🟡 中优先 (18 项) ← 默认不选
-  
-  Instructions:
-  ☐ [guided] 4 个项目规则具体性 < 50%
-  ☐ [guided] project-f CLAUDE.md 150 行太长
-  
-  Continuity:
-  ☐ [assisted] 6 个项目没有 HANDOFF
-  ☐ [guided] 3 个项目文档 30+ 天没更新
+🟡 Medium (2 items):
+  [guided] Rule specificity < 50% — harness-health
+  [guided] Entry file too short — project-a
 
-⚪ 低优先 (20 项) ← 折叠，默认不选
-  ☐ 展开查看...
-
-[Enter to fix all high-priority items]
+⚪ Low (6 items):
+  [guided] Rule specificity — project-e, project-f, project-b, project-h
+  [guided] Entry file length — project-d, project-g, harness-health, project-h
+  [guided] Keyword density — project-f
 ```
 
-**Default: 高优先全选，中低不选。** User presses Enter → only fixes high priority.
+For each grouped item, show: `[fix_type] check name — project list`. Use the merged items from `plan.grouped.{severity}.items`. List all project names (from the `projects` array on merged items).
 
-Severity grouping logic:
-- 🔴 High: check score < 0.3
-- 🟡 Medium: check score 0.3 - 0.6
-- ⚪ Low: check score 0.6 - 0.8
+**Step 5b: AskUserQuestion**
 
-Merge similar items: group by check_id, show "5 projects have broken refs (38 total)" instead of 5 separate lines.
+After printing the plan, ask which items to fix:
+
+```
+Which items to fix?
+1. High priority only (Recommended) — {high_count} items
+2. High + Medium — {high_count + med_count} items
+3. All {total} items
+4. Skip fixes, just show report
+```
+
+Severity grouping logic (matches plan-generator.js `inferSeverity`):
+- 🔴 High: check score < 0.5
+- 🟡 Medium: check score 0.5 - 0.7
+- ⚪ Low: check score 0.7 - 0.8
 
 ### Step 6: Execute Fixes (no interaction)
 

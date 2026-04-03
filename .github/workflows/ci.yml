@@ -55,3 +55,4 @@ jobs:
           node tests/test-scorer.js
           node tests/test-plan-generator.js
           node tests/test-reporter.js
+          node tests/test-fixer.js
