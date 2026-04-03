@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.1 (2026-04-03)
+
+Bug fix: plugin format was wrong, users couldn't install from GitHub.
+
+- You can now install via `extraKnownMarketplaces` and it actually works
+- Fix: moved `plugin.json` to `.claude-plugin/plugin.json`
+- Fix: moved `skills/hh.md` to `skills/hh/SKILL.md` (directory format)
+- Fix: removed explicit skills array from plugin.json (auto-discovered)
+
 ## v0.1.0 (2026-04-03)
 
 First release. You can now:
