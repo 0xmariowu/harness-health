@@ -1,6 +1,6 @@
 ---
-name: hh
-description: "Run Harness Health diagnostic — check how AI-friendly your repos are, generate fix plan, execute fixes. Use when: user says /hh, 'check my repo', 'harness health', 'AI-friendly check', or wants to improve their CLAUDE.md / AGENTS.md."
+description: "Run Harness Health diagnostic across all projects. Use when: user says /hh, 'check all projects', 'harness health', or '体检'."
+allowed-tools: Bash(*), Read(*), Write(*), Edit(*), Glob(*), Grep(*), Agent(*)
 ---
 
 # /hh — Harness Health
