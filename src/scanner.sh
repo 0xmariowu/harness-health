@@ -203,8 +203,61 @@ should_skip_reference() {
       return 0 ;;
   esac
 
+  # Skip shell commands (contain spaces or known command prefixes)
+  if [[ "$ref" == *" "* ]]; then
+    return 0
+  fi
+
+  # Skip slash-separated lists (feat/fix/refactor/..., winning/losing)
+  local slash_count="${ref//[^\/]/}"
+  if [ "${#slash_count}" -ge 3 ] && [[ ! "$ref" == *"."* ]]; then
+    # 3+ slashes and no file extension = probably a list, not a path
+    return 0
+  fi
+
+  # Skip pure numeric fragments and version patterns (0.6, 10., 12., 3.11+, v2)
+  if [[ "$ref" =~ ^[0-9]+\.?[0-9]*\+?$ ]]; then
+    return 0
+  fi
+  if [[ "$ref" =~ ^v[0-9] ]]; then
+    return 0
+  fi
+
   # Skip very short fragments (likely not real paths)
   if [ "${#ref}" -le 2 ]; then
+    return 0
+  fi
+
+  # Skip glob patterns (*.json, *.md, platforms/*.md, genome/defaults/*.json)
+  if [[ "$ref" == *'*'* ]]; then
+    return 0
+  fi
+
+  # Skip external paths that reference outside the project
+  # (~/AIMD/*, ~/Armory/*, /Volumes/*)
+  case "$ref" in
+    "~/AIMD/"*|"~/Armory/"*|"~/armory/"*|"/Volumes/"*)
+      return 0 ;;
+    "~/Projects/"*|"~/projects/"*)
+      return 0 ;;
+    AIMD/*|Armory/*)
+      return 0 ;;
+  esac
+
+  # Skip words ending with punctuation (sentences, not paths)
+  case "$ref" in
+    *.|*,|*\;|*:|*\)|*\"|*\')
+      return 0 ;;
+  esac
+
+  # Skip known non-path words that contain dots or slashes
+  case "$ref" in
+    Node.js|node.js|Python.*|Java.*|TypeScript|Go.*|Rust.*)
+      return 0 ;;
+  esac
+
+  # Skip percentage patterns (1.9%, 51.6%)
+  if [[ "$ref" =~ ^[0-9]+\.[0-9]+% ]]; then
     return 0
   fi
 
@@ -279,9 +332,31 @@ resolve_reference_exists() {
     return 0
   elif [ -e "${project_dir}/${ref#./}" ]; then
     return 0
-  else
-    return 1
   fi
+
+  # For bare filenames (no /), search subdirectories by name
+  if [[ "$ref" != */* ]] && [[ "$ref" == *.* ]]; then
+    if find "$project_dir" -maxdepth 4 -name "$ref" -print -quit 2>/dev/null | grep -q .; then
+      return 0
+    fi
+  fi
+
+  # For relative paths with /, try matching the last component
+  if [[ "$ref" == */* ]] && [[ "$ref" != /* ]]; then
+    local basename="${ref##*/}"
+    if [ -n "$basename" ] && [[ "$basename" == *.* ]]; then
+      if find "$project_dir" -maxdepth 4 -name "$basename" -print -quit 2>/dev/null | grep -q .; then
+        return 0
+      fi
+    fi
+    # Also try the last directory component as a directory name
+    local dirname="${ref%%/*}"
+    if find "$project_dir" -maxdepth 3 -type d -name "$dirname" -print -quit 2>/dev/null | grep -q .; then
+      return 0
+    fi
+  fi
+
+  return 1
 }
 
 extract_command_matches() {

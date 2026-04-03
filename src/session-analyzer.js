@@ -266,27 +266,52 @@ function normalizeWords(value) {
   return normalizeText(value).replace(/[^a-z0-9 ]/g, ' ');
 }
 
+// System/noise patterns to filter from user messages
+const NOISE_PATTERNS = [
+  /^<[a-z-]+>/i,           // XML-like system tags (<task-notification>, <system-reminder>)
+  /^<\/[a-z-]+>/i,         // Closing tags
+  /^─{4,}/,                // Separator lines
+  /^={4,}/,                // Separator lines
+  /^-{4,}/,                // Separator lines
+  /^\*{4,}/,               // Separator lines
+  /^#{4,}\s*$/,            // Heading-only lines
+  /^UserPromptSubmit/,     // Hook output
+  /^SessionStart/,         // Hook output
+  /^OK$/,                  // Hook acknowledgment
+  /^Tool loaded/,          // System message
+];
+
+function isNoise(text) {
+  if (!text || text.length < 5) return true;
+  return NOISE_PATTERNS.some(p => p.test(text.trim()));
+}
+
 function extractMessageText(record) {
   if (!record || typeof record !== 'object') return '';
   const message = record.message;
   if (!message) return '';
 
   const content = message.content;
+  let text = '';
   if (typeof content === 'string') {
-    return content.trim();
-  }
-
-  if (Array.isArray(content)) {
+    text = content.trim();
+  } else if (Array.isArray(content)) {
     const chunks = [];
     for (const block of content) {
       if (block && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string') {
         chunks.push(block.text);
       }
     }
-    return chunks.join('\n').trim();
+    text = chunks.join('\n').trim();
   }
 
-  return '';
+  // Strip system-reminder blocks from text
+  text = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim();
+
+  // Filter noise
+  if (isNoise(text)) return '';
+
+  return text;
 }
 
 function detectRole(record) {
