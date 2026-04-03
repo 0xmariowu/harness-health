@@ -6,61 +6,21 @@
 
 ## Install
 
-### Step 1: Register the marketplace
-
-Add to your `~/.claude/settings.json`:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "harness-health": {
-      "source": {
-        "source": "github",
-        "repo": "0xmariowu/harness-health"
-      }
-    }
-  }
-}
-```
-
-### Step 2: Install the plugin
-
 ```bash
-claude plugin install harness-health
+curl -fsSL https://raw.githubusercontent.com/0xmariowu/harness-health/main/scripts/install.sh | bash
 ```
 
-### Step 3: Use it
-
-Start a new Claude Code session, then:
+Then start a new Claude Code session and run:
 
 ```
-/harness-health:hh
-```
-
-**Shortcut**: To use just `/hh`, create `~/.claude/commands/hh.md`:
-
-```markdown
----
-description: "Run Harness Health diagnostic"
----
-
-Run the `harness-health:hh` skill using the Skill tool.
-```
-
-### Run directly (no install)
-
-```bash
-git clone https://github.com/0xmariowu/harness-health
-cd harness-health
-bash src/scanner.sh | node src/scorer.js
+/hh
 ```
 
 ### Requirements
 
-- `bash` (macOS or Linux)
-- `jq` (for JSON processing)
-- `node` 20+ (for scoring and reports)
-- `gh` CLI (optional, for PR history checks)
+- Claude Code
+- `jq`
+- `node` 20+
 
 ## What it does
 
@@ -137,34 +97,6 @@ Four dimensions, 20 evidence-backed checks:
 - Detect instructions you repeat across sessions
 - Find rules that AI keeps ignoring
 - Identify friction hotspots by file/directory
-
-## Usage
-
-### Scan a single project
-
-```bash
-bash src/scanner.sh --project-dir ~/Projects/my-project | node src/scorer.js
-```
-
-### Scan all projects
-
-```bash
-export PROJECTS_ROOT=~/Projects
-bash src/scanner.sh | node src/scorer.js
-```
-
-### Generate fix plan
-
-```bash
-bash src/scanner.sh | node src/scorer.js > scores.json
-node src/plan-generator.js scores.json
-```
-
-### Terminal report
-
-```bash
-node src/reporter.js scores.json
-```
 
 ## How scoring works
 
