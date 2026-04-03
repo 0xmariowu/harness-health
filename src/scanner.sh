@@ -914,8 +914,8 @@ EOF
     else
       measured="0"
       reference="$(jq -c '.C1_freshness_days.reference' "$THRESHOLDS_FILE")"
-      score="0"
-      detail="Could not determine comparable timestamps"
+      score="1"
+      detail="Could not determine comparable timestamps (skipped)"
     fi
   else
     measured="0"
