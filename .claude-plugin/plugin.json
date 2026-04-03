@@ -1,6 +1,6 @@
 {
   "name": "harness-health",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lighthouse for AI-Friendly repos — diagnose, plan, fix.",
   "author": {
     "name": "0xmariowu"
@@ -15,12 +15,5 @@
     "harness-health",
     "developer-tools",
     "code-quality"
-  ],
-  "skills": [
-    {
-      "name": "hh",
-      "description": "Run Harness Health diagnostic across all projects. Use when: user says /hh, 'check all projects', 'harness health', or '体检'.",
-      "path": "skills/hh.md"
-    }
   ]
 }
