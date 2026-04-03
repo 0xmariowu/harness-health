@@ -41,16 +41,9 @@ Press Enter → uses `~/Projects`. Save to `~/.hh/config.json`. Never ask again.
 ### Step 3: Scan + Score (no interaction)
 
 ```bash
-HH_DIR="$(find_hh_install_dir)"
+HH_DIR="${CLAUDE_PLUGIN_ROOT}"
 bash "$HH_DIR/src/scanner.sh" > /tmp/hh-scan.jsonl
 node "$HH_DIR/src/scorer.js" /tmp/hh-scan.jsonl > /tmp/hh-scores.json
-```
-
-Finding the install directory:
-```bash
-for dir in "$HOME/.claude/plugins/"*/harness-health "$HOME/Projects/harness-health"; do
-  [ -f "$dir/src/scanner.sh" ] && HH_DIR="$dir" && break
-done
 ```
 
 ### Step 4: Present Scores (no interaction)
