@@ -2,8 +2,8 @@
 
 set -u
 
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH='' cd -- "${SCRIPT_DIR}/.." && pwd)"
 EVIDENCE_FILE="${REPO_ROOT}/standards/evidence.json"
 THRESHOLDS_FILE="${REPO_ROOT}/standards/reference-thresholds.json"
 
@@ -235,6 +235,7 @@ should_skip_reference() {
 
   # Skip external paths that reference outside the project
   # (~/AIMD/*, ~/Armory/*, /Volumes/*)
+  # shellcheck disable=SC2088 — matching literal ~ in file references, not expanding
   case "$ref" in
     "~/AIMD/"*|"~/Armory/"*|"~/armory/"*|"/Volumes/"*)
       return 0 ;;
@@ -274,8 +275,7 @@ looks_like_reference() {
   case "$ref" in
     ./*|../*|/*) return 0 ;;
     */*) return 0 ;;
-    *.*) return 0 ;;
-    .[A-Za-z0-9_-]*) return 0 ;;
+    .[A-Za-z0-9_-]*|*.*) return 0 ;;
   esac
 
   return 1
@@ -362,7 +362,6 @@ resolve_reference_exists() {
 extract_command_matches() {
   local entry_file="$1"
   local contents=""
-  local results=""
   local -a commands=()
 
   contents="$(lower_text "$(cat "$entry_file")")"
@@ -673,10 +672,10 @@ EOF
   emit_result "$project_name" "F6" "$measured" "null" "$score" "$detail"
 
   if [ -n "$entry_abs" ]; then
-    count_important="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -x 'IMPORTANT' | wc -l | tr -d '[:space:]')"
-    count_never="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -x 'NEVER' | wc -l | tr -d '[:space:]')"
-    count_must="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -x 'MUST' | wc -l | tr -d '[:space:]')"
-    count_critical="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -x 'CRITICAL' | wc -l | tr -d '[:space:]')"
+    count_important="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'IMPORTANT')"
+    count_never="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'NEVER')"
+    count_must="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'MUST')"
+    count_critical="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'CRITICAL')"
     measured="$(jq -cn \
       --argjson IMPORTANT "$count_important" \
       --argjson NEVER "$count_never" \
@@ -738,7 +737,7 @@ EOF
   if [ -n "$entry_abs" ]; then
     i=0
     while IFS= read -r file || [ -n "$file" ]; do
-      lines[$i]="$file"
+      lines[i]="$file"
       i=$((i + 1))
     done < "$entry_abs"
 
@@ -1033,7 +1032,7 @@ main() {
       printf '%s\n' "Project directory not found: $project_dir" >&2
       exit 1
     fi
-    scan_project "$(CDPATH= cd -- "$project_dir" && pwd)"
+    scan_project "$(CDPATH='' cd -- "$project_dir" && pwd)"
     exit 0
   fi
 
