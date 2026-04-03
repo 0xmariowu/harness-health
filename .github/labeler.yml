@@ -28,5 +28,6 @@ docs:
 plugin:
   - changed-files:
       - any-glob-to-any-file:
-          - 'plugin.json'
+          - '.claude-plugin/**'
+          - 'commands/**'
           - 'skills/**'
