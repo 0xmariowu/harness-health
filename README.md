@@ -6,15 +6,12 @@ Based on empirical evidence: [Anthropic's 265 versions of Claude Code system pro
 
 ## Install
 
-### As Claude Code plugin (recommended)
+### Step 1: Register the marketplace
 
 Add to your `~/.claude/settings.json`:
 
 ```json
 {
-  "enabledPlugins": {
-    "harness-health@harness-health": true
-  },
   "extraKnownMarketplaces": {
     "harness-health": {
       "source": {
@@ -26,10 +23,28 @@ Add to your `~/.claude/settings.json`:
 }
 ```
 
-Then in Claude Code:
+### Step 2: Install the plugin
+
+```bash
+claude plugin install harness-health
+```
+
+### Step 3: Use it
+
+Start a new Claude Code session, then:
 
 ```
-/hh
+/harness-health:hh
+```
+
+**Shortcut**: To use just `/hh`, create `~/.claude/commands/hh.md`:
+
+```markdown
+---
+description: "Run Harness Health diagnostic"
+---
+
+Run the `harness-health:hh` skill using the Skill tool.
 ```
 
 ### Run directly (no install)
