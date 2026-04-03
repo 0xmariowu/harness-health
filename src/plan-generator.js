@@ -333,7 +333,9 @@ function main() {
     grouped[item.severity].push(item);
   }
 
-  // Merge: group items with same check_id across projects
+  // Checks where summing measured_value makes sense (counts of things)
+  const SUMMABLE_CHECKS = new Set(['F5', 'W2', 'W3']);
+
   function mergeItems(itemList) {
     const byCheck = {};
     for (const item of itemList) {
@@ -342,23 +344,29 @@ function main() {
           ...item,
           projects: [item.project],
           item_ids: [item.id],
-          measured_values: [{ project: item.project, value: item.measured_value }],
+          per_project: [{ project: item.project, measured_value: item.measured_value, description: item.description }],
           project_count: 1,
         };
       } else {
         const merged = byCheck[item.check_id];
         merged.projects.push(item.project);
         merged.item_ids.push(item.id);
-        merged.measured_values.push({ project: item.project, value: item.measured_value });
+        merged.per_project.push({ project: item.project, measured_value: item.measured_value, description: item.description });
         merged.project_count++;
-        // Aggregate measured_value: sum for numbers, count for booleans
-        const numericValues = merged.measured_values
-          .map(v => typeof v.value === 'number' ? v.value : 0);
-        const totalMeasured = numericValues.reduce((a, b) => a + b, 0);
-        merged.measured_value = totalMeasured;
-        merged.description =
-          `${merged.project_count} projects: ${merged.name} (${totalMeasured} total)`;
         merged.project = merged.projects.join(', ');
+
+        // Build description based on check type
+        if (SUMMABLE_CHECKS.has(item.check_id)) {
+          const total = merged.per_project
+            .map(p => typeof p.measured_value === 'number' ? p.measured_value : 0)
+            .reduce((a, b) => a + b, 0);
+          merged.measured_value = total;
+          merged.description = `${merged.project_count} projects: ${merged.name} (${total} total)`;
+        } else {
+          // Non-summable: just show project count, keep per_project for detail
+          merged.description = `${merged.project_count} projects: ${merged.name}`;
+          merged.measured_value = merged.project_count;
+        }
       }
     }
     return Object.values(byCheck);
