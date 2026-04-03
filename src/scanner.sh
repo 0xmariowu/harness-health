@@ -195,11 +195,7 @@ should_skip_reference() {
   case "$ref" in
     .env*|__pycache__*|node_modules*|.git/*)
       return 0 ;;
-    *'`'*|*')'*|*'('*)
-      return 0 ;;
-    -A*|-a*|--*)
-      return 0 ;;
-    *.md,*|*.,|*.\`)
+    *'`'*|*')'*|*'('*|-A*|-a*|--*|*.md,*|*.,)
       return 0 ;;
   esac
 
@@ -235,7 +231,7 @@ should_skip_reference() {
 
   # Skip external paths that reference outside the project
   # (~/external/*, ~/external/*, /Volumes/*)
-  # shellcheck disable=SC2088 — matching literal ~ in file references, not expanding
+  # shellcheck disable=SC2088
   case "$ref" in
     "~/external/"*|"~/external/"*|"~/external/"*|"/Volumes/"*)
       return 0 ;;
