@@ -341,12 +341,13 @@ function main() {
         byCheck[item.check_id] = {
           ...item,
           projects: [item.project],
+          item_ids: [item.id],
           project_count: 1,
         };
       } else {
         byCheck[item.check_id].projects.push(item.project);
+        byCheck[item.check_id].item_ids.push(item.id);
         byCheck[item.check_id].project_count++;
-        // Update description to reflect multiple projects
         byCheck[item.check_id].description =
           `${byCheck[item.check_id].project_count} projects: ${byCheck[item.check_id].name}`;
         byCheck[item.check_id].project = byCheck[item.check_id].projects.join(', ');
