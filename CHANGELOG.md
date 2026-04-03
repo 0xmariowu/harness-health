@@ -1,8 +1,17 @@
 # Changelog
 
+## v0.1.2 (2026-04-03)
+
+Fix: `/hh` is a user command, not an internal skill.
+
+- You can now `/hh` in any Claude Code session after install
+- Fix: moved `skills/hh/SKILL.md` → `commands/hh.md` (command = user-invocable, skill = internal)
+- Fix: simplified plugin.json to match official plugins (name + description + author only)
+- Fix: added `allowed-tools` to command frontmatter
+
 ## v0.1.1 (2026-04-03)
 
-Bug fix: plugin format was wrong, users couldn't install from GitHub.
+Fix: plugin format was wrong, users couldn't install from GitHub.
 
 - You can now install via `extraKnownMarketplaces` and it actually works
 - Fix: moved `plugin.json` to `.claude-plugin/plugin.json`
