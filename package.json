@@ -1,7 +1,7 @@
 {
   "name": "harness-health",
-  "version": "0.1.0",
-  "description": "Lighthouse for AI-Friendly repos — diagnose, plan, fix. Claude Code plugin.",
+  "version": "0.1.4",
+  "description": "Check how well your repo supports AI coding agents.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,8 +20,8 @@
   "files": [
     "src/",
     "standards/",
-    "skills/",
-    "plugin.json"
+    "commands/",
+    ".claude-plugin/"
   ],
   "bin": {
     "hh-scan": "src/scanner.sh"
