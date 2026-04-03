@@ -12,13 +12,21 @@ const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
 
 const CHECK_FIX_ACTIONS = {
   F1: 'Generate CLAUDE.md from template',
+  F4: 'Add INDEX file for navigation',
   F5: 'Remove broken references',
+  F6: 'Add missing standard files (README.md, CHANGELOG.md)',
   I1: 'Review IMPORTANT/NEVER usage. Anthropic reduced from N to M.',
   I3: "Rewrite vague rules using Don't/Instead/Because formula",
   I5: 'Remove identity language lines',
+  I6: 'Review entry file length',
+  W1: 'Add build/test commands to entry file',
+  W2: 'Add CI workflows',
   W3: 'Add test files',
+  W4: 'Add linter/formatter configuration',
   C1: 'Review entry file for outdated rules',
   C2: 'Generate HANDOFF.md',
+  C3: 'Create CHANGELOG.md',
+  C4: 'Create plans directory',
 };
 
 const ASSISTED_FIXES = new Set(['F1', 'C2']);
@@ -363,9 +371,9 @@ function main() {
           merged.measured_value = total;
           merged.description = `${merged.project_count} projects: ${merged.name} (${total} total)`;
         } else {
-          // Non-summable: just show project count, keep per_project for detail
-          merged.description = `${merged.project_count} projects: ${merged.name}`;
-          merged.measured_value = merged.project_count;
+          // Non-summable: describe what's MISSING (this is a fix plan, items failed)
+          merged.description = `${merged.project_count} projects need: ${merged.fix_action || merged.name}`;
+          // Don't overwrite measured_value — keep per_project for detail
         }
       }
     }
