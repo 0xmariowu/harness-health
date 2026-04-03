@@ -1,8 +1,8 @@
 # Harness Health
 
-**Lighthouse for AI-Friendly repos.** Check how well your codebase supports AI coding agents. Diagnose, plan, fix — one command.
+**Check how well your repo supports AI coding agents.** One command: scan, score, fix.
 
-Based on empirical evidence: [Anthropic's 265 versions of Claude Code system prompts](https://cchistory.mariozechner.at), 10 academic papers, and real-world audits across 9 production projects.
+20 evidence-backed checks across findability, instruction quality, workability, and continuity. Based on [Anthropic's 265 Claude Code system prompt versions](https://cchistory.mariozechner.at), academic research, and real-world audits.
 
 ## Install
 
@@ -190,7 +190,7 @@ Every check is backed by empirical data:
 - **Agent READMEs** (arXiv:2511.12884) — Concrete vs abstract instruction effectiveness
 - **Harness Engineering Guide** — Industry practice for AI-friendly environments
 
-Full citations in `docs/evidence-sources.md`.
+Full citations in `standards/evidence.json`.
 
 ## License
 

@@ -1,6 +1,6 @@
 {
   "name": "harness-health",
-  "description": "Lighthouse for AI-Friendly repos — diagnose, plan, fix.",
+  "description": "Check how well your repo supports AI coding agents.",
   "author": {
     "name": "0xmariowu"
   }
