@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.3 (2026-04-03)
+
+Fix: plugin was not discoverable — missing marketplace.json.
+
+- You can now actually install with `extraKnownMarketplaces` + `enabledPlugins`
+- Fix: added `.claude-plugin/marketplace.json` (tells Claude Code this repo is a marketplace with a plugin)
+
 ## v0.1.2 (2026-04-03)
 
 Fix: `/hh` is a user command, not an internal skill.
