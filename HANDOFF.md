@@ -1,11 +1,10 @@
 # Handoff
 
 ## main (updated 2026-04-03)
-**What**: Harness Health — full pipeline working (scan → score → plan → fix → report)
-**Where**: F001-F006 + F009 + F010 done. F007 (AI deep) + F008 (session analysis) remain.
+**What**: Harness Health v0.1.0 — full pipeline + plugin + CI + tests + docs
+**Where**: All features complete. Plugin registered in settings.json. CI workflows live. 14 tests passing.
 **Next**:
-1. F007: AI deep analysis (contradictions, dead weight, vague rules via subagent)
-2. F008: Session analysis (read ~/.claude/projects/ logs for repeated instructions, friction)
-3. Fix F5 false positives further (autosearch shows 128 broken refs — most are rule-text fragments)
-4. Plugin packaging (claude plugin add)
-**Plan**: `~/.claude/plans/hh-0402-product-launch.md`
+1. Tag v0.1.0 and push — release workflow creates GitHub Release
+2. Verify plugin loads in fresh Claude Code session (`/hh` works)
+3. Improve scanner: shellcheck compliance, reduce F5 false positives further
+4. AI Deep Analysis + Session Analysis need real-world validation
