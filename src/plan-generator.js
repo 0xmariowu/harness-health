@@ -327,10 +327,45 @@ function main() {
   const extracted = extractChecks(parsed, evidence, templates);
   const items = sortItems(extracted);
 
-  process.stdout.write(JSON.stringify({
+  // Group by severity + merge similar items
+  const grouped = { high: [], medium: [], low: [] };
+  for (const item of items) {
+    grouped[item.severity].push(item);
+  }
+
+  // Merge: group items with same check_id across projects
+  function mergeItems(itemList) {
+    const byCheck = {};
+    for (const item of itemList) {
+      if (!byCheck[item.check_id]) {
+        byCheck[item.check_id] = {
+          ...item,
+          projects: [item.project],
+          project_count: 1,
+        };
+      } else {
+        byCheck[item.check_id].projects.push(item.project);
+        byCheck[item.check_id].project_count++;
+        // Update description to reflect multiple projects
+        byCheck[item.check_id].description =
+          `${byCheck[item.check_id].project_count} projects: ${byCheck[item.check_id].name}`;
+        byCheck[item.check_id].project = byCheck[item.check_id].projects.join(', ');
+      }
+    }
+    return Object.values(byCheck);
+  }
+
+  const output = {
     total_items: items.length,
-    items,
-  }, null, 2));
+    grouped: {
+      high: { count: grouped.high.length, items: mergeItems(grouped.high), default_selected: true },
+      medium: { count: grouped.medium.length, items: mergeItems(grouped.medium), default_selected: false },
+      low: { count: grouped.low.length, items: mergeItems(grouped.low), default_selected: false },
+    },
+    items, // full flat list for fixer.js
+  };
+
+  process.stdout.write(JSON.stringify(output, null, 2));
   process.stdout.write('\n');
 }
 
