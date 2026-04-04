@@ -17,7 +17,7 @@ New brand, new command: `/al`.
 - New name: AgentLint. Command: `/al`
 - New: HTML report with radar chart, dimension bars, before/after comparison (`--format html`)
 - New: `--before` flag for reporter to show fix delta
-- New: 5 checks from Claude Code source analysis (I7, F7, W5, W6, C5) — total 25 checks
+- New: 5 checks from Claude Code behavior analysis (I7, F7, W5, W6, C5) — total 25 checks
 - New: SessionStart hook checks jq + node on startup
 - New: `${CLAUDE_PLUGIN_DATA}` for persistent config/reports
 - New: version sync + `scripts/bump-version.sh`

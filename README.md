@@ -54,7 +54,7 @@ The problem: **nobody knows what makes a repo AI-friendly.** Until now.
 AgentLint is built on data from places most developers never look:
 
 - **265 versions** of Anthropic's own Claude Code system prompt — we tracked every word they added, deleted, and rewrote
-- **Claude Code source code** — we found the hard limits (40K char max, 256KB file read limit, pre-commit hook behavior) that silently break your setup
+- **Claude Code internals** — we found the hard limits (40K char max, 256KB file read limit, pre-commit hook behavior) that silently break your setup
 - **Real production audits** across open-source codebases — finding the security gaps AI agents walk into
 - **6 academic papers** on instruction-following, context file effectiveness, and documentation decay
 
@@ -157,7 +157,7 @@ Every check cites its source. No opinions, no best practices — data.
 | Source | Type |
 |--------|------|
 | [Anthropic 265 versions](https://cchistory.mariozechner.at) | Primary dataset |
-| Claude Code source code | Hard limits and internal behavior |
+| Claude Code internals | Hard limits and observed behavior |
 | [IFScale](https://arxiv.org/abs/2507.11538) (NeurIPS) | Instruction compliance at scale |
 | [ETH Zurich](https://arxiv.org/abs/2602.11988) | Do context files help coding agents? |
 | [Codified Context](https://arxiv.org/abs/2602.20478) | Stale content as #1 failure mode |
