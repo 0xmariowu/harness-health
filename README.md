@@ -55,7 +55,7 @@ AgentLint is built on data from places most developers never look:
 
 - **265 versions** of Anthropic's own Claude Code system prompt — we tracked every word they added, deleted, and rewrote
 - **Claude Code source code** — we found the hard limits (40K char max, 256KB file read limit, pre-commit hook behavior) that silently break your setup
-- **4,533 real repos** analyzed — 58% use floating Action tags, 92% have no SECURITY.md, 1% have `.env` committed
+- **Real production audits** across open-source codebases — finding the security gaps AI agents walk into
 - **6 academic papers** on instruction-following, context file effectiveness, and documentation decay
 
 ## What it checks
