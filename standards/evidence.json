@@ -193,6 +193,42 @@
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Claude Code source: CLAUDE.local.md is for per-user private preferences. If tracked in git, all team members share private overrides. CC's /init explicitly recommends adding it to .gitignore."
     },
+    "S1": {
+      "dimension": "safety",
+      "name": "Env files gitignored",
+      "evidence_sources": ["anthropic-265", "practical-audit"],
+      "evidence_text": "Claude Code source: Glob tool defaults to CLAUDE_CODE_GLOB_NO_IGNORE=true, meaning .env files are visible to AI even if gitignored at grep level. Corpus analysis: 57 of 4533 repos have .env committed to git."
+    },
+    "S2": {
+      "dimension": "safety",
+      "name": "Actions SHA pinned",
+      "evidence_sources": ["practical-audit"],
+      "evidence_text": "Corpus analysis: 58% of repos use floating tags for GitHub Actions. A compromised tag can steal CI secrets when AI pushes code. SHA pinning makes actions immutable."
+    },
+    "S3": {
+      "dimension": "safety",
+      "name": "Secret scanning configured",
+      "evidence_sources": ["practical-audit"],
+      "evidence_text": "Corpus analysis: 98% of repos have no gitleaks config or pre-commit secret scanning. AI agents don't self-check for accidentally written secrets."
+    },
+    "S4": {
+      "dimension": "safety",
+      "name": "Security policy exists",
+      "evidence_sources": ["practical-audit"],
+      "evidence_text": "Corpus analysis: 92% of repos have no SECURITY.md. Without it, AI has no reference for security-sensitive decisions and users have no vulnerability reporting channel."
+    },
+    "S5": {
+      "dimension": "safety",
+      "name": "Workflow permissions minimized",
+      "evidence_sources": ["practical-audit"],
+      "evidence_text": "Workflow-level contents:write grants write access to every job. AI-triggered workflows should use job-level permissions with minimal scope."
+    },
+    "S6": {
+      "dimension": "safety",
+      "name": "No hardcoded secrets",
+      "evidence_sources": ["practical-audit"],
+      "evidence_text": "Hardcoded API keys, tokens, and private keys in source code are the most common credential leak vector. AI agents may copy-paste patterns with embedded secrets."
+    },
     "I7": {
       "dimension": "instructions",
       "name": "Entry file size within limit",

@@ -27,6 +27,12 @@ const CHECK_FIX_ACTIONS = {
   C2: 'Generate HANDOFF.md',
   C3: 'Create CHANGELOG.md',
   C4: 'Create plans directory',
+  S1: 'Add .env to .gitignore',
+  S2: 'Pin GitHub Actions to SHA commits',
+  S3: 'Add gitleaks pre-commit hook or CI workflow',
+  S4: 'Create SECURITY.md with vulnerability reporting instructions',
+  S5: 'Move workflow permissions from workflow level to job level',
+  S6: 'Remove hardcoded secrets and use environment variables',
 };
 
 const ASSISTED_FIXES = new Set(['F1', 'C2']);

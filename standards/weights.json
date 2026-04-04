@@ -1,15 +1,17 @@
 {
   "dimensions": {
-    "findability": {"weight": 0.25, "max_score": 10},
-    "instructions": {"weight": 0.35, "max_score": 10},
+    "findability": {"weight": 0.20, "max_score": 10},
+    "instructions": {"weight": 0.30, "max_score": 10},
     "workability": {"weight": 0.20, "max_score": 10},
-    "continuity": {"weight": 0.20, "max_score": 10}
+    "continuity": {"weight": 0.15, "max_score": 10},
+    "safety": {"weight": 0.15, "max_score": 10}
   },
   "check_weights": {
     "F1": 3, "F2": 1, "F3": 2, "F4": 1, "F5": 2, "F6": 1, "F7": 2,
     "I1": 1, "I2": 2, "I3": 2, "I4": 1, "I5": 1, "I6": 1, "I7": 2,
     "W1": 3, "W2": 1, "W3": 2, "W4": 1, "W5": 2, "W6": 1,
-    "C1": 3, "C2": 2, "C3": 1, "C4": 1, "C5": 1
+    "C1": 3, "C2": 2, "C3": 1, "C4": 1, "C5": 1,
+    "S1": 2, "S2": 2, "S3": 1, "S4": 1, "S5": 1, "S6": 3
   },
-  "note": "Instructions weight highest (0.35) — unique selling point. W1 (build/test commands) highest in workability — AI can't work without knowing how to run things."
+  "note": "Instructions heaviest (0.30) — unique value. Safety (0.15) — AI agent security posture. S6 (hardcoded secrets) weighted highest — most dangerous."
 }

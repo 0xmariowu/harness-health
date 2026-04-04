@@ -45,7 +45,7 @@ runTest('dimension scores use weighted averages and total score is out of 100', 
 
   assert.equal(output.dimensions.findability.score, 8);
   assert.equal(output.dimensions.workability.score, 3);
-  assert.equal(output.total_score, 26);
+  assert.equal(output.total_score, 22);
 });
 
 runTest('per-project breakdown exists and retains project checks', () => {
@@ -82,7 +82,7 @@ runTest('unknown check prefixes are ignored without crashing', () => {
     { check_id: 'F1', project: 'ignored', score: 1, name: 'Entry file', measured_value: 1 },
   ]);
 
-  assert.equal(output.total_score, 25);
+  assert.equal(output.total_score, 20);
   assert.equal(output.by_project.ignored.findability.checks.length, 1);
   assert.equal(output.by_project.ignored.findability.checks[0].check_id, 'F1');
 });

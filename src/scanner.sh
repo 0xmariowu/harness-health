@@ -759,7 +759,7 @@ EOF
     measured="$ratio"
     reference="$(jq -c '.I3_formula_ratio.reference' "$THRESHOLDS_FILE")"
     score="$(score_ratio "$ratio")"
-    detail="Found ${dont_with_because} '- Don'\''t' rules with 'Because:' within 3 lines out of ${dont_total}"
+    detail="Found ${dont_with_because} Dont/Because rules out of ${dont_total} total"
   else
     measured="0"
     reference="$(jq -c '.I3_formula_ratio.reference' "$THRESHOLDS_FILE")"
@@ -1076,6 +1076,123 @@ EOF
     fi
   else
     emit_result "$project_name" "W6" "0" "10" "1" "No pre-commit hook (OK)"
+  fi
+
+  # S1 — .env in .gitignore
+  local env_gitignored=false
+  local env_tracked=false
+  if [ -f "${project_dir}/.gitignore" ] && grep -qE '^\.env' "${project_dir}/.gitignore" 2>/dev/null; then
+    env_gitignored=true
+  fi
+  if git -C "$project_dir" ls-files --error-unmatch ".env" >/dev/null 2>&1; then
+    env_tracked=true
+  fi
+  if [ "$env_tracked" = true ]; then
+    emit_result "$project_name" "S1" "true" "null" "0" ".env is tracked in git — secrets may be exposed"
+  elif [ "$env_gitignored" = true ]; then
+    emit_result "$project_name" "S1" "true" "null" "1" ".env is in .gitignore (good)"
+  else
+    emit_result "$project_name" "S1" "false" "null" "0" ".env is not in .gitignore — AI tools may expose secrets"
+  fi
+
+  # S2 — GitHub Actions SHA pinned
+  local wf_dir="${project_dir}/.github/workflows"
+  local wf_total=0
+  local wf_pinned=0
+  if [ -d "$wf_dir" ]; then
+    while IFS= read -r wf_file; do
+      [ -z "$wf_file" ] && continue
+      while IFS= read -r uses_line; do
+        [ -z "$uses_line" ] && continue
+        wf_total=$((wf_total + 1))
+        # SHA pin = 40-char hex after @
+        if printf '%s' "$uses_line" | grep -qE '@[0-9a-f]{40}'; then
+          wf_pinned=$((wf_pinned + 1))
+        fi
+      done <<USES
+$(grep -E '^\s*uses:\s' "$wf_file" 2>/dev/null | grep -v '#.*uses:')
+USES
+    done <<WF
+$(find "$wf_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null)
+WF
+  fi
+  if [ "$wf_total" -eq 0 ]; then
+    emit_result "$project_name" "S2" "0" "null" "1" "No GitHub Actions (OK)"
+  elif [ "$wf_pinned" -eq "$wf_total" ]; then
+    emit_result "$project_name" "S2" "$wf_pinned" "$wf_total" "1" "All ${wf_total} action references are SHA-pinned"
+  else
+    local wf_ratio
+    wf_ratio="$(awk -v p="$wf_pinned" -v t="$wf_total" 'BEGIN { print p / t }')"
+    emit_result "$project_name" "S2" "$wf_pinned" "$wf_total" "$wf_ratio" "${wf_pinned}/${wf_total} action references are SHA-pinned"
+  fi
+
+  # S3 — Secret scanning configured
+  local has_secret_scan=false
+  if [ -f "${project_dir}/.gitleaks.toml" ]; then
+    has_secret_scan=true
+  elif [ -f "${project_dir}/.pre-commit-config.yaml" ] && grep -q 'gitleaks' "${project_dir}/.pre-commit-config.yaml" 2>/dev/null; then
+    has_secret_scan=true
+  elif [ -d "$wf_dir" ] && grep -rl 'gitleaks' "$wf_dir" >/dev/null 2>&1; then
+    has_secret_scan=true
+  fi
+  if [ "$has_secret_scan" = true ]; then
+    emit_result "$project_name" "S3" "true" "null" "1" "Secret scanning configured"
+  else
+    emit_result "$project_name" "S3" "false" "null" "0" "No secret scanning (gitleaks or pre-commit) configured"
+  fi
+
+  # S4 — SECURITY.md exists
+  if [ -f "${project_dir}/SECURITY.md" ] && [ -s "${project_dir}/SECURITY.md" ]; then
+    emit_result "$project_name" "S4" "true" "null" "1" "SECURITY.md exists"
+  else
+    emit_result "$project_name" "S4" "false" "null" "0" "No SECURITY.md — no vulnerability reporting instructions"
+  fi
+
+  # S5 — Workflow permissions minimized
+  local wf_overpermissioned=0
+  if [ -d "$wf_dir" ]; then
+    while IFS= read -r wf_file; do
+      [ -z "$wf_file" ] && continue
+      # Check if contents: write appears at workflow level (before any jobs: key)
+      local in_jobs=false
+      while IFS= read -r perm_line; do
+        case "$perm_line" in
+          'jobs:'*) in_jobs=true ;;
+        esac
+        if [ "$in_jobs" = false ] && printf '%s' "$perm_line" | grep -qE 'contents:\s*write'; then
+          wf_overpermissioned=$((wf_overpermissioned + 1))
+          break
+        fi
+      done < "$wf_file"
+    done <<WF2
+$(find "$wf_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null)
+WF2
+  fi
+  if [ "$wf_overpermissioned" -eq 0 ]; then
+    emit_result "$project_name" "S5" "0" "null" "1" "No over-permissioned workflows"
+  else
+    emit_result "$project_name" "S5" "$wf_overpermissioned" "null" "0" "${wf_overpermissioned} workflow(s) have contents:write at workflow level"
+  fi
+
+  # S6 — No hardcoded secrets
+  local secret_hits=0
+  local secret_examples=""
+  if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    secret_hits="$(git -C "$project_dir" grep -lE \
+      'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
+      -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.env' '*.yml' '*.yaml' '*.json' '*.toml' \
+      2>/dev/null | grep -v 'node_modules\|\.git\|vendor\|dist\|build\|__pycache__\|\.lock' | wc -l | tr -d '[:space:]')"
+    if [ "${secret_hits:-0}" -gt 0 ]; then
+      secret_examples="$(git -C "$project_dir" grep -lE \
+        'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
+        -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' \
+        2>/dev/null | grep -v 'node_modules\|\.git\|vendor' | head -3 | tr '\n' ', ' | sed 's/, $//')"
+    fi
+  fi
+  if [ "${secret_hits:-0}" -eq 0 ]; then
+    emit_result "$project_name" "S6" "0" "0" "1" "No hardcoded secret patterns found"
+  else
+    emit_result "$project_name" "S6" "$secret_hits" "0" "0" "${secret_hits} file(s) contain hardcoded secret patterns: ${secret_examples}"
   fi
 }
 

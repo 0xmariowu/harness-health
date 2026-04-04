@@ -3,11 +3,11 @@
 [![CI](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/0xmariowu/agent-lint)](https://github.com/0xmariowu/agent-lint/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Checks](https://img.shields.io/badge/checks-25-00b48c)](https://github.com/0xmariowu/agent-lint#what-it-checks)
+[![Checks](https://img.shields.io/badge/checks-31-00b48c)](https://github.com/0xmariowu/agent-lint#what-it-checks)
 
-**Lint your repo for AI agent compatibility.** 25 evidence-backed checks, one command.
+**Lint your repo for AI agent compatibility.** 31 evidence-backed checks, one command.
 
-> AI coding agents are only as good as the repo they work in. AgentLint checks what most developers miss — file structure, instruction quality, build setup, and session continuity. Every check backed by data, not opinions.
+> AI coding agents are only as good as the repo they work in. AgentLint checks what most developers miss — file structure, instruction quality, build setup, session continuity, and security posture. Every check backed by data, not opinions.
 
 ## Install
 
@@ -28,11 +28,12 @@ That's it. AgentLint scans your projects, scores them, shows what's wrong, and f
 ```
 $ /al
 
-AgentLint — Score: 72/100
+AgentLint — Score: 68/100
 
 Findability      ██████████████░░░░░░  7/10
 Instructions     ████████████████░░░░  8/10
 Workability      ████████████░░░░░░░░  6/10
+Safety           ██████████░░░░░░░░░░  5/10
 Continuity       ██████████████░░░░░░  7/10
 
 Fix Plan (5 items):
@@ -103,6 +104,17 @@ AgentLint is built on data from places most developers never look:
 | C4 | Plans in repo | Plans in Jira don't exist for AI |
 | C5 | CLAUDE.local.md not in git | Private per-user file. Claude Code requires .gitignore |
 
+### 🔒 Safety — is AI working securely?
+
+| Check | What | Why |
+|-------|------|-----|
+| S1 | .env in .gitignore | AI's Glob tool ignores .gitignore by default — secrets are visible |
+| S2 | Actions SHA pinned | AI push triggers CI. Floating tags = supply chain attack vector |
+| S3 | Secret scanning configured | AI won't self-check for accidentally written API keys |
+| S4 | SECURITY.md exists | AI needs security context for sensitive code decisions |
+| S5 | Workflow permissions minimized | AI-triggered workflows shouldn't have write access by default |
+| S6 | No hardcoded secrets | Detects `sk-`, `ghp_`, `AKIA`, private key patterns in source |
+
 ### 🧠 Optional: AI Deep Analysis
 
 Spawns AI subagents to find what mechanical checks can't:
@@ -121,12 +133,13 @@ Reads your Claude Code session logs to find:
 
 Each check → score (0-1) → weighted by dimension → total out of 100.
 
-| Dimension | Weight | Why heaviest? |
-|-----------|--------|---------------|
-| Instructions | 35% | The unique value. No other tool checks CLAUDE.md quality |
-| Findability | 25% | AI can't follow rules it can't find |
+| Dimension | Weight | Why? |
+|-----------|--------|------|
+| Instructions | 30% | Unique value. No other tool checks CLAUDE.md quality |
+| Findability | 20% | AI can't follow rules it can't find |
 | Workability | 20% | Can AI actually run your code? |
-| Continuity | 20% | Does knowledge survive across sessions? |
+| Safety | 15% | Is AI working without exposing secrets or triggering vulnerabilities? |
+| Continuity | 15% | Does knowledge survive across sessions? |
 
 Scores are **measurements, not judgments**. Reference values come from Anthropic's own data. You decide what to fix.
 
