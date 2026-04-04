@@ -79,7 +79,7 @@
       "dimension": "findability",
       "name": "All references resolve",
       "evidence_sources": ["practical-audit", "codified-context"],
-      "evidence_text": "2026-04-01 audit found 12 broken references in project-a INDEX, 32 in external INDEX. Broken links waste AI tokens on dead-end file reads. Codified Context: stale references are a primary failure mode."
+      "evidence_text": "Real-world audit found broken references across multiple production projects. Broken links waste AI tokens on dead-end file reads. Codified Context: stale references are a primary failure mode."
     },
     "F6": {
       "dimension": "findability",
@@ -155,7 +155,7 @@
       "dimension": "workability",
       "name": "Tests exist and are non-empty",
       "evidence_sources": ["practical-audit"],
-      "evidence_text": "2026-04-01 audit: project-d had 'uv run pytest' in CI but 0 test files. CI always 'passed' because there was nothing to fail. Empty-shell CI creates false confidence."
+      "evidence_text": "Real-world audit found a project with 'uv run pytest' in CI but 0 test files. CI always 'passed' because there was nothing to fail. Empty-shell CI creates false confidence."
     },
     "W4": {
       "dimension": "workability",
