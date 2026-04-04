@@ -230,14 +230,9 @@ should_skip_reference() {
   fi
 
   # Skip external paths that reference outside the project
-  # (~/external/*, ~/external/*, /Volumes/*)
   # shellcheck disable=SC2088
   case "$ref" in
-    "~/external/"*|"~/external/"*|"~/external/"*|"/Volumes/"*)
-      return 0 ;;
-    "~/Projects/"*|"~/projects/"*)
-      return 0 ;;
-    external/*|external/*)
+    "~/"*|"/Volumes/"*)
       return 0 ;;
   esac
 

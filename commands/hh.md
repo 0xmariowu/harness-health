@@ -59,10 +59,10 @@ Workability      ████████████░░░░░░░░  6
 Continuity       ██████████████░░░░░░  7/10
 
 By Project:
-  project-g                 10  ████████████████████
-  project-a                 8  ████████████████░░░░
-  harness-health         6  ████████████░░░░░░░░
-  project-e               5  ██████████░░░░░░░░░░
+  my-api                 9  ██████████████████░░
+  web-app                8  ████████████████░░░░
+  cli-tool               6  ████████████░░░░░░░░
+  new-project            4  ████████░░░░░░░░░░░░
 ```
 
 ### Step 5: Fix Plan + Select
@@ -79,26 +79,22 @@ Read `/tmp/hh-plan.json`. **First print the full plan as readable text**, then A
 Read the grouped items from the plan JSON and output a summary like this:
 
 ```
-📋 Fix Plan — 47 items
+📋 Fix Plan — 12 items
 
-🔴 High (39 items):
-  [auto] All references resolve — 10 projects (project-e, project-d, project-a, ...)
-  [assisted] Missing HANDOFF — project-e, project-g, project-b, project-i, project-h
-  [assisted] Missing plans directory — project-e, project-g, project-b, project-i, project-h
-  [guided] Missing tests — project-e, project-b, project-d
-  [guided] Missing linter config — project-e, harness-health, project-b, project-g, project-h
-  [guided] No build/test commands in entry file — project-d, harness-health, project-b, project-h
-  [auto] Identity language lines — project-g
-  [guided] Missing CI — project-e
+🔴 High (8 items):
+  [auto] All references resolve — 3 projects (my-api, web-app, cli-tool)
+  [assisted] Missing HANDOFF — my-api, web-app
+  [guided] Missing tests — my-api, cli-tool
+  [guided] Missing linter config — my-api, web-app
+  [guided] No build/test commands in entry file — cli-tool
 
 🟡 Medium (2 items):
-  [guided] Rule specificity < 50% — harness-health
-  [guided] Entry file too short — project-a
+  [guided] Rule specificity < 50% — web-app
+  [guided] Entry file too short — cli-tool
 
-⚪ Low (6 items):
-  [guided] Rule specificity — project-e, project-f, project-b, project-h
-  [guided] Entry file length — project-d, project-g, harness-health, project-h
-  [guided] Keyword density — project-f
+⚪ Low (2 items):
+  [guided] Entry file length — my-api
+  [guided] Keyword density — web-app
 ```
 
 For each grouped item, show: `[fix_type] check name — project list`. Use the merged items from `plan.grouped.{severity}.items`. List all project names (from the `projects` array on merged items).
@@ -129,15 +125,14 @@ node "$HH_DIR/src/fixer.js" --items "1,2,3" --project-dir ~/Projects < /tmp/hh-p
 
 Present results:
 ```
-✓ 5 projects: cleaned 38 broken references
-✓ harness-health: generated CLAUDE.md from template
-ℹ 3 projects: add test files (manual — see details below)
+✓ 3 projects: cleaned 12 broken references
+✓ cli-tool: generated CLAUDE.md from template
+ℹ 2 projects: add test files (manual — see details below)
 ℹ 2 projects: add linter config (manual — see details below)
 
   Manual items:
-  - project-b: no tests/ directory. Run: mkdir tests && touch tests/test_smoke.py
-  - project-e: no tests/ directory (no code yet — skip for now)
-  ...
+  - my-api: no tests/ directory. Run: mkdir tests && touch tests/test_smoke.py
+  - new-project: no tests/ directory (no code yet — skip for now)
 ```
 
 ### Step 7: Verify + Report (no interaction)
