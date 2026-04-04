@@ -9,7 +9,7 @@
 现有测试：24 unit + 45 E2E，全部用的合成 fixture。Fixture 只能测 "代码逻辑对不对"，测不了 "真实世界会不会出问题"。已知教训：F5 在 bun 上删了 75 行有效内容 — fixture 没发现，10 个真实 repo 才暴露。
 
 可用数据：
-- Armory sources：148 个完整 git repo，其中 53 个有 CLAUDE.md
+- corpus sources：148 个完整 git repo，其中 53 个有 CLAUDE.md
 - 本地项目：9 个 `~/Projects/*`
 
 ## Features
@@ -18,7 +18,7 @@
 
 目的：用户的 repo 什么样都有。Scanner 必须在所有情况下安全退出、产出有效 JSONL — 即使 repo 结构很离谱。
 
-方法：构造 12 种边界 repo，加上 Armory 里的 148 个真实 repo，全部跑 scanner。用 `timeout` 检测 hang，用 exit code 检测 crash。
+方法：构造 12 种边界 repo，加上 corpus 里的 148 个真实 repo，全部跑 scanner。用 `timeout` 检测 hang，用 exit code 检测 crash。
 
 #### Steps
 
@@ -36,7 +36,7 @@
     10. CLAUDE.md 是 symlink 指向另一个文件
     11. 非 UTF-8 编码的 markdown
     12. `.github/workflows/` 里的 YAML 语法错误
-- [ ] S2: 写 `tests/robustness/run-scanner-robustness.sh` — 对每个边界 repo + Armory 148 repos 跑 scanner ← verify: 全部 pass（0 crash、0 hang、0 invalid JSONL），任何失败有 issue 记录
+- [ ] S2: 写 `tests/robustness/run-scanner-robustness.sh` — 对每个边界 repo + corpus 148 repos 跑 scanner ← verify: 全部 pass（0 crash、0 hang、0 invalid JSONL），任何失败有 issue 记录
   - 具体执行方式：`timeout 30 bash src/scanner.sh <repo-path>`
   - 判定标准：
     - exit code 0 或 1 = pass（正常退出）
@@ -50,11 +50,11 @@
 
 目的：用户最先看到的是每个 check 的结果。一个 false positive（好 repo 被标红）直接损害信任。一个 false negative（烂 repo 全绿）让产品无价值。需要系统性验证每个 check。
 
-方法：选 20 个真实 repo（Armory sources），人工标注每个 check 的期望结果（pass / fail / N/A），然后跑 scanner 对比。偏差就是 bug。
+方法：选 20 个真实 repo（corpus sources），人工标注每个 check 的期望结果（pass / fail / N/A），然后跑 scanner 对比。偏差就是 bug。
 
 #### Steps
 
-- [ ] S1: 从 Armory 148 repos 中选 20 个多样性样本，保存列表到 `tests/accuracy/repos.json` ← verify: 20 个 repo 覆盖以下多样性维度
+- [ ] S1: 从 corpus 148 repos 中选 20 个多样性样本，保存列表到 `tests/accuracy/repos.json` ← verify: 20 个 repo 覆盖以下多样性维度
   - 选择标准：
     - 有 CLAUDE.md 的：10 个（含大/中/小文件）
     - 有 AGENTS.md 的：3 个
@@ -79,7 +79,7 @@
 
 目的：fixer 直接改用户文件。F5 事件证明这会出问题。需要在大量真实 repo 上验证 fixer 只改该改的。
 
-方法：对 Armory 53 个有 CLAUDE.md 的 repo + 20 个 F002 样本 repo 跑完整 pipeline（scan → score → plan → fix），用 git diff 检测所有修改。
+方法：对 corpus 53 个有 CLAUDE.md 的 repo + 20 个 F002 样本 repo 跑完整 pipeline（scan → score → plan → fix），用 git diff 检测所有修改。
 
 已知风险点：fixer 有 4 个 check 会修改文件：
 - **I5**（auto）：删除 CLAUDE.md 里的 identity language
@@ -92,7 +92,7 @@
 #### Steps
 
 - [ ] S0: 校准 RED FLAG 阈值 — 跑 fixer 的 F5 路径在 5 个有已知 broken refs 的 repo 上，记录每个 repo 的实际删除行数（depends: F002.S1）← verify: `tests/fixer-safety/calibration.json` 有 5 个数据点，记录 broken ref count 和 deleted line count
-- [ ] S1: 写 `tests/fixer-safety/run-fixer-safety.sh` ← verify: 对 oven-sh/bun, tldraw, n8n-io/n8n 3 个 Armory repo 跑通，产出 diff
+- [ ] S1: 写 `tests/fixer-safety/run-fixer-safety.sh` ← verify: 对 oven-sh/bun, tldraw, n8n-io/n8n 3 个 corpus repo 跑通，产出 diff
   - 对每个 repo：
     1. `cp -r` 到 `/tmp/al-validation/`
     2. 跑 scanner → scorer → plan-generator
@@ -119,7 +119,7 @@
 
 #### Steps
 
-- [ ] S1: 从 Armory + 本地项目选 15 个 repo，人工评 tier ← verify: `tests/calibration/tiers.json` 存在，每个 repo 有 tier(A/B/C) + 理由
+- [ ] S1: 从 corpus + 本地项目选 15 个 repo，人工评 tier ← verify: `tests/calibration/tiers.json` 存在，每个 repo 有 tier(A/B/C) + 理由
   - Tier A（AI 友好）：有 CLAUDE.md + 结构清晰 + CI + 测试 + handoff — 5 个
   - Tier B（一般）：有部分基础设施，缺关键件 — 5 个
   - Tier C（不友好）：无 entry file / 无 CI / 无测试 — 5 个
@@ -146,7 +146,7 @@
 
 | Source | Location | Count | Usage |
 |--------|----------|-------|-------|
-| Armory repos（有 .git） | `~/Armory/sources/` | 148 | F001 鲁棒性、F003 fixer 安全 |
+| corpus repos（有 .git） | `~/corpus/sources/` | 148 | F001 鲁棒性、F003 fixer 安全 |
 | 其中有 CLAUDE.md 的 | 同上 | 53 | F002 准确性、F003、F004 |
 | 本地项目 | `~/Projects/` | 9 | F004 分数校准 |
 | 合成边界 repo | `tests/robustness/repos/` | 12 | F001 鲁棒性 |
@@ -163,7 +163,7 @@ F001 必须先做 — scanner 崩溃的话后面全白搭。F002 和 F003 可以
 
 ## Success Criteria
 
-1. **F001**: scanner 在 160 repos（12 边界 + 148 Armory）上 0 crash、0 hang（timeout 30s）
+1. **F001**: scanner 在 160 repos（12 边界 + 148 corpus）上 0 crash、0 hang（timeout 30s）
 2. **F002**: 31 checks × 20 repos，整体 accuracy >= 85%，无 check 低于 70%
 3. **F003**: 73 repos 跑 fixer 后 0 个未解决的 RED FLAG
 4. **F004**: Tier A 平均分 > Tier B > Tier C，且 A/C overlap < 15%

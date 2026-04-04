@@ -6,7 +6,7 @@
 set -u
 
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-ARMORY_DIR="${HOME}/Armory/sources"
+CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
 REPOS_JSON="${ROOT_DIR}/tests/accuracy/repos.json"
 OUTPUT="${ROOT_DIR}/tests/accuracy/labels.json"
 
@@ -23,7 +23,7 @@ first=true
 for i in $(seq 0 $((repo_count - 1))); do
   repo_path_rel="$(jq -r ".repos[$i].path" "$REPOS_JSON")"
   repo_name="$(jq -r ".repos[$i].name" "$REPOS_JSON")"
-  repo_dir="${ARMORY_DIR}/${repo_path_rel}"
+  repo_dir="${CORPUS_DIR}/${repo_path_rel}"
 
   if [ ! -d "$repo_dir" ]; then
     echo "SKIP: ${repo_name} — directory not found" >&2

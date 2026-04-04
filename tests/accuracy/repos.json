@@ -1,7 +1,7 @@
 {
-  "description": "20 Armory repos selected for F002 check accuracy testing",
+  "description": "20 corpus repos selected for F002 check accuracy testing",
   "selection_date": "2026-04-04",
-  "note": ".cursorrules requirement relaxed from 3 to 1 — only 1 repo in entire Armory corpus has .cursorrules (browserbase_stagehand)",
+  "note": ".cursorrules requirement relaxed from 3 to 1 — only 1 repo in entire corpus corpus has .cursorrules (browserbase_stagehand)",
   "repos": [
     {
       "name": "oven-sh_bun",

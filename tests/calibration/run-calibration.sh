@@ -7,7 +7,7 @@ set -u
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
 SCORER="${ROOT_DIR}/src/scorer.js"
-ARMORY_DIR="${HOME}/Armory/sources"
+CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
 TIERS="${ROOT_DIR}/tests/calibration/tiers.json"
 SCORES="${ROOT_DIR}/tests/calibration/scores.json"
 
@@ -20,13 +20,13 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 const tiers = JSON.parse(fs.readFileSync('${TIERS}'));
-const armory = '${ARMORY_DIR}';
+const corpus = '${CORPUS_DIR}';
 const scanner = '${SCANNER}';
 const scorer = '${SCORER}';
 const results = [];
 
 for (const repo of tiers.tiers) {
-  const repoDir = path.join(armory, repo.repo);
+  const repoDir = path.join(corpus, repo.repo);
   if (!fs.existsSync(repoDir)) {
     process.stderr.write('SKIP: ' + repo.repo + ' (not found)\\n');
     continue;

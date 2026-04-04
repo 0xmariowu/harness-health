@@ -9,7 +9,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..', '..');
-const ARMORY = path.join(process.env.HOME, 'Armory', 'sources');
+const CORPUS = process.env.AL_CORPUS_DIR || path.join(process.env.HOME, 'corpus', 'sources');
 const reposData = JSON.parse(fs.readFileSync(path.join(__dirname, 'repos.json'), 'utf8'));
 
 function sh(cmd, cwd) {
@@ -234,7 +234,7 @@ function labelRepo(repoDir) {
 // Main
 const results = [];
 for (const repo of reposData.repos) {
-  const repoDir = path.join(ARMORY, repo.path);
+  const repoDir = path.join(CORPUS, repo.path);
   if (!dirExists(repoDir)) {
     process.stderr.write(`SKIP: ${repo.name} — not found\n`);
     continue;

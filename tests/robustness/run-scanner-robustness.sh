@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Scanner robustness test — runs scanner on edge-case repos + Armory repos.
+# Scanner robustness test — runs scanner on edge-case repos + corpus repos.
 # Checks: no crashes, no hangs (30s timeout), valid JSONL output.
-# Usage: bash tests/robustness/run-scanner-robustness.sh [--edge-only | --armory-only]
+# Usage: bash tests/robustness/run-scanner-robustness.sh [--edge-only | --corpus-only]
 
 set -u
 
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
 EDGE_DIR="/tmp/al-validation/edge-repos"
-ARMORY_DIR="${HOME}/Armory/sources"
+CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
 RESULTS_FILE="${ROOT_DIR}/tests/robustness/results.json"
 TIMEOUT_SECS=60
 
@@ -126,15 +126,15 @@ run_scanner_on_repo() {
 mode="all"
 if [ "${1:-}" = "--edge-only" ]; then
   mode="edge"
-elif [ "${1:-}" = "--armory-only" ]; then
-  mode="armory"
+elif [ "${1:-}" = "--corpus-only" ]; then
+  mode="corpus"
 fi
 
 echo "=== AgentLint Scanner Robustness Test ==="
 echo ""
 
 # Phase 1: Edge-case repos
-if [ "${mode}" != "armory" ]; then
+if [ "${mode}" != "corpus" ]; then
   if [ ! -d "${EDGE_DIR}" ]; then
     echo "Edge repos not found. Run make-edge-repos.sh first."
     echo "  bash tests/robustness/make-edge-repos.sh"
@@ -150,18 +150,18 @@ if [ "${mode}" != "armory" ]; then
   echo ""
 fi
 
-# Phase 2: Armory repos
+# Phase 2: corpus repos
 if [ "${mode}" != "edge" ]; then
-  if [ ! -d "${ARMORY_DIR}" ]; then
-    echo "Armory sources not found at ${ARMORY_DIR}. Skipping."
+  if [ ! -d "${CORPUS_DIR}" ]; then
+    echo "corpus sources not found at ${CORPUS_DIR}. Skipping."
   else
-    echo "--- Armory repos (${ARMORY_DIR}) ---"
-    for repo in "${ARMORY_DIR}"/*/; do
+    echo "--- corpus repos (${CORPUS_DIR}) ---"
+    for repo in "${CORPUS_DIR}"/*/; do
       [ -d "${repo}" ] || continue
       name="$(basename "${repo}")"
       # Skip non-directory entries
       [ -d "${repo}" ] || continue
-      run_scanner_on_repo "${repo}" "armory/${name}" "armory"
+      run_scanner_on_repo "${repo}" "corpus/${name}" "corpus"
     done
     echo ""
   fi
