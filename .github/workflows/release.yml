@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Extract changelog for this version
         id: changelog
@@ -20,7 +20,7 @@ jobs:
           # Extract the section for this version from CHANGELOG.md
           awk "/^## v${TAG}/,/^## v[0-9]/{if(/^## v[0-9]/ && !/^## v${TAG}/)exit; print}" CHANGELOG.md > /tmp/release-notes.md
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe  # v2.6.1
         with:
           body_path: /tmp/release-notes.md
           files: .claude-plugin/plugin.json
