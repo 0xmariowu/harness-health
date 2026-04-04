@@ -1,0 +1,182 @@
+[
+  {
+    "repo": "openai_openai-agents-python",
+    "tier": "A",
+    "total_score": 64,
+    "dimensions": {
+      "findability": 7,
+      "instructions": 6,
+      "workability": 7,
+      "continuity": 5,
+      "safety": 7
+    }
+  },
+  {
+    "repo": "modelcontextprotocol_python-sdk",
+    "tier": "A",
+    "total_score": 76,
+    "dimensions": {
+      "findability": 7,
+      "instructions": 6,
+      "workability": 10,
+      "continuity": 8,
+      "safety": 8
+    }
+  },
+  {
+    "repo": "oven-sh_bun",
+    "tier": "A",
+    "total_score": 62,
+    "dimensions": {
+      "findability": 7,
+      "instructions": 6,
+      "workability": 8,
+      "continuity": 5,
+      "safety": 4
+    }
+  },
+  {
+    "repo": "astral-sh_ruff",
+    "tier": "A",
+    "total_score": 65,
+    "dimensions": {
+      "findability": 8,
+      "instructions": 6,
+      "workability": 5,
+      "continuity": 6,
+      "safety": 8
+    }
+  },
+  {
+    "repo": "coder_claudecode.nvim",
+    "tier": "A",
+    "total_score": 78,
+    "dimensions": {
+      "findability": 8,
+      "instructions": 7,
+      "workability": 9,
+      "continuity": 9,
+      "safety": 6
+    }
+  },
+  {
+    "repo": "tldraw",
+    "tier": "B",
+    "total_score": 68,
+    "dimensions": {
+      "findability": 7,
+      "instructions": 7,
+      "workability": 8,
+      "continuity": 5,
+      "safety": 6
+    }
+  },
+  {
+    "repo": "cline_cline",
+    "tier": "B",
+    "total_score": 60,
+    "dimensions": {
+      "findability": 8,
+      "instructions": 6,
+      "workability": 6,
+      "continuity": 6,
+      "safety": 3
+    }
+  },
+  {
+    "repo": "Infatoshi_OpenSquirrel",
+    "tier": "B",
+    "total_score": 65,
+    "dimensions": {
+      "findability": 8,
+      "instructions": 7,
+      "workability": 6,
+      "continuity": 5,
+      "safety": 6
+    }
+  },
+  {
+    "repo": "Significant-Gravitas_AutoGPT",
+    "tier": "B",
+    "total_score": 70,
+    "dimensions": {
+      "findability": 9,
+      "instructions": 7,
+      "workability": 7,
+      "continuity": 5,
+      "safety": 6
+    }
+  },
+  {
+    "repo": "All-Hands-AI_OpenHands",
+    "tier": "B",
+    "total_score": 63,
+    "dimensions": {
+      "findability": 7,
+      "instructions": 6,
+      "workability": 8,
+      "continuity": 8,
+      "safety": 2
+    }
+  },
+  {
+    "repo": "ollama_ollama",
+    "tier": "C",
+    "total_score": 22,
+    "dimensions": {
+      "findability": 0,
+      "instructions": 0,
+      "workability": 5,
+      "continuity": 1,
+      "safety": 7
+    }
+  },
+  {
+    "repo": "comfyanonymous_ComfyUI",
+    "tier": "C",
+    "total_score": 18,
+    "dimensions": {
+      "findability": 0,
+      "instructions": 0,
+      "workability": 5,
+      "continuity": 1,
+      "safety": 4
+    }
+  },
+  {
+    "repo": "karpathy_autoresearch",
+    "tier": "C",
+    "total_score": 19,
+    "dimensions": {
+      "findability": 1,
+      "instructions": 0,
+      "workability": 3,
+      "continuity": 1,
+      "safety": 6
+    }
+  },
+  {
+    "repo": "lapce_lapce",
+    "tier": "C",
+    "total_score": 19,
+    "dimensions": {
+      "findability": 0,
+      "instructions": 0,
+      "workability": 4,
+      "continuity": 3,
+      "safety": 4
+    }
+  },
+  {
+    "repo": "n8n-io_n8n",
+    "tier": "C",
+    "total_score": 19,
+    "dimensions": {
+      "findability": 1,
+      "instructions": 0,
+      "workability": 3,
+      "continuity": 1,
+      "safety": 6
+    }
+  }
+]

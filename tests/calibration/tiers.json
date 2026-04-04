@@ -1,0 +1,65 @@
+{
+  "description": "15 repos tiered A/B/C for score calibration. Labels assigned blind (without seeing AgentLint scores).",
+  "tiers": [
+    {
+      "repo": "openai_openai-agents-python", "source": "armory", "tier": "A",
+      "reason": "CLAUDE.md + AGENTS.md, clean SHA-pinned CI, tests, linter, well-structured"
+    },
+    {
+      "repo": "modelcontextprotocol_python-sdk", "source": "armory", "tier": "A",
+      "reason": "Anthropic's MCP SDK — CLAUDE.md, clean CI, comprehensive tests, linter"
+    },
+    {
+      "repo": "oven-sh_bun", "source": "armory", "tier": "A",
+      "reason": "CLAUDE.md + AGENTS.md, CI, massive test suite, CHANGELOG, well-maintained"
+    },
+    {
+      "repo": "astral-sh_ruff", "source": "armory", "tier": "A",
+      "reason": "CLAUDE.md + AGENTS.md, SHA-pinned CI, comprehensive tests, linter config"
+    },
+    {
+      "repo": "coder_claudecode.nvim", "source": "armory", "tier": "A",
+      "reason": "CLAUDE.md + AGENTS.md, CI, linter, well-organized for AI"
+    },
+    {
+      "repo": "tldraw", "source": "armory", "tier": "B",
+      "reason": "CLAUDE.md, CI, tests — but no CHANGELOG, no session checklist, floating CI tags"
+    },
+    {
+      "repo": "cline_cline", "source": "armory", "tier": "B",
+      "reason": "CLAUDE.md, CI — but .env issues, no handoff, some security gaps"
+    },
+    {
+      "repo": "Infatoshi_OpenSquirrel", "source": "armory", "tier": "B",
+      "reason": "CLAUDE.md — but NO CI, no tests, no linter, missing infrastructure"
+    },
+    {
+      "repo": "Significant-Gravitas_AutoGPT", "source": "armory", "tier": "B",
+      "reason": "AGENTS.md, CI, tests, CHANGELOG — but no CLAUDE.md, floating tags, over-permissioned"
+    },
+    {
+      "repo": "All-Hands-AI_OpenHands", "source": "armory", "tier": "B",
+      "reason": "AGENTS.md, CI — but no CLAUDE.md, floating tags, no secret scanning"
+    },
+    {
+      "repo": "ollama_ollama", "source": "armory", "tier": "C",
+      "reason": "No entry file, no handoff, no plans — good CI but no AI support structure"
+    },
+    {
+      "repo": "comfyanonymous_ComfyUI", "source": "armory", "tier": "C",
+      "reason": "No entry file, no CHANGELOG, no handoff, floating CI tags, no secret scanning"
+    },
+    {
+      "repo": "karpathy_autoresearch", "source": "armory", "tier": "C",
+      "reason": "No entry file, no CI, no tests, no linter — minimal project"
+    },
+    {
+      "repo": "lapce_lapce", "source": "armory", "tier": "C",
+      "reason": "No entry file, floating CI tags, over-permissioned workflows, no secret scanning"
+    },
+    {
+      "repo": "n8n-io_n8n", "source": "armory", "tier": "C",
+      "reason": "No entry file, no detected CI in Armory clone, no AI support"
+    }
+  ]
+}

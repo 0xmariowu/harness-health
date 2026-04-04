@@ -1,0 +1,179 @@
+{
+  "description": "20 Armory repos selected for F002 check accuracy testing",
+  "selection_date": "2026-04-04",
+  "note": ".cursorrules requirement relaxed from 3 to 1 — only 1 repo in entire Armory corpus has .cursorrules (browserbase_stagehand)",
+  "repos": [
+    {
+      "name": "oven-sh_bun",
+      "path": "oven-sh_bun",
+      "category": "claude",
+      "lang": "js/ts",
+      "flags": ["CLAUDE.md", "AGENTS.md", "workflows", "floating-tag", "no-permissions"],
+      "note": "Large project, both entry files, known F5 incident target"
+    },
+    {
+      "name": "astral-sh_ruff",
+      "path": "astral-sh_ruff",
+      "category": "claude",
+      "lang": "python",
+      "flags": ["CLAUDE.md", "AGENTS.md", "workflows", "clean-ci"],
+      "note": "Well-maintained, SHA-pinned Actions — tests that S2 correctly passes clean CI"
+    },
+    {
+      "name": "surrealdb_surrealdb",
+      "path": "surrealdb_surrealdb",
+      "category": "claude",
+      "lang": "rust",
+      "flags": ["CLAUDE.md", "workflows"],
+      "note": "Rust project with CLAUDE.md"
+    },
+    {
+      "name": "tldraw",
+      "path": "tldraw",
+      "category": "claude",
+      "lang": "js/ts",
+      "flags": ["CLAUDE.md", "workflows", "floating-tag", "no-permissions"],
+      "note": "Previously validated, known-good reference"
+    },
+    {
+      "name": "modelcontextprotocol_python-sdk",
+      "path": "modelcontextprotocol_python-sdk",
+      "category": "claude",
+      "lang": "python",
+      "flags": ["CLAUDE.md", "workflows", "clean-ci"],
+      "note": "Anthropic's own MCP SDK — should score well"
+    },
+    {
+      "name": "openai_openai-agents-python",
+      "path": "openai_openai-agents-python",
+      "category": "claude",
+      "lang": "python",
+      "flags": ["CLAUDE.md", "AGENTS.md", "workflows", "clean-ci"],
+      "note": "OpenAI project with both entry files and clean CI"
+    },
+    {
+      "name": "cline_cline",
+      "path": "cline_cline",
+      "category": "claude",
+      "lang": "js/ts",
+      "flags": ["CLAUDE.md", "workflows", ".env", "floating-tag"],
+      "note": "Has .env — tests S1 gitignore check"
+    },
+    {
+      "name": "browserbase_stagehand",
+      "path": "browserbase_stagehand",
+      "category": "claude",
+      "lang": "js/ts",
+      "flags": ["CLAUDE.md", ".cursorrules", "workflows", ".env", "floating-tag", "no-permissions"],
+      "note": "Only repo with .cursorrules in corpus — tests F1/F6 recognition"
+    },
+    {
+      "name": "microsoft_playwright-mcp",
+      "path": "microsoft_playwright-mcp",
+      "category": "claude",
+      "lang": "js/ts",
+      "flags": ["CLAUDE.md", "workflows"],
+      "note": "Microsoft project with CLAUDE.md"
+    },
+    {
+      "name": "Infatoshi_OpenSquirrel",
+      "path": "Infatoshi_OpenSquirrel",
+      "category": "claude",
+      "lang": "rust",
+      "flags": ["CLAUDE.md", "no-workflows"],
+      "note": "Has CLAUDE.md but NO CI — tests W2 false negative"
+    },
+    {
+      "name": "All-Hands-AI_OpenHands",
+      "path": "All-Hands-AI_OpenHands",
+      "category": "agents",
+      "lang": "python",
+      "flags": ["AGENTS.md", "workflows", "floating-tag", "no-permissions"],
+      "note": "AGENTS.md only, large Python project"
+    },
+    {
+      "name": "Significant-Gravitas_AutoGPT",
+      "path": "Significant-Gravitas_AutoGPT",
+      "category": "agents",
+      "lang": "unknown",
+      "flags": ["AGENTS.md", "workflows", "floating-tag", "no-permissions"],
+      "note": "AGENTS.md only, popular AI agent project"
+    },
+    {
+      "name": "github_gh-aw",
+      "path": "github_gh-aw",
+      "category": "agents",
+      "lang": "go",
+      "flags": ["AGENTS.md", "workflows", "floating-tag"],
+      "note": "Go project with AGENTS.md — tests cross-language detection"
+    },
+    {
+      "name": "ollama_ollama",
+      "path": "ollama_ollama",
+      "category": "neither",
+      "lang": "go",
+      "flags": ["workflows", "floating-tag", "no-permissions"],
+      "note": "No entry file, popular Go project — should score low on Findability/Instructions"
+    },
+    {
+      "name": "comfyanonymous_ComfyUI",
+      "path": "comfyanonymous_ComfyUI",
+      "category": "neither",
+      "lang": "python",
+      "flags": ["workflows", "floating-tag", "no-permissions"],
+      "note": "No entry file, Python — baseline for 'typical repo without AI support'"
+    },
+    {
+      "name": "n8n-io_n8n",
+      "path": "n8n-io_n8n",
+      "category": "neither",
+      "lang": "unknown",
+      "flags": [],
+      "note": "No entry file, no detected workflows �� tests minimal repo"
+    },
+    {
+      "name": "karpathy_autoresearch",
+      "path": "karpathy_autoresearch",
+      "category": "neither",
+      "lang": "python",
+      "flags": [],
+      "note": "Small Python project, no CI, no entry file — near-minimum viable repo"
+    },
+    {
+      "name": "hoppscotch_hoppscotch",
+      "path": "hoppscotch_hoppscotch",
+      "category": "neither",
+      "lang": "js/ts",
+      "flags": ["workflows", ".env", "floating-tag", "no-permissions"],
+      "note": "Large JS project with .env but no entry file"
+    },
+    {
+      "name": "lapce_lapce",
+      "path": "lapce_lapce",
+      "category": "neither",
+      "lang": "rust",
+      "flags": ["workflows", "floating-tag", "no-permissions"],
+      "note": "Rust project, no entry file — tests non-JS/Python repos"
+    },
+    {
+      "name": "puppeteer_puppeteer",
+      "path": "puppeteer_puppeteer",
+      "category": "neither",
+      "lang": "js/ts",
+      "flags": ["workflows", "floating-tag"],
+      "note": "Google project, well-maintained but no entry file"
+    }
+  ],
+  "coverage_summary": {
+    "claude_md": 10,
+    "agents_md_only": 3,
+    "neither": 7,
+    "cursorrules": 1,
+    "languages": {"js/ts": 9, "python": 6, "go": 3, "rust": 3, "unknown": 1},
+    "with_workflows": 17,
+    "with_env": 4,
+    "with_floating_tags": 14,
+    "with_no_permissions": 11,
+    "with_clean_ci": 3
+  }
+}

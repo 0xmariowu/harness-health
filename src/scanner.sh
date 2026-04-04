@@ -399,11 +399,10 @@ workflow_count() {
 
 test_file_count() {
   local project_dir="$1"
-  find "$project_dir" -type f 2>/dev/null | while IFS= read -r file; do
-    case "$file" in
-      */.git/*|*/node_modules/*|*/__pycache__/*|*/dist/*|*/build/*|*/vendor/*) continue ;;
-    esac
-
+  find "$project_dir" -type f \
+    -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' \
+    -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' \
+    2>/dev/null | while IFS= read -r file; do
     case "$file" in
       */tests/*|*/test/*|*/__tests__/*|*/spec/*|*.test.*|*.spec.*) printf '%s\n' "$file" ;;
     esac
@@ -452,21 +451,25 @@ filesystem_code_timestamp() {
   local file=""
   local ts=0
 
-  while IFS= read -r file; do
-    case "$file" in
-      */.git/*|*/node_modules/*|*/__pycache__/*|*/dist/*|*/build/*|*/vendor/*|*/docs/*|*/standards/*) continue ;;
-    esac
-    case "$file" in
-      *.sh|*.bash|*.zsh|*.js|*.jsx|*.ts|*.tsx|*.py|*.rb|*.go|*.rs|*.java|*.kt|*.swift|*.c|*.cc|*.cpp|*.h|*.hpp|*.cs|*.php|*.m|*.mm|*.scala|*.sql)
-        ts="$(portable_stat_mtime "$file")"
-        if [ -n "$ts" ] && [ "$ts" -gt "$newest" ]; then
-          newest="$ts"
-        fi
-        ;;
-    esac
-  done <<EOF
-$(find "$project_dir" -type f 2>/dev/null)
-EOF
+  # Use stat on batched results instead of per-file subprocess
+  local code_files
+  code_files="$(find "$project_dir" -type f \
+    -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' \
+    -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' \
+    -not -path '*/docs/*' -not -path '*/standards/*' \
+    \( -name '*.sh' -o -name '*.js' -o -name '*.jsx' -o -name '*.ts' -o -name '*.tsx' \
+       -o -name '*.py' -o -name '*.rb' -o -name '*.go' -o -name '*.rs' \
+       -o -name '*.java' -o -name '*.kt' -o -name '*.swift' -o -name '*.c' \
+       -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \
+       -o -name '*.cs' -o -name '*.php' -o -name '*.scala' -o -name '*.sql' \) \
+    2>/dev/null)"
+  if [ -n "$code_files" ]; then
+    # Use stat with multiple files at once (macOS stat -f %m)
+    newest="$(printf '%s\n' "$code_files" | head -500 | while IFS= read -r file; do
+      portable_stat_mtime "$file" 2>/dev/null
+    done | sort -rn | head -1)"
+    newest="${newest:-0}"
+  fi
 
   printf '%s\n' "$newest"
 }
@@ -1033,20 +1036,24 @@ EOF
   local oversized_count=0
   local oversized_examples=""
   while IFS= read -r file; do
+    [ -z "$file" ] && continue
     case "$file" in
-      */.git/*|*/node_modules/*|*/__pycache__/*|*/dist/*|*/build/*|*/vendor/*|*/.next/*) continue ;;
       *package-lock.json|*yarn.lock|*pnpm-lock.yaml|*bun.lock|*Cargo.lock|*poetry.lock|*uv.lock|*Gemfile.lock|*composer.lock) continue ;;
     esac
-    local fsize=0
-    fsize="$(wc -c < "$file" 2>/dev/null | tr -d '[:space:]')"
-    if [ "${fsize:-0}" -gt 262144 ]; then
-      oversized_count=$((oversized_count + 1))
-      if [ "$oversized_count" -le 3 ]; then
-        oversized_examples="${oversized_examples}$(basename "$file")(${fsize}B), "
-      fi
+    oversized_count=$((oversized_count + 1))
+    if [ "$oversized_count" -le 3 ]; then
+      local fsize
+      fsize="$(wc -c < "$file" 2>/dev/null | tr -d '[:space:]')"
+      oversized_examples="${oversized_examples}$(basename "$file")(${fsize}B), "
     fi
   done <<EOF
-$(find "$project_dir" -type f \( -name '*.js' -o -name '*.ts' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.java' -o -name '*.rb' -o -name '*.sql' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' -o -name '*.md' -o -name '*.sh' -o -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.cs' -o -name '*.php' -o -name '*.swift' -o -name '*.kt' \) 2>/dev/null)
+$(find "$project_dir" -type f -size +262144c \
+  -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' \
+  -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' -not -path '*/.next/*' \
+  -not -name 'package-lock.json' -not -name 'yarn.lock' -not -name 'pnpm-lock.yaml' \
+  -not -name 'bun.lock' -not -name 'Cargo.lock' -not -name 'poetry.lock' -not -name 'uv.lock' \
+  \( -name '*.js' -o -name '*.ts' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.java' -o -name '*.rb' -o -name '*.sql' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' -o -name '*.md' -o -name '*.sh' -o -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.cs' -o -name '*.php' -o -name '*.swift' -o -name '*.kt' \) \
+  2>/dev/null)
 EOF
   if [ "$oversized_count" -eq 0 ]; then
     emit_result "$project_name" "W5" "0" "0" "1" "No source files exceed 256 KB"
