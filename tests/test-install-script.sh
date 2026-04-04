@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # F002: Install script validation.
 # Can't test `claude plugin install` without Claude Code, but can verify:
 # - Script syntax is valid bash
