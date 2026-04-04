@@ -10,7 +10,7 @@ SCANNER="${ROOT_DIR}/src/scanner.sh"
 SCORER="${ROOT_DIR}/src/scorer.js"
 PLAN_GEN="${ROOT_DIR}/src/plan-generator.js"
 FIXER="${ROOT_DIR}/src/fixer.js"
-ARMORY_DIR="${HOME}/corpus/sources"
+CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
 WORK_DIR="/tmp/al-validation/fixer-safety"
 RESULTS_DIR="${ROOT_DIR}/tests/fixer-safety/results"
 
@@ -21,7 +21,7 @@ echo "=== Fixer Safety Test ==="
 echo "Collecting repos with CLAUDE.md from corpus..."
 
 repos=()
-for d in "${ARMORY_DIR}"/*/; do
+for d in "${CORPUS_DIR}"/*/; do
   [ -d "$d" ] || continue
   if [ -f "${d}/CLAUDE.md" ] || [ -f "${d}/AGENTS.md" ]; then
     repos+=("$d")
