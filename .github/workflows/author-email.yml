@@ -1,0 +1,60 @@
+name: Author Email Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-email:
+    name: Validate commit author emails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for non-noreply emails
+        run: |
+          FAIL=0
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+            RANGE="${BASE}..${HEAD}"
+          else
+            RANGE="HEAD~1..HEAD"
+          fi
+
+          while IFS= read -r line; do
+            SHA=$(echo "$line" | cut -d' ' -f1)
+            EMAIL=$(echo "$line" | cut -d' ' -f2)
+            NAME=$(echo "$line" | cut -d' ' -f3-)
+
+            # Check email: allow GitHub noreply and bots
+            if [ -n "$EMAIL" ] && \
+               echo "$EMAIL" | grep -qvE '@users\.noreply\.github\.com$|@github\.com$|^noreply@github\.com$'; then
+              echo "::error::Commit ${SHA:0:7} has non-noreply email: $EMAIL"
+              FAIL=1
+            fi
+
+            # Check name: must be 0xmariowu or bot
+            if [ -n "$NAME" ] && \
+               echo "$NAME" | grep -qvE '^0xmariowu$|^github-actions'; then
+              echo "::error::Commit ${SHA:0:7} has non-pseudonym author name: $NAME"
+              FAIL=1
+            fi
+          done < <(git log --format="%H %ae %an" "$RANGE" 2>/dev/null || true)
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo ""
+            echo "One or more commits use a non-noreply email or non-pseudonym name."
+            echo "Fix: git config user.email '130952152+0xmariowu@users.noreply.github.com'"
+            echo "     git config user.name '0xmariowu'"
+            exit 1
+          fi
+
+          echo "All commit authors verified — OK"

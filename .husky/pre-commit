@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
+# Author identity check — whitelist only
+AUTHOR_EMAIL=$(git config user.email)
+AUTHOR_NAME=$(git config user.name)
+if [ "$AUTHOR_EMAIL" != "130952152+0xmariowu@users.noreply.github.com" ]; then
+  echo "error: git email '$AUTHOR_EMAIL' is not the noreply address"
+  echo "fix: git config user.email '130952152+0xmariowu@users.noreply.github.com'"
+  exit 1
+fi
+if [ "$AUTHOR_NAME" != "0xmariowu" ]; then
+  echo "error: git name '$AUTHOR_NAME' is not the public pseudonym"
+  echo "fix: git config user.name '0xmariowu'"
+  exit 1
+fi
+
+# Content scan on staged files — codenames, personal paths, hostnames
+SCAN_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v -E '(\.gitleaks\.toml$|\.husky/|^CLAUDE\.md$|\.github/workflows/)' || true)
+if [ -n "$SCAN_FILES" ]; then
+  # Internal project codenames
+  CN_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '\b(Armory|AIMD|atoms|kalami2?|alaya[_-]os)\b' "$f" 2>/dev/null; done || true)
+  if [ -n "$CN_MATCHES" ]; then
+    echo "error: internal project codenames in staged files:"
+    echo "$CN_MATCHES"
+    exit 1
+  fi
+  # Personal paths and hostnames
+  PII_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '/Users/[a-zA-Z]|/home/[a-z]|\.ts\.net|tailcca|vimalamac' "$f" 2>/dev/null; done || true)
+  if [ -n "$PII_MATCHES" ]; then
+    echo "error: personal paths or hostnames in staged files:"
+    echo "$PII_MATCHES"
+    exit 1
+  fi
+fi
+
+# Secret detection
+SECRET_PATTERNS='(API_KEY|SECRET_KEY|PRIVATE_KEY|AUTH_TOKEN|PASSWORD)\s*=\s*["\x27][^\s"'\'']+|sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AIzaSy[a-zA-Z0-9_-]{33}|sk-ant-[a-zA-Z0-9_-]{40,}|sk-or-[a-zA-Z0-9_-]{20,}|github_pat_[a-zA-Z0-9_]{22,}'
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v -E '(\.example$|\.test\.js$|tests/fixtures/|\.md$)' || true)
+if [ -n "$STAGED_FILES" ]; then
+  MATCHES=$(echo "$STAGED_FILES" | while IFS= read -r f; do grep -nEH "$SECRET_PATTERNS" "$f" 2>/dev/null; done || true)
+  if [ -n "$MATCHES" ]; then
+    echo "error: potential secrets detected in staged files:"
+    echo "$MATCHES"
+    exit 1
+  fi
+fi
+
+# ShellCheck on staged shell scripts
+SH_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' || true)
+if [ -n "$SH_FILES" ] && command -v shellcheck >/dev/null 2>&1; then
+  echo "$SH_FILES" | xargs shellcheck 2>/dev/null || true
+fi
