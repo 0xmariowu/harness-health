@@ -1,7 +1,11 @@
 {
   "name": "harness-health",
+  "version": "0.1.4",
   "description": "Check how well your repo supports AI coding agents.",
   "author": {
     "name": "0xmariowu"
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/0xmariowu/harness-health",
+  "repository": "https://github.com/0xmariowu/harness-health"
 }
