@@ -11,7 +11,7 @@
 1. **全流程未在真实 session 跑过** — 每个零件验过，胶水层没测
 2. **F5 E2E 有 2 个 pre-existing failure** — gamma fixture 的 F5 auto-fix 跑不过
 3. **Install script 未在干净机器测过** — `curl | bash` 路径没验证
-4. **enabledPlugins 还指向旧名 harness-health** — 配置没更新
+4. **enabledPlugins 还指向旧名 agent-lint** — 配置没更新
 
 Docker + 真实 corpus 一次解决 #1 和 #3。#2 和 #4 独立修。
 
@@ -101,11 +101,11 @@ Docker + 真实 corpus 一次解决 #1 和 #3。#2 和 #4 独立修。
 
 ### F004: Plugin 配置更新 — todo
 
-目的：`~/.claude/settings.json` 的 `enabledPlugins` 还指向旧名 `harness-health`，需要改成 `agent-lint`。
+目的：`~/.claude/settings.json` 的 `enabledPlugins` 还指向旧名 `agent-lint`，需要改成 `agent-lint`。
 
 #### Steps
 
-- [ ] S1: 读 `~/.claude/settings.json`，找到 `enabledPlugins` 里的 `harness-health` 条目 ← verify: 确认旧名存在
+- [ ] S1: 读 `~/.claude/settings.json`，找到 `enabledPlugins` 里的 `agent-lint` 条目 ← verify: 确认旧名存在
 - [ ] S2: 更新为 `agent-lint`（depends: S1）← verify: `grep agent-lint ~/.claude/settings.json` 有匹配
 - [ ] S3: 验证 `/al` 命令在 skill list 里正常加载（depends: S2）← verify: skill list 包含 `al`（这一步需要新 session 或 reload）
 

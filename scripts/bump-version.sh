@@ -10,7 +10,7 @@ PLUGIN="$ROOT/.claude-plugin/plugin.json"
 MARKETPLACE="$ROOT/.claude-plugin/marketplace.json"
 PACKAGE="$ROOT/package.json"
 
-current=$(python3 -c "import json; print(json.load(open('$PLUGIN'))['version'])")
+current=$(PLUGIN="$PLUGIN" python3 -c "import json, os; print(json.load(open(os.environ['PLUGIN']))['version'])")
 echo "Current version: $current"
 
 if [ "${1:-}" != "" ]; then
@@ -24,23 +24,25 @@ fi
 echo "New version: $new"
 
 # Update all three files
-python3 -c "
-import json
+PLUGIN="$PLUGIN" PACKAGE="$PACKAGE" MARKETPLACE="$MARKETPLACE" NEW_VERSION="$new" python3 -c "
+import json, os
 
-for path in ['$PLUGIN', '$PACKAGE']:
-    with open(path) as f:
+nv = os.environ['NEW_VERSION']
+for p in [os.environ['PLUGIN'], os.environ['PACKAGE']]:
+    with open(p) as f:
         data = json.load(f)
-    data['version'] = '$new'
-    with open(path, 'w') as f:
+    data['version'] = nv
+    with open(p, 'w') as f:
         json.dump(data, f, indent=2)
         f.write('\n')
 
-with open('$MARKETPLACE') as f:
+mp = os.environ['MARKETPLACE']
+with open(mp) as f:
     data = json.load(f)
-data['metadata']['version'] = '$new'
+data['metadata']['version'] = nv
 for plugin in data.get('plugins', []):
-    plugin['version'] = '$new'
-with open('$MARKETPLACE', 'w') as f:
+    plugin['version'] = nv
+with open(mp, 'w') as f:
     json.dump(data, f, indent=2)
     f.write('\n')
 "

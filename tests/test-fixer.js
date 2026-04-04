@@ -32,6 +32,8 @@ function makeTempProject(files) {
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, content);
   }
+  // Fixer requires a git repo
+  fs.mkdirSync(path.join(dir, '.git'), { recursive: true });
   return dir;
 }
 

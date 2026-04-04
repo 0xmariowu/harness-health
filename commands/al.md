@@ -3,7 +3,7 @@ description: "Run AgentLint diagnostic across all projects. Use when: user says 
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*), Glob(*), Grep(*), Agent(*)
 ---
 
-# /hh — AgentLint
+# /al — AgentLint
 
 Diagnose, plan, fix. One command. User presses Enter twice at most.
 
@@ -120,7 +120,7 @@ Severity grouping logic (matches plan-generator.js `inferSeverity`):
 
 For selected items:
 ```bash
-node "$AL_DIR/src/fixer.js" --items "1,2,3" --project-dir ~/Projects < /tmp/al-plan.json
+node "$AL_DIR/src/fixer.js" --items "1,2,3" --project-dir "$PROJECT_DIR" < /tmp/al-plan.json
 ```
 
 Present results:
@@ -170,7 +170,7 @@ Clean up temp files.
 After Step 4, before Step 5, for each project with an entry file:
 
 ```bash
-tasks=$(node "$AL_DIR/src/deep-analyzer.js" --project-dir ~/Projects/my-project)
+tasks=$(node "$AL_DIR/src/deep-analyzer.js" --project-dir "$PROJECT_DIR/my-project")
 ```
 
 For each task, spawn a subagent (model: sonnet):
