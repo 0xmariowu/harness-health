@@ -145,15 +145,15 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
   const gaugeOffset = circumference * (1 - totalScore / 100);
   const gaugeColor = scoreColor(totalScore);
 
-  const gaugeSvg = `<svg class="gauge" viewBox="0 0 120 120" width="140" height="140">
-    <circle cx="60" cy="60" r="54" fill="none" stroke="var(--g200)" stroke-width="10"/>
-    <circle cx="60" cy="60" r="54" fill="none" stroke="${gaugeColor}" stroke-width="10"
+  const gaugeSvg = `<svg class="gauge" viewBox="0 0 120 120" width="130" height="130">
+    <circle cx="60" cy="60" r="54" fill="none" stroke="var(--g100)" stroke-width="8"/>
+    <circle cx="60" cy="60" r="54" fill="none" stroke="${gaugeColor}" stroke-width="8"
       stroke-dasharray="${circumference}" stroke-dashoffset="${gaugeOffset}"
       stroke-linecap="round" transform="rotate(-90 60 60)"
       style="animation:gauge-fill 1s ease-out both;animation-delay:.2s"/>
-    <text x="60" y="55" text-anchor="middle" dominant-baseline="middle"
-      font-size="32" font-weight="700" fill="var(--g900)">${totalScore}</text>
-    <text x="60" y="75" text-anchor="middle" font-size="12" fill="var(--g500)">/100</text>
+    <text x="60" y="56" text-anchor="middle" dominant-baseline="middle"
+      font-size="34" font-weight="800" fill="var(--g900)" letter-spacing="-1">${totalScore}</text>
+    <text x="60" y="77" text-anchor="middle" font-size="12" fill="var(--g300)" font-weight="400">/100</text>
   </svg>`;
 
   // Before/after delta
@@ -175,7 +175,7 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
       const bd = (beforeScores.dimensions || {})[name] || { score: 0, max: 10 };
       const diff = dim.score - bd.score;
       if (diff !== 0) {
-        beforeLine = `<div class="metric-delta" style="color:${diff > 0 ? 'var(--pass)' : 'var(--fail)'}">${diff > 0 ? '+' : ''}${diff} from ${bd.score}</div>`;
+        beforeLine = `<div class="metric-delta" style="color:${diff > 0 ? 'var(--pass)' : 'var(--fail)'}">${diff > 0 ? '\u2191+' : '\u2193'}${diff}</div>`;
       }
     }
     return `<div class="metric-card">
@@ -188,9 +188,9 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
   }).join('');
 
   // Radar chart
-  const radarSize = 220;
+  const radarSize = 300;
   const radarCenter = radarSize / 2;
-  const radarRadius = 80;
+  const radarRadius = 90;
   const angles = dimNames.map((_, i) => (Math.PI * 2 * i) / dimNames.length - Math.PI / 2);
   function rp(angle, value, max) {
     const r = (value / max) * radarRadius;
@@ -202,7 +202,7 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
   }).join('');
   const axisSvg = angles.map((a, i) => {
     const [ex, ey] = rp(a, 10, 10);
-    const [lx, ly] = rp(a, 12.5, 10);
+    const [lx, ly] = rp(a, 13, 10);
     const label = dimNames[i].charAt(0).toUpperCase() + dimNames[i].slice(1);
     const anchor = Math.abs(lx - radarCenter) < 5 ? 'middle' : lx > radarCenter ? 'start' : 'end';
     return `<line x1="${radarCenter}" y1="${radarCenter}" x2="${ex}" y2="${ey}" stroke="var(--g200)" stroke-width="0.5"/>
@@ -215,7 +215,7 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
     const bPts = dimNames.map((n, i) => rp(angles[i], (bd[n] || { score: 0 }).score, 10).join(',')).join(' ');
     beforePoly = `<polygon points="${bPts}" fill="rgba(220,38,38,0.08)" stroke="var(--fail)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
   }
-  const radarSvg = `<svg viewBox="0 0 ${radarSize} ${radarSize}" width="260" height="260" class="radar">
+  const radarSvg = `<svg viewBox="0 0 ${radarSize} ${radarSize}" width="320" height="320" class="radar">
     ${gridSvg}${axisSvg}${beforePoly}
     <polygon points="${afterPts}" fill="rgba(10,138,82,0.1)" stroke="var(--pass)" stroke-width="2"/>
     ${dimNames.map((n, i) => { const [cx, cy] = rp(angles[i], dims[n].score, dims[n].max); return `<circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--pass)"/>`; }).join('')}
@@ -305,25 +305,24 @@ body{background:var(--g50);color:var(--g700);font-family:var(--font);line-height
 .topbar{background:var(--g900);color:white;padding:0 24px;height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;position:sticky;top:0;z-index:20}
 .topbar-brand{font-weight:700;color:var(--brand);letter-spacing:.02em}
 .topbar-date{color:var(--g400);font-family:var(--mono);font-size:12px}
-.hero{display:flex;gap:40px;align-items:center;padding:32px 24px;flex-wrap:wrap}
-.hero-left{display:flex;flex-direction:column;align-items:center;gap:8px}
-.gauge{filter:drop-shadow(0 2px 4px rgba(0,0,0,.06))}
+.hero{display:flex;align-items:center;gap:28px;padding:28px 24px;background:white;border-bottom:1px solid var(--g200)}
+.hero-score{text-align:center;min-width:140px;flex-shrink:0}
+.gauge{filter:drop-shadow(0 1px 4px rgba(0,0,0,.04))}
 @keyframes gauge-fill{from{stroke-dashoffset:${circumference}}}
-.delta{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--g500);margin-top:4px}
-.delta-from{font-size:20px;color:var(--g400);text-decoration:line-through}
-.delta-arrow{font-size:16px}
-.delta-to{font-size:28px;font-weight:700;color:var(--g900)}
-.delta-diff{font-size:16px;font-weight:600}
-.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;flex:1}
-.metric-card{background:white;border:1px solid var(--g200);border-radius:var(--radius);padding:16px 12px;box-shadow:var(--shadow);text-align:center}
-.metric-value{font-size:32px;font-weight:700;line-height:1}
-.metric-max{font-size:13px;color:var(--g400);margin-top:2px}
-.metric-label{font-size:11px;color:var(--g500);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-.metric-bar{height:4px;background:var(--g200);border-radius:2px;margin-top:10px;overflow:hidden}
+.delta{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;color:var(--g400)}
+.delta-from{text-decoration:line-through}
+.delta-arrow{font-size:10px}
+.delta-to{font-weight:600;color:var(--g600)}
+.delta-diff{font-weight:600}
+.metric-grid{display:grid;grid-template-columns:repeat(${dimNames.length},1fr);gap:1px;flex:1;background:var(--g200);border:1px solid var(--g200);border-radius:8px;overflow:hidden}
+.metric-card{background:white;padding:18px 10px;text-align:center}
+.metric-value{font-size:28px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.metric-max{font-size:12px;color:var(--g300);margin-top:2px;font-weight:400}
+.metric-label{font-size:11px;color:var(--g400);margin-top:8px;text-transform:uppercase;letter-spacing:.08em;font-weight:500}
+.metric-bar{height:3px;background:var(--g100);border-radius:2px;margin-top:10px;overflow:hidden}
 .metric-fill{height:100%;border-radius:2px;animation:bar-grow .8s ease both;animation-delay:.3s}
 @keyframes bar-grow{from{width:0 !important}}
-.metric-delta{font-size:11px;margin-top:4px;font-weight:500}
-.radar{display:block;margin:0 auto}
+.metric-delta{font-size:11px;margin-top:6px;font-weight:400;color:var(--g400)}
 .legend{display:flex;gap:16px;font-size:11px;color:var(--g500);padding:8px 24px;flex-wrap:wrap}
 .legend-sep{color:var(--g300)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
@@ -370,7 +369,7 @@ body{background:var(--g50);color:var(--g700);font-family:var(--font);line-height
   </div>
 
   <div class="hero">
-    <div class="hero-left">
+    <div class="hero-score">
       ${gaugeSvg}
       ${deltaHtml}
     </div>
@@ -379,10 +378,9 @@ body{background:var(--g50);color:var(--g700);font-family:var(--font);line-height
     </div>
   </div>
 
-  <div style="display:flex;justify-content:center;padding:0 24px 16px">
-    ${radarSvg}
+  <div style="display:flex;justify-content:center;align-items:center;gap:16px;padding:16px 24px">
+    ${legend}
   </div>
-  ${legend}
 
   ${projectSection}
   ${issuesSection}
