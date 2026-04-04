@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -u
+set -euo pipefail
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(CDPATH='' cd -- "${SCRIPT_DIR}/.." && pwd)"
@@ -321,15 +321,28 @@ resolve_reference_exists() {
 
   if [ -z "$ref" ]; then
     return 1
-  elif [ -e "$ref" ]; then
+  fi
+
+  # Skip absolute paths — don't probe filesystem outside project
+  if [[ "$ref" == /* ]]; then
+    return 1
+  fi
+
+  if [ -e "$ref" ]; then
     return 0
   elif [ -e "${project_dir}/${ref#./}" ]; then
     return 0
   fi
 
+  # Escape glob characters for find -name
+  local safe_ref="${ref//\[/\\[}"
+  safe_ref="${safe_ref//\]/\\]}"
+  safe_ref="${safe_ref//\*/\\*}"
+  safe_ref="${safe_ref//\?/\\?}"
+
   # For bare filenames (no /), search subdirectories by name
   if [[ "$ref" != */* ]] && [[ "$ref" == *.* ]]; then
-    if find "$project_dir" -maxdepth 4 -name "$ref" -print -quit 2>/dev/null | grep -q .; then
+    if find "$project_dir" -maxdepth 4 -name "$safe_ref" -print -quit 2>/dev/null | grep -q .; then
       return 0
     fi
   fi
@@ -337,14 +350,22 @@ resolve_reference_exists() {
   # For relative paths with /, try matching the last component
   if [[ "$ref" == */* ]] && [[ "$ref" != /* ]]; then
     local basename="${ref##*/}"
+    local safe_basename="${basename//\[/\\[}"
+    safe_basename="${safe_basename//\]/\\]}"
+    safe_basename="${safe_basename//\*/\\*}"
+    safe_basename="${safe_basename//\?/\\?}"
     if [ -n "$basename" ] && [[ "$basename" == *.* ]]; then
-      if find "$project_dir" -maxdepth 4 -name "$basename" -print -quit 2>/dev/null | grep -q .; then
+      if find "$project_dir" -maxdepth 4 -name "$safe_basename" -print -quit 2>/dev/null | grep -q .; then
         return 0
       fi
     fi
     # Also try the last directory component as a directory name
     local dirname="${ref%%/*}"
-    if find "$project_dir" -maxdepth 3 -type d -name "$dirname" -print -quit 2>/dev/null | grep -q .; then
+    local safe_dirname="${dirname//\[/\\[}"
+    safe_dirname="${safe_dirname//\]/\\]}"
+    safe_dirname="${safe_dirname//\*/\\*}"
+    safe_dirname="${safe_dirname//\?/\\?}"
+    if find "$project_dir" -maxdepth 3 -type d -name "$safe_dirname" -print -quit 2>/dev/null | grep -q .; then
       return 0
     fi
   fi
@@ -668,10 +689,10 @@ EOF
   emit_result "$project_name" "F6" "$measured" "null" "$score" "$detail"
 
   if [ -n "$entry_abs" ]; then
-    count_important="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'IMPORTANT')"
-    count_never="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'NEVER')"
-    count_must="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'MUST')"
-    count_critical="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'CRITICAL')"
+    count_important="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'IMPORTANT' || true)"
+    count_never="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'NEVER' || true)"
+    count_must="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'MUST' || true)"
+    count_critical="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'CRITICAL' || true)"
     measured="$(jq -cn \
       --argjson IMPORTANT "$count_important" \
       --argjson NEVER "$count_never" \
@@ -806,7 +827,7 @@ EOF
 
   # I5
   if [ -n "$entry_abs" ]; then
-    identity_language_count="$(grep -Eio "You are a |You're a |As an AI|As a developer" "$entry_abs" 2>/dev/null | wc -l | tr -d '[:space:]')"
+    identity_language_count="$(grep -Eio "You are a |You're a |As an AI|As a developer" "$entry_abs" 2>/dev/null | wc -l | tr -d '[:space:]')" || true
     measured="$identity_language_count"
     reference="0"
     if [ "$identity_language_count" -eq 0 ]; then
@@ -889,9 +910,9 @@ EOF
 
   # C1
   if [ -n "$entry_abs" ]; then
-    code_ts="$(git_code_timestamp "$project_dir")"
+    code_ts="$(git_code_timestamp "$project_dir")" || true
     if [ -z "$code_ts" ]; then
-      code_ts="$(filesystem_code_timestamp "$project_dir")"
+      code_ts="$(filesystem_code_timestamp "$project_dir")" || true
     fi
     entry_ts="$(entry_timestamp "$project_dir" "$entry_rel")"
     if [ -n "$entry_ts" ] && [ -n "$code_ts" ] && [ "$code_ts" -gt 0 ]; then
@@ -1071,13 +1092,16 @@ EOF
     hook_file="${project_dir}/.git/hooks/pre-commit"
   fi
   if [ -n "$hook_file" ]; then
-    # Measure hook execution time (timeout at 15s)
-    hook_time="$(cd "$project_dir" && { time timeout 15 bash "$hook_file" >/dev/null 2>&1; } 2>&1 | grep real | awk '{print $2}' | sed 's/[ms]/ /g' | awk '{if (NF==2) print $1*60+$2; else print $1}' 2>/dev/null)" || hook_time="15"
-    hook_time="${hook_time:-0}"
-    if awk -v t="$hook_time" 'BEGIN { exit (t <= 10) ? 0 : 1 }'; then
-      emit_result "$project_name" "W6" "$hook_time" "10" "1" "Pre-commit hook runs in ${hook_time}s (limit: 10s)"
+    # Static analysis — estimate hook speed from known slow commands
+    # NEVER execute hook files (RCE risk on untrusted repos)
+    local hook_content
+    hook_content="$(cat "$hook_file" 2>/dev/null)" || hook_content=""
+    if echo "$hook_content" | grep -qE '(tsc|eslint --fix|prettier --write|jest|vitest|mypy|cargo clippy|cargo test|go test|pytest|rspec)'; then
+      hook_time="8"
+      emit_result "$project_name" "W6" "$hook_time" "10" "1" "Pre-commit hook contains slow commands (estimated ${hook_time}s)"
     else
-      emit_result "$project_name" "W6" "$hook_time" "10" "0" "Pre-commit hook takes ${hook_time}s — will stall Claude Code commits"
+      hook_time="2"
+      emit_result "$project_name" "W6" "$hook_time" "10" "1" "Pre-commit hook looks fast (estimated ${hook_time}s)"
     fi
   else
     emit_result "$project_name" "W6" "0" "10" "1" "No pre-commit hook (OK)"
@@ -1115,7 +1139,7 @@ EOF
           wf_pinned=$((wf_pinned + 1))
         fi
       done <<USES
-$(grep -E '^\s*uses:\s' "$wf_file" 2>/dev/null | grep -v '#.*uses:')
+$(grep -E '^\s*uses:\s' "$wf_file" 2>/dev/null | grep -v '#.*uses:' || true)
 USES
     done <<WF
 $(find "$wf_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null)

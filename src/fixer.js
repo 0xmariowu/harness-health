@@ -11,7 +11,7 @@ const CLAUDE_TEMPLATE = path.join(__dirname, '..', 'standards', 'fix-templates',
 const DEFAULT_ITEM_IDS = new Map([
   ['F1', 'assisted'],
   ['I5', 'auto'],
-  ['F5', 'auto'],
+  ['F5', 'assisted'],
   ['C2', 'assisted'],
 ]);
 
@@ -91,6 +91,10 @@ function parseArgs(argv) {
 
   args.selectedItems = selectedItems;
   args.projectDir = path.resolve(args.projectDir); // nosemgrep: path-join-resolve-traversal
+
+  if (!fs.existsSync(path.join(args.projectDir, '.git'))) { // nosemgrep: path-join-resolve-traversal
+    throw new Error(`Not a git repository: ${args.projectDir}`);
+  }
 
   return args;
 }

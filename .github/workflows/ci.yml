@@ -59,3 +59,4 @@ jobs:
           node tests/test-plan-generator.js
           node tests/test-reporter.js
           node tests/test-fixer.js
+          node tests/test-html-report.js

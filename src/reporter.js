@@ -320,7 +320,7 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
           <div class="fix-reason">${esc(fix.evidence ? fix.evidence.slice(0, 150) : '')}</div>
         </div>
         <div class="fix-meta">
-          <span class="fix-type ${isGuided ? 'fix-guided' : 'fix-assisted'}">${fix.fix_type}</span>
+          <span class="fix-type ${isGuided ? 'fix-guided' : 'fix-assisted'}">${esc(fix.fix_type)}</span>
           <span class="fix-check">${esc(fix.check_id || '')}</span>
         </div>
       </div>`;
@@ -443,7 +443,7 @@ body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;ma
     <div class="hero-head">
       <div style="display:flex;align-items:center">
         <span class="hero-brand">AgentLint</span>
-        ${alVersion ? `<span class="hero-ver">v${alVersion}</span>` : ''}
+        ${alVersion ? `<span class="hero-ver">v${esc(alVersion)}</span>` : ''}
       </div>
       <span class="hero-meta">${projectLabel}${date}</span>
     </div>
