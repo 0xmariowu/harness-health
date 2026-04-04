@@ -4,7 +4,7 @@ set -u
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
-TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hh-scanner-test.XXXXXX")"
+TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/al-scanner-test.XXXXXX")"
 WITH_PROJECT="${TEMP_ROOT}/with-claude"
 WITHOUT_PROJECT="${TEMP_ROOT}/without-claude"
 WITH_OUTPUT="${TEMP_ROOT}/with.jsonl"

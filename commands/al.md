@@ -1,9 +1,9 @@
 ---
-description: "Run Harness Health diagnostic across all projects. Use when: user says /hh, 'check all projects', 'harness health', or '体检'."
+description: "Run AgentLint diagnostic across all projects. Use when: user says /al, 'check all projects', 'agent lint', or '体检'."
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*), Glob(*), Grep(*), Agent(*)
 ---
 
-# /hh — Harness Health
+# /hh — AgentLint
 
 Diagnose, plan, fix. One command. User presses Enter twice at most.
 
@@ -14,7 +14,7 @@ Diagnose, plan, fix. One command. User presses Enter twice at most.
 AskUserQuestion with **defaults pre-selected** (user can press Enter to accept):
 
 ```
-Harness Health — which checks to run?
+AgentLint — which checks to run?
 
 ☑ Findability — can AI find what it needs?
 ☑ Instruction Quality — are your rules well-written?
@@ -41,17 +41,17 @@ Press Enter → uses `~/Projects`. Save to `${CLAUDE_PLUGIN_DATA}/config.json`. 
 ### Step 3: Scan + Score (no interaction)
 
 ```bash
-HH_DIR="${CLAUDE_PLUGIN_ROOT}"
-bash "$HH_DIR/src/scanner.sh" > /tmp/hh-scan.jsonl
-node "$HH_DIR/src/scorer.js" /tmp/hh-scan.jsonl > /tmp/hh-scores.json
+AL_DIR="${CLAUDE_PLUGIN_ROOT}"
+bash "$AL_DIR/src/scanner.sh" > /tmp/al-scan.jsonl
+node "$AL_DIR/src/scorer.js" /tmp/al-scan.jsonl > /tmp/al-scores.json
 ```
 
 ### Step 4: Present Scores (no interaction)
 
-Read `/tmp/hh-scores.json` and present:
+Read `/tmp/al-scores.json` and present:
 
 ```
-🏥 Harness Health — Score: 78/100
+🏥 AgentLint — Score: 78/100
 
 Findability      ████████████████░░░░  8/10
 Instructions     ██████████████████░░  9/10
@@ -69,10 +69,10 @@ By Project:
 
 Run plan generator:
 ```bash
-node "$HH_DIR/src/plan-generator.js" /tmp/hh-scores.json > /tmp/hh-plan.json
+node "$AL_DIR/src/plan-generator.js" /tmp/al-scores.json > /tmp/al-plan.json
 ```
 
-Read `/tmp/hh-plan.json`. **First print the full plan as readable text**, then AskUserQuestion.
+Read `/tmp/al-plan.json`. **First print the full plan as readable text**, then AskUserQuestion.
 
 **Step 5a: Print fix plan (no interaction)**
 
@@ -120,7 +120,7 @@ Severity grouping logic (matches plan-generator.js `inferSeverity`):
 
 For selected items:
 ```bash
-node "$HH_DIR/src/fixer.js" --items "1,2,3" --project-dir ~/Projects < /tmp/hh-plan.json
+node "$AL_DIR/src/fixer.js" --items "1,2,3" --project-dir ~/Projects < /tmp/al-plan.json
 ```
 
 Present results:
@@ -139,8 +139,8 @@ Present results:
 
 Re-run scanner + scorer:
 ```bash
-bash "$HH_DIR/src/scanner.sh" > /tmp/hh-verify.jsonl
-node "$HH_DIR/src/scorer.js" /tmp/hh-verify.jsonl > /tmp/hh-verify-scores.json
+bash "$AL_DIR/src/scanner.sh" > /tmp/al-verify.jsonl
+node "$AL_DIR/src/scorer.js" /tmp/al-verify.jsonl > /tmp/al-verify-scores.json
 ```
 
 Show delta:
@@ -157,8 +157,8 @@ Show delta:
 Save report:
 ```bash
 mkdir -p ${CLAUDE_PLUGIN_DATA}/reports
-cp /tmp/hh-verify-scores.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F).json
-cp /tmp/hh-plan.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F)-plan.json
+cp /tmp/al-verify-scores.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F).json
+cp /tmp/al-plan.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F)-plan.json
 ```
 
 Clean up temp files.
@@ -170,7 +170,7 @@ Clean up temp files.
 After Step 4, before Step 5, for each project with an entry file:
 
 ```bash
-tasks=$(node "$HH_DIR/src/deep-analyzer.js" --project-dir ~/Projects/my-project)
+tasks=$(node "$AL_DIR/src/deep-analyzer.js" --project-dir ~/Projects/my-project)
 ```
 
 For each task, spawn a subagent (model: sonnet):
@@ -192,7 +192,7 @@ Add results to the fix plan as `guided` items in the 🟡 medium section.
 After Step 4, before Step 5:
 
 ```bash
-node "$HH_DIR/src/session-analyzer.js" --max-sessions 30 > /tmp/hh-session.jsonl
+node "$AL_DIR/src/session-analyzer.js" --max-sessions 30 > /tmp/al-session.jsonl
 ```
 
 Present findings inline:

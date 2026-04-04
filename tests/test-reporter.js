@@ -75,7 +75,7 @@ function runReporter(args) {
 }
 
 runTest('terminal format includes score bars and the total score', () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-reporter-terminal-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-terminal-'));
 
   try {
     const scoresPath = writeFixtureScores(tempDir);
@@ -90,7 +90,7 @@ runTest('terminal format includes score bars and the total score', () => {
 });
 
 runTest('md format writes a markdown report with table headers', () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-reporter-md-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-md-'));
 
   try {
     const scoresPath = writeFixtureScores(tempDir);
@@ -108,7 +108,7 @@ runTest('md format writes a markdown report with table headers', () => {
 });
 
 runTest('jsonl format writes valid JSON lines', () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-reporter-jsonl-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-jsonl-'));
 
   try {
     const scoresPath = writeFixtureScores(tempDir);

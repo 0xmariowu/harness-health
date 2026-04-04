@@ -8,7 +8,7 @@
  * expected output format for the Claude Code skill to use when
  * spawning subagents for deep analysis.
  *
- * The skill (hh.md) runs this to get:
+ * The skill (al.md) runs this to get:
  * 1. Which files to analyze
  * 2. The prompt for each file
  * 3. How to format results as JSONL

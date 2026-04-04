@@ -1,7 +1,7 @@
 # Handoff
 
 ## main (updated 2026-04-04)
-**What**: Harness Health v0.1.4 — released, repo cleaned
+**What**: AgentLint v0.1.4 — released, repo cleaned
 **Status**: Published and functional. 69 tests (24 unit + 45 E2E), Docker E2E verified.
 
 **Next**:

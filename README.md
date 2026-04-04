@@ -1,7 +1,7 @@
-# Harness Health
+# AgentLint
 
-[![CI](https://github.com/0xmariowu/harness-health/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/harness-health/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/0xmariowu/harness-health)](https://github.com/0xmariowu/harness-health/releases)
+[![CI](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/0xmariowu/agent-lint)](https://github.com/0xmariowu/agent-lint/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Check if your repo is AI-friendly.** One command: scan, score, fix.
@@ -11,19 +11,19 @@
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/0xmariowu/harness-health/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/0xmariowu/agent-lint/main/scripts/install.sh | bash
 ```
 
 Then start a new Claude Code session and run:
 
 ```
-/hh
+/al
 ```
 
 ### Update
 
 ```bash
-claude plugin update harness-health@harness-health
+claude plugin update agent-lint@agent-lint
 ```
 
 ### Requirements
@@ -35,9 +35,9 @@ claude plugin update harness-health@harness-health
 ## What it does
 
 ```
-$ /hh
+$ /al
 
-🏥 Harness Health — Score: 72/100
+🏥 AgentLint — Score: 72/100
 
 Findability      ██████████████░░░░░░  7/10
 Instructions     ████████████████░░░░  8/10

@@ -191,7 +191,7 @@ function readEvidence() {
 }
 
 function createBackupRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'hh-backup-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'al-backup-'));
 }
 
 function backupFile(originalPath, projectDir, backupRoot, backedSet) {

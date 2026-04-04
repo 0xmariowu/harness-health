@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.0 (2026-04-04)
+
+Renamed from Harness Health to **AgentLint**. New command: `/al`.
+
+- Rebranded: Harness Health → AgentLint. Command `/hh` → `/al`
+- New: HTML report with radar chart, dimension bars, before/after comparison (`--format html`)
+- New: `--before` flag for reporter to show fix delta
+- New: 5 checks from Claude Code source analysis (I7, F7, W5, W6, C5) — total 25 checks
+- New: SessionStart hook checks jq + node on startup
+- New: `${CLAUDE_PLUGIN_DATA}` for persistent config/reports
+- New: version sync + `scripts/bump-version.sh`
+- New: one-line install script
+- Repo standards: badges, CONTRIBUTING, CODE_OF_CONDUCT, PR template, SECURITY upgrade
+- Git history rewritten to remove personal information
+
 ## v0.1.4 (2026-04-04)
 
 You can now see what needs fixing before choosing. Scanner finds nested repos.
@@ -27,10 +42,10 @@ Fix: plugin was not discoverable — missing marketplace.json.
 
 ## v0.1.2 (2026-04-03)
 
-Fix: `/hh` is a user command, not an internal skill.
+Fix: `/al` is a user command, not an internal skill.
 
-- You can now `/hh` in any Claude Code session after install
-- Fix: moved `skills/hh/SKILL.md` → `commands/hh.md` (command = user-invocable, skill = internal)
+- You can now `/al` in any Claude Code session after install
+- Fix: moved `skills/hh/SKILL.md` → `commands/al.md` (command = user-invocable, skill = internal)
 - Fix: simplified plugin.json to match official plugins (name + description + author only)
 - Fix: added `allowed-tools` to command frontmatter
 
@@ -40,14 +55,14 @@ Fix: plugin format was wrong, users couldn't install from GitHub.
 
 - You can now install via `extraKnownMarketplaces` and it actually works
 - Fix: moved `plugin.json` to `.claude-plugin/plugin.json`
-- Fix: moved `skills/hh.md` to `skills/hh/SKILL.md` (directory format)
+- Fix: moved `skills/al.md` to `skills/hh/SKILL.md` (directory format)
 - Fix: removed explicit skills array from plugin.json (auto-discovered)
 
 ## v0.1.0 (2026-04-03)
 
 First release. You can now:
 
-- Run `/hh` in Claude Code to diagnose all your projects
+- Run `/al` in Claude Code to diagnose all your projects
 - See a score out of 100 across 4 dimensions (Findability, Instructions, Workability, Continuity)
 - Get a fix plan grouped by severity with auto/assisted/guided actions
 - Execute fixes automatically (broken references, missing files) or get guidance

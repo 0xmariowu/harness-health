@@ -9,7 +9,7 @@
 
 ## Reporting a vulnerability
 
-If you find a security issue, please email **security@0xmariowu.dev** instead of opening a public issue. You can also use [GitHub's private vulnerability reporting](https://github.com/0xmariowu/harness-health/security/advisories/new).
+If you find a security issue, please email **security@0xmariowu.dev** instead of opening a public issue. You can also use [GitHub's private vulnerability reporting](https://github.com/0xmariowu/agent-lint/security/advisories/new).
 
 We will respond within 48 hours.
 

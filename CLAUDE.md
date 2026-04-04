@@ -1,6 +1,6 @@
-# Harness Health
+# AgentLint
 
-> For global rules, see `~/CLAUDE.md`. This file contains harness-health-specific overrides only.
+> For global rules, see `~/CLAUDE.md`. This file contains agent-lint-specific overrides only.
 > Lighthouse for AI-Friendly repos — diagnose, plan, fix.
 
 ## Session Checklist
@@ -11,11 +11,11 @@
 
 ## Rules
 
-- Don't add a check without empirical evidence. Instead, cite: Anthropic data, academic paper, or documented real-world failure. Because: HH's value is evidence-backed recommendations, not opinions.
+- Don't add a check without empirical evidence. Instead, cite: Anthropic data, academic paper, or documented real-world failure. Because: AgentLint's value is evidence-backed recommendations, not opinions.
 - Don't hardcode thresholds as pass/fail gates. Instead, measure and compare to reference values. Because: Bitter Lesson — imposing human-defined boundaries creates brittle rules that break when context changes.
 - Don't modify scanner output format without updating scorer + plan-generator + reporter. Because: the JSONL schema is a contract between all pipeline stages.
 - Don't hardcode paths in skills/*.md. Instead, use `${CLAUDE_PLUGIN_ROOT}` to reference bundled files. Because: plugin install path varies per user.
-- Don't write persistent data to `${CLAUDE_PLUGIN_ROOT}`. Instead, use `${CLAUDE_PLUGIN_DATA}` or `~/.hh/`. Because: plugin root is replaced on update.
+- Don't write persistent data to `${CLAUDE_PLUGIN_ROOT}`. Instead, use `${CLAUDE_PLUGIN_DATA}` or `~/.al/`. Because: plugin root is replaced on update.
 
 ## Workflow
 

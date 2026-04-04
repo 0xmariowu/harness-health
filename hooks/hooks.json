@@ -1,12 +1,12 @@
 {
-  "description": "Harness Health plugin hooks",
+  "description": "AgentLint plugin hooks",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "missing=''; command -v jq >/dev/null 2>&1 || missing=\"$missing jq\"; command -v node >/dev/null 2>&1 || missing=\"$missing node\"; if [ -n \"$missing\" ]; then echo \"[Harness Health] Missing:$missing — install before running /hh\"; else echo 'Harness Health ready'; fi",
+            "command": "missing=''; command -v jq >/dev/null 2>&1 || missing=\"$missing jq\"; command -v node >/dev/null 2>&1 || missing=\"$missing node\"; if [ -n \"$missing\" ]; then echo \"[AgentLint] Missing:$missing — install before running /hh\"; else echo 'AgentLint ready'; fi",
             "timeout": 10
           }
         ]

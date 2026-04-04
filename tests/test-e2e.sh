@@ -13,7 +13,7 @@ FIXER="${ROOT_DIR}/src/fixer.js"
 DEEP="${ROOT_DIR}/src/deep-analyzer.js"
 INSTALL="${ROOT_DIR}/scripts/install.sh"
 
-TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hh-e2e.XXXXXX")"
+TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/al-e2e.XXXXXX")"
 PROJECTS="${TEMP_ROOT}/Projects"
 
 pass_count=0
@@ -49,7 +49,7 @@ setup_projects() {
   cat > "${a}/CLAUDE.md" <<'ENTRY'
 # Project Alpha
 
-> A demo project for testing harness-health.
+> A demo project for testing agent-lint.
 
 ## Session Checklist
 

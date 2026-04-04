@@ -26,7 +26,7 @@ function runTest(name, fn) {
 }
 
 function makeTempProject(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-fixer-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-fixer-test-'));
   for (const [name, content] of Object.entries(files)) {
     const fullPath = path.join(dir, name);
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });

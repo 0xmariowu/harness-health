@@ -1,5 +1,5 @@
 {
-  "$schema": "harness-health/standards/v1",
+  "$schema": "agent-lint/standards/v1",
   "version": "0.1.0",
   "sources": {
     "anthropic-265": {

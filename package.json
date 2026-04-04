@@ -1,17 +1,17 @@
 {
-  "name": "harness-health",
-  "version": "0.1.4",
+  "name": "agent-lint",
+  "version": "0.2.0",
   "description": "Check how well your repo supports AI coding agents.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/0xmariowu/harness-health"
+    "url": "https://github.com/0xmariowu/agent-lint"
   },
   "keywords": [
     "claude-code",
     "plugin",
     "ai-friendly",
-    "harness",
+    "agent-lint",
     "health-check",
     "claude-md",
     "agents-md",
@@ -24,6 +24,6 @@
     ".claude-plugin/"
   ],
   "bin": {
-    "hh-scan": "src/scanner.sh"
+    "al-scan": "src/scanner.sh"
   }
 }
