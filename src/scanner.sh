@@ -994,6 +994,7 @@ EOF
     local include_target=""
     while IFS= read -r line || [ -n "$line" ]; do
       # Match @./path, @path, @~/path patterns (not inside code blocks)
+      # shellcheck disable=SC2016
       if printf '%s\n' "$line" | grep -Eq '^[^`]*@\.?\.?/[^ ]+|^[^`]*@[a-zA-Z][^ ]*\.[a-zA-Z]'; then
         include_target="$(printf '%s\n' "$line" | grep -Eo '@[^ ]+' | head -1 | sed 's/^@//')"
         [ -z "$include_target" ] && continue
