@@ -36,8 +36,9 @@ Workability      ████████████░░░░░░░░  6
 Safety           ██████████░░░░░░░░░░  5/10
 Continuity       ██████████████░░░░░░  7/10
 
-Fix Plan (5 items):
-  [auto]     Remove 12 broken references
+Fix Plan (7 items):
+  [guided]   Pin 8 GitHub Actions to SHA (supply chain risk)
+  [guided]   Add .env to .gitignore (AI exposes secrets)
   [assisted] Generate HANDOFF.md
   [guided]   Reduce IMPORTANT keywords (7 found, Anthropic uses 4)
 
@@ -46,7 +47,7 @@ Select items → AgentLint fixes → re-scores → saves HTML report
 
 ## Why this matters
 
-AI coding agents don't just read your code — they read your repo structure, your docs, your CI config, your handoff notes. A repo that's set up right gets dramatically better AI output. One that isn't wastes tokens, ignores rules, and repeats mistakes every session.
+AI coding agents don't just read your code — they read your repo structure, your docs, your CI config, your handoff notes. They also `git push`, trigger CI pipelines, and write files. A repo that's set up right gets dramatically better AI output. One that isn't wastes tokens, ignores rules, repeats mistakes, and may silently expose secrets or trigger vulnerable workflows.
 
 The problem: **nobody knows what makes a repo AI-friendly.** Until now.
 
@@ -54,8 +55,8 @@ AgentLint is built on data from places most developers never look:
 
 - **265 versions** of Anthropic's own Claude Code system prompt — we tracked every word they added, deleted, and rewrote
 - **Claude Code source code** — we found the hard limits (40K char max, 256KB file read limit, pre-commit hook behavior) that silently break your setup
+- **4,533 real repos** analyzed — 58% use floating Action tags, 92% have no SECURITY.md, 1% have `.env` committed
 - **6 academic papers** on instruction-following, context file effectiveness, and documentation decay
-- **Real production audits** across multiple codebases
 
 ## What it checks
 

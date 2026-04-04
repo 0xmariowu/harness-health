@@ -276,9 +276,7 @@ extract_references() {
   local entry_file="$1"
   local line=""
   local rest=""
-  local raw_candidate=""
   local candidate=""
-  local token=""
   local md_link_regex='\[[^][]+\]\(([^)]+)\)'
 
   local in_fenced_block=false
@@ -1181,7 +1179,7 @@ WF2
     secret_hits="$(git -C "$project_dir" grep -lE \
       'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
       -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.env' '*.yml' '*.yaml' '*.json' '*.toml' \
-      2>/dev/null | grep -v 'node_modules\|\.git\|vendor\|dist\|build\|__pycache__\|\.lock' | wc -l | tr -d '[:space:]')"
+      2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build\|__pycache__\|\.lock')" || secret_hits=0
     if [ "${secret_hits:-0}" -gt 0 ]; then
       secret_examples="$(git -C "$project_dir" grep -lE \
         'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
