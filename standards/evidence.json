@@ -40,7 +40,7 @@
       "type": "industry-practice"
     },
     "practical-audit": {
-      "name": "9-Project Dev Discipline Audit (2026-04-01)",
+      "name": "Multi-Project Dev Discipline Audit",
       "description": "Cross-project audit finding real issues: broken references, empty-shell CI, stale docs",
       "type": "first-party-data"
     },

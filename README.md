@@ -1,5 +1,9 @@
 # Harness Health
 
+[![CI](https://github.com/0xmariowu/harness-health/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/harness-health/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/0xmariowu/harness-health)](https://github.com/0xmariowu/harness-health/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Check if your repo is AI-friendly.** One command: scan, score, fix.
 
 20 evidence-backed checks across findability, instruction quality, workability, and continuity. Based on [Anthropic's 265 Claude Code system prompt versions](https://cchistory.mariozechner.at), academic research, and real-world audits.

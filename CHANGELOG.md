@@ -10,7 +10,7 @@ You can now see what needs fixing before choosing. Scanner finds nested repos.
 - Fix: severity thresholds in docs now match code (<0.5 = high)
 - Fix: 3 security workflows using nonexistent actions/checkout@v6
 - Fix: broken reference to docs/evidence-sources.md in README
-- Removed personal dev diary from experience/
+- Cleaned internal development notes
 - Cleaned .gitignore, package.json, hardcoded paths
 - Upgraded issue templates to YAML form format
 - Added Dependabot grouped updates
