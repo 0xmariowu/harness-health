@@ -30,13 +30,13 @@ Harness Health — which checks to run?
 
 ### Step 2: Init (first run only)
 
-If `~/.hh/config.json` doesn't exist, ask with default:
+If `${CLAUDE_PLUGIN_DATA}/config.json` doesn't exist, ask with default:
 
 ```
 Where are your projects? [~/Projects]: ↵
 ```
 
-Press Enter → uses `~/Projects`. Save to `~/.hh/config.json`. Never ask again.
+Press Enter → uses `~/Projects`. Save to `${CLAUDE_PLUGIN_DATA}/config.json`. Never ask again.
 
 ### Step 3: Scan + Score (no interaction)
 
@@ -151,14 +151,14 @@ Show delta:
   Workability: 6 → 6 (=)
   Continuity: 7 → 8 (+1)
 
-📄 Report saved to ~/.hh/reports/2026-04-03.json
+📄 Report saved to ${CLAUDE_PLUGIN_DATA}/reports/2026-04-03.json
 ```
 
 Save report:
 ```bash
-mkdir -p ~/.hh/reports
-cp /tmp/hh-verify-scores.json ~/.hh/reports/$(date +%F).json
-cp /tmp/hh-plan.json ~/.hh/reports/$(date +%F)-plan.json
+mkdir -p ${CLAUDE_PLUGIN_DATA}/reports
+cp /tmp/hh-verify-scores.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F).json
+cp /tmp/hh-plan.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F)-plan.json
 ```
 
 Clean up temp files.
