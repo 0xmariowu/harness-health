@@ -50,7 +50,7 @@ setup_projects() {
   mkdir -p "${WITHOUT_PROJECT}/src"
 
   cat > "${WITH_PROJECT}/CLAUDE.md" <<'EOF'
-# Harness fixture
+# Test fixture
 
 This project exists to validate scanner behavior.
 

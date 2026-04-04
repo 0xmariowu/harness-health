@@ -2,9 +2,9 @@
 
 ## v0.2.0 (2026-04-04)
 
-Renamed from Harness Health to **AgentLint**. New command: `/al`.
+New brand, new command: `/al`.
 
-- Rebranded: Harness Health → AgentLint. Command `/hh` → `/al`
+- New name: AgentLint. Command: `/al`
 - New: HTML report with radar chart, dimension bars, before/after comparison (`--format html`)
 - New: `--before` flag for reporter to show fix delta
 - New: 5 checks from Claude Code source analysis (I7, F7, W5, W6, C5) — total 25 checks
