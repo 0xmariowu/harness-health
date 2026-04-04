@@ -28,6 +28,7 @@ description = "Project-level allowlist"
 paths = [
   '''\.gitleaks\.toml$''',
   '''README\.md$''',
+  '''CHANGELOG\.md$''',
   '''docs/checks\.md$''',
   '''docs/scoring\.md$''',
   '''standards/evidence\.json$''',

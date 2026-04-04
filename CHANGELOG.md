@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.0 (2026-04-04)
+
+33 checks. Two new safety checks, hardened dev workflow.
+
+- New: S7 — detects personal filesystem paths in source files
+- New: S8 — detects `pull_request_target` trigger in GitHub Actions workflows
+- New: pre-commit hook with author whitelist, codename scan, PII scan, secret detection, shellcheck
+- New: CI author-email check — validates commit author uses noreply email and pseudonym
+- Fix: `set -euo pipefail` in all shell scripts with guarded pipe exits
+- Fix: gitleaks allowlist for documentation files containing example paths
+- Fix: CI name check skips push events (squash merge uses GitHub profile display name)
+- Docs: README brand refresh — sharper opening, updated check count, softened language
+
 ## v0.3.2 (2026-04-04)
 
 Security hardening + privacy cleanup.
