@@ -7,7 +7,7 @@ set -u
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
 SCORER="${ROOT_DIR}/src/scorer.js"
-CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
+CORPUS_DIR="${AL_CORPUS_DIR:?ERROR: Set AL_CORPUS_DIR to your corpus directory}"
 TIERS="${ROOT_DIR}/tests/calibration/tiers.json"
 SCORES="${ROOT_DIR}/tests/calibration/scores.json"
 

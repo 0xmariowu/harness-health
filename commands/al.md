@@ -218,7 +218,7 @@ Session findings become fix items:
 | Step | Interaction | Default |
 |------|------------|---------|
 | 1. Module selection | AskUserQuestion | First 4 checked, Enter to accept |
-| 2. Init (first run) | AskUserQuestion | ~/Projects, Enter to accept |
+| 2. Init (first run) | AskUserQuestion | default dir, Enter to accept |
 | 3. Scan + Score | None | Automatic |
 | 4. Show scores | None | Automatic |
 | 5. Fix plan | AskUserQuestion | High priority selected, Enter to accept |

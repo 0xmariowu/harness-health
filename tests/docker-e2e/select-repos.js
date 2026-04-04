@@ -9,7 +9,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const CORPUS = process.env.AL_CORPUS_DIR || path.join(process.env.HOME, 'corpus', 'repos');
+if (!process.env.AL_CORPUS_DIR) { process.stderr.write('ERROR: Set AL_CORPUS_DIR to your corpus directory\n'); process.exit(1); }
+const CORPUS = process.env.AL_CORPUS_DIR;
 
 if (!fs.existsSync(CORPUS)) {
   process.stderr.write('Corpus not found at: ' + CORPUS + '\n');

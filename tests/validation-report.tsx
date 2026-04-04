@@ -77,7 +77,7 @@ const BUGS = [
   { name: "W5 empty-line false positive", severity: "high", detail: "find returning empty → heredoc produces blank line → counted as oversized file. Every repo without oversized files was misreported", check: "A3" },
   { name: "F5 missing assisted handler", severity: "high", detail: "plan-generator classified F5 as 'assisted' (score<0.5) but fixer only handled F5 in 'auto' branch. All broken-ref fixes silently failed", check: "FX1" },
   { name: "E2E test grep wrong keyword", severity: "medium", detail: "Test checked for 'nonexistent' but that word appeared in inline code (not a markdown link). F5 correctly only removes markdown links", check: "U6" },
-  { name: "install.sh referenced old /hh command", severity: "low", detail: "Rename from harness-health to agent-lint missed the install script. Users would see '/hh' instead of '/al'", check: "—" },
+  { name: "install.sh referenced old /hh command", severity: "low", detail: "Product rename missed the install script. Users would see '/hh' instead of '/al'", check: "—" },
   { name: "S2 label methodology mismatch", severity: "medium", detail: "Test labels used binary (any unpinned = fail) but scanner uses ratio scoring. Not a scanner bug — test methodology error", check: "A5" },
 ];
 

@@ -10,7 +10,7 @@ SCANNER="${ROOT_DIR}/src/scanner.sh"
 SCORER="${ROOT_DIR}/src/scorer.js"
 PLAN_GEN="${ROOT_DIR}/src/plan-generator.js"
 FIXER="${ROOT_DIR}/src/fixer.js"
-CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
+CORPUS_DIR="${AL_CORPUS_DIR:?ERROR: Set AL_CORPUS_DIR to your corpus directory}"
 WORK_DIR="/tmp/al-validation/fixer-safety"
 RESULTS_DIR="${ROOT_DIR}/tests/fixer-safety/results"
 
