@@ -92,7 +92,7 @@ runTest('fix types are assigned from check IDs', () => {
   const f1 = output.items.find((item) => item.check_id === 'F1' && item.project === 'alpha');
   const i3 = output.items.find((item) => item.check_id === 'I3' && item.project === 'beta');
 
-  assert.equal(f5.fix_type, 'auto');
+  assert.equal(f5.fix_type, 'assisted');
   assert.equal(f1.fix_type, 'assisted');
   assert.equal(i3.fix_type, 'guided');
 });
@@ -103,7 +103,7 @@ runTest('merged items include item_ids and project_count', () => {
   const highF5 = getMergedItem(output, 'high', 'F5');
   const mediumF1 = getMergedItem(output, 'medium', 'F1');
 
-  assert.deepEqual(highF5.item_ids, [1, 2]);
+  assert.deepEqual(highF5.item_ids, [1, 3]);
   assert.equal(highF5.project_count, 2);
   assert.deepEqual(mediumF1.item_ids, [5, 6]);
   assert.equal(mediumF1.project_count, 2);

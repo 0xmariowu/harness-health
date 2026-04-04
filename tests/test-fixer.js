@@ -55,14 +55,14 @@ function runFixer(planItems, projectDir, selectedIds) {
 
 // --- Auto-fix F5: remove broken references ---
 
-runTest('F5 auto-fix removes lines with broken references', () => {
+runTest('F5 auto-fix removes lines with broken markdown link references', () => {
   const projectDir = makeTempProject({
     'CLAUDE.md': [
       '# My Project',
       '',
       'See [guide](./docs/guide.md) for details.',
-      'Check `./real-file.txt` for config.',
-      'Also see `./nonexistent/path.md` for more.',
+      'Check [config](./real-file.txt) for config.',
+      'Also see [missing](./nonexistent/path.md) for more.',
       '',
       '## Rules',
       '- Do not break things',
@@ -80,9 +80,9 @@ runTest('F5 auto-fix removes lines with broken references', () => {
     assert.equal(output.executed[0].status, 'fixed');
 
     const content = fs.readFileSync(path.join(projectDir, 'CLAUDE.md'), 'utf8');
-    assert.ok(!content.includes('nonexistent'), 'broken reference line should be removed');
-    assert.ok(!content.includes('guide.md'), 'broken reference line should be removed');
-    assert.ok(content.includes('real-file.txt'), 'valid reference should remain');
+    assert.ok(!content.includes('nonexistent'), 'broken markdown link should be removed');
+    assert.ok(!content.includes('guide.md'), 'broken markdown link should be removed');
+    assert.ok(content.includes('real-file.txt'), 'valid markdown link should remain');
     assert.ok(content.includes('Do not break things'), 'non-reference lines should remain');
   } finally {
     fs.rmSync(projectDir, { recursive: true, force: true });

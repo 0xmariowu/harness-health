@@ -281,20 +281,31 @@ extract_references() {
   local token=""
   local md_link_regex='\[[^][]+\]\(([^)]+)\)'
 
+  local in_fenced_block=false
+
   while IFS= read -r line || [ -n "$line" ]; do
-    rest="$line"
+    # Track fenced code blocks (``` or ~~~)
+    case "$line" in
+      '```'*|'~~~'*)
+        if [ "$in_fenced_block" = true ]; then
+          in_fenced_block=false
+        else
+          in_fenced_block=true
+        fi
+        continue
+        ;;
+    esac
 
-    while [ "${rest#*\`}" != "$rest" ]; do
-      rest="${rest#*\`}"
-      raw_candidate="${rest%%\`*}"
-      [ "$raw_candidate" = "$rest" ] && break
-      candidate="$(normalize_reference "$raw_candidate")"
-      if looks_like_reference "$candidate"; then
-        printf '%s\n' "$candidate"
-      fi
-      rest="${rest#"$raw_candidate"\`}"
-    done
+    # Skip lines inside fenced code blocks
+    [ "$in_fenced_block" = true ] && continue
 
+    # Skip indented code blocks (4+ spaces or tab)
+    case "$line" in
+      '    '*|'	'*) continue ;;
+    esac
+
+    # Only extract references from markdown links [text](path)
+    # Skip inline code, bare paths in prose, and list items with paths as descriptions
     rest="$line"
     while [[ "$rest" =~ $md_link_regex ]]; do
       candidate="$(normalize_reference "${BASH_REMATCH[1]}")"
@@ -302,13 +313,6 @@ extract_references() {
         printf '%s\n' "$candidate"
       fi
       rest="${rest#*"${BASH_REMATCH[0]}"}"
-    done
-
-    for token in $line; do
-      candidate="$(normalize_reference "$token")"
-      if looks_like_reference "$candidate"; then
-        printf '%s\n' "$candidate"
-      fi
     done
   done < "$entry_file" | sort -u
 }
