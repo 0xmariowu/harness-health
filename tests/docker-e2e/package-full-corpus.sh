@@ -6,7 +6,7 @@
 set -eu
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CORPUS="${HOME}/corpus/corpus/claude-repo/repos"
+CORPUS="${AL_CORPUS_DIR:-${HOME}/corpus/repos}"
 OUT="${SCRIPT_DIR}/corpus-full.tar.gz"
 TMP="$(mktemp -d)"
 

@@ -18,7 +18,7 @@ Docker + 真实 corpus 一次解决 #1 和 #3。#2 和 #4 独立修。
 ## Data Source
 
 ```
-~/corpus/corpus/claude-repo/repos/    4533 repos
+~/corpus/repos/    4533 repos
 ├── {owner}__{repo}/
 │   ├── _meta.json          # stars, lang, description, created_at
 │   ├── CLAUDE.md            # 真实内容（42/50 top repos 有）

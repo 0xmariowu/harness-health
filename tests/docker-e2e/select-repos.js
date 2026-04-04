@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const CORPUS = process.env.AL_CORPUS_DIR || path.join(process.env.HOME, 'corpus', 'corpus', 'claude-repo', 'repos');
+const CORPUS = process.env.AL_CORPUS_DIR || path.join(process.env.HOME, 'corpus', 'repos');
 
 if (!fs.existsSync(CORPUS)) {
   process.stderr.write('Corpus not found at: ' + CORPUS + '\n');

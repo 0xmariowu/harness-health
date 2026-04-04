@@ -4,7 +4,7 @@ set -u
 
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 DEEP="${ROOT_DIR}/src/deep-analyzer.js"
-CORPUS="${HOME}/corpus/corpus/claude-repo/repos"
+CORPUS="${AL_CORPUS_DIR:-${HOME}/corpus/repos}"
 TMP="$(mktemp -d)"
 
 pass=0; fail=0; total=0
