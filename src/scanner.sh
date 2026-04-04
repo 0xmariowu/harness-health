@@ -975,7 +975,7 @@ discover_projects() {
     printf '%s\n' "$projects_root"
   fi
 
-  find "$projects_root" -mindepth 1 -maxdepth 3 -type d -name '.git' 2>/dev/null | while IFS= read -r gitdir; do
+  find "$projects_root" -mindepth 1 -maxdepth 4 -type d -name '.git' 2>/dev/null | while IFS= read -r gitdir; do
     printf '%s\n' "$(dirname "$gitdir")"
   done | sort -u
 }
