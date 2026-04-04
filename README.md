@@ -45,6 +45,8 @@ Fix Plan (7 items):
 Select items → AgentLint fixes → re-scores → saves HTML report
 ```
 
+The HTML report shows a segmented gauge, expandable dimension breakdowns with per-check detail, and a prioritized issues list. Before/after comparison when fixes are applied.
+
 ## Why this matters
 
 AI coding agents don't just read your code — they read your repo structure, your docs, your CI config, your handoff notes. They also `git push`, trigger CI pipelines, and write files. A repo that's set up right gets dramatically better AI output. One that isn't wastes tokens, ignores rules, repeats mistakes, and may silently expose secrets or trigger vulnerable workflows.

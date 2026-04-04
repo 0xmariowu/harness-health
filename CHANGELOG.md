@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.1 (2026-04-04)
+
+HTML report redesign.
+
+- New: HTML report matches approved visual design — segmented arc gauge, expandable dimension rows, check items with status dots, numbered issues list
+- New: Before/after comparison in HTML — ghost gauge segments, delta pills, fixed/improved badges on checks
+- New: HTML escaping for all user-provided content (XSS safety)
+- New: Version badge in report header (read from package.json)
+- Removed: radar chart, metric cards grid, data table, topbar from HTML report
+
 ## v0.3.0 (2026-04-04)
 
 New Safety dimension. 31 checks total.
