@@ -8,7 +8,7 @@ set -u
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
 EDGE_DIR="/tmp/al-validation/edge-repos"
-CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
+CORPUS_DIR="${AL_CORPUS_DIR:?ERROR: Set AL_CORPUS_DIR to your corpus directory}"
 RESULTS_FILE="${ROOT_DIR}/tests/robustness/results.json"
 TIMEOUT_SECS=60
 

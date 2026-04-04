@@ -6,6 +6,6 @@
 
 **Next**:
 1. Run `/al` in real Claude Code session (full UX verification)
-2. Update ~/.claude/settings.json enabledPlugins from harness-health to agent-lint
+2. Update local plugin config to use agent-lint
 3. Add Safety check fixtures to E2E tests
 4. Consider new checks: single-test invocation (I8), shallow clone warning (W7)

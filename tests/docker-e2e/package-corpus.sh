@@ -5,7 +5,7 @@
 set -eu
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CORPUS="${AL_CORPUS_DIR:-${AL_CORPUS_DIR:-${HOME}/corpus/repos}}"
+CORPUS="${AL_CORPUS_DIR:?ERROR: Set AL_CORPUS_DIR to your corpus directory}"
 SELECTED="${SCRIPT_DIR}/selected-repos.json"
 OUT="${SCRIPT_DIR}/corpus-data.tar.gz"
 TMP="$(mktemp -d)"

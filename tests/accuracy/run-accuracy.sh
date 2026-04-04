@@ -6,7 +6,7 @@ set -u
 
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
-CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
+CORPUS_DIR="${AL_CORPUS_DIR:?ERROR: Set AL_CORPUS_DIR to your corpus directory}"
 LABELS="${ROOT_DIR}/tests/accuracy/labels.json"
 REPOS="${ROOT_DIR}/tests/accuracy/repos.json"
 

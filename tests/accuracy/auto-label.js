@@ -9,7 +9,8 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..', '..');
-const CORPUS = process.env.AL_CORPUS_DIR || path.join(process.env.HOME, 'corpus', 'sources');
+if (!process.env.AL_CORPUS_DIR) { process.stderr.write('ERROR: Set AL_CORPUS_DIR to your corpus directory\n'); process.exit(1); }
+const CORPUS = process.env.AL_CORPUS_DIR;
 const reposData = JSON.parse(fs.readFileSync(path.join(__dirname, 'repos.json'), 'utf8'));
 
 function sh(cmd, cwd) {

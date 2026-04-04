@@ -17,9 +17,9 @@ keywords = ["/Users/", "/home/"]
 [[rules]]
 id = "tailscale-domain"
 description = "Tailscale network address or internal hostname leaked"
-regex = '''[a-z0-9\-]+\.ts\.net|tailcca451|vimalamac'''
+regex = '''[a-z0-9\-]+\.ts\.net'''
 tags = ["pii", "hostname"]
-keywords = [".ts.net", "tailcca451", "vimalamac"]
+keywords = [".ts.net"]
 
 # ── Allowlist ────────────────────────────────────────────────────────────────
 

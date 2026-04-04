@@ -1,5 +1,5 @@
 {
-  "note": "Reference values from empirical data. NOT enforced thresholds — HH measures and compares, users decide.",
+  "note": "Reference values from empirical data. NOT enforced thresholds — AgentLint measures and compares, users decide.",
   "I1_emphasis": {
     "IMPORTANT": {"reference": 4, "source": "Anthropic 265 versions: 12→4"},
     "NEVER": {"reference": 4, "source": "Anthropic 265 versions: 4→1 (we use 4 as comfortable upper bound)"},
