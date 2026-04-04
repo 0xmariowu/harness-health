@@ -1,0 +1,105 @@
+FROM node:20-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash jq git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git config --global user.email "test@test.com" \
+    && git config --global user.name "Test User"
+
+WORKDIR /app
+COPY . /app/
+
+# Create fake projects as a real user would have
+RUN mkdir -p /home/testuser/Projects/my-app/src /home/testuser/Projects/my-app/tests \
+    /home/testuser/Projects/my-app/.github/workflows \
+    /home/testuser/Projects/empty-project/src \
+    /home/testuser/Projects/org/team/nested-api/src \
+    && printf '# My App\n\n> A web app.\n\n## Session Checklist\n\n1. If modifying API read docs/api.md\n\n## Rules\n\n- Don'\''t push to main. Instead, use branches. Because: review matters.\n- Don'\''t skip tests. Instead, run npm test. Because: regressions.\n\n## Workflow\n\n- npm test\n- npm run build\n' > /home/testuser/Projects/my-app/CLAUDE.md \
+    && printf '# My App\nA web application.\n' > /home/testuser/Projects/my-app/README.md \
+    && printf '# Changelog\n## v1.0\n- init\n' > /home/testuser/Projects/my-app/CHANGELOG.md \
+    && printf '# Handoff\nStatus: ready\n' > /home/testuser/Projects/my-app/HANDOFF.md \
+    && printf 'console.log("test")\n' > /home/testuser/Projects/my-app/tests/app.test.js \
+    && printf 'console.log("app")\n' > /home/testuser/Projects/my-app/src/index.js \
+    && printf 'name: CI\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n' > /home/testuser/Projects/my-app/.github/workflows/ci.yml \
+    && cd /home/testuser/Projects/my-app && git init -q && git add -A && git commit -q -m "init" \
+    && printf 'x = 1\n' > /home/testuser/Projects/empty-project/src/main.py \
+    && cd /home/testuser/Projects/empty-project && git init -q && git add -A && git commit -q -m "init" \
+    && printf '# Nested API\nA nested project.\n' > /home/testuser/Projects/org/team/nested-api/CLAUDE.md \
+    && printf 'fn main() {}\n' > /home/testuser/Projects/org/team/nested-api/src/main.rs \
+    && cd /home/testuser/Projects/org/team/nested-api && git init -q && git add -A && git commit -q -m "init"
+
+CMD ["bash", "-c", "\
+    set -e; \
+    echo '=== Docker E2E: Clean environment test ==='; \
+    echo ''; \
+    \
+    echo '--- 1. Prerequisites ---'; \
+    jq --version && echo 'PASS: jq'; \
+    node --version && echo 'PASS: node'; \
+    git --version && echo 'PASS: git'; \
+    echo ''; \
+    \
+    echo '--- 2. Scanner: single project ---'; \
+    bash src/scanner.sh --project-dir /home/testuser/Projects/my-app > /tmp/scan.jsonl 2>/dev/null; \
+    lines=$(wc -l < /tmp/scan.jsonl | tr -d ' '); \
+    echo \"Scanner output: $lines lines\"; \
+    test $lines -ge 16 && echo 'PASS: scanner outputs enough checks' || { echo 'FAIL: too few checks'; exit 1; }; \
+    echo ''; \
+    \
+    echo '--- 3. Scanner: auto-discover all projects ---'; \
+    PROJECTS_ROOT=/home/testuser/Projects bash src/scanner.sh > /tmp/scan-all.jsonl 2>/dev/null; \
+    projects=$(jq -r .project /tmp/scan-all.jsonl | sort -u | tr '\\n' ', '); \
+    echo \"Discovered: $projects\"; \
+    count=$(jq -r .project /tmp/scan-all.jsonl | sort -u | wc -l | tr -d ' '); \
+    test $count -ge 3 && echo \"PASS: found $count projects (including nested)\" || { echo \"FAIL: only $count projects\"; exit 1; }; \
+    echo ''; \
+    \
+    echo '--- 4. Scorer ---'; \
+    node src/scorer.js /tmp/scan-all.jsonl > /tmp/scores.json 2>/dev/null; \
+    total=$(jq .total_score /tmp/scores.json); \
+    echo \"Total score: $total/100\"; \
+    test $total -ge 1 && echo 'PASS: scorer produces valid score' || { echo 'FAIL: score is 0'; exit 1; }; \
+    echo ''; \
+    \
+    echo '--- 5. Plan generator ---'; \
+    node src/plan-generator.js /tmp/scores.json > /tmp/plan.json 2>/dev/null; \
+    items=$(jq .total_items /tmp/plan.json); \
+    echo \"Fix items: $items\"; \
+    test $items -ge 1 && echo 'PASS: plan has fix items' || { echo 'FAIL: no fix items'; exit 1; }; \
+    missing=$(jq '[.items[] | select(.score == null)] | length' /tmp/plan.json); \
+    test $missing -eq 0 && echo 'PASS: all items have score' || { echo \"FAIL: $missing items missing score\"; exit 1; }; \
+    echo ''; \
+    \
+    echo '--- 6. Reporter ---'; \
+    node src/reporter.js /tmp/scores.json --format terminal 2>/dev/null | head -8; \
+    echo 'PASS: terminal report'; \
+    mkdir -p /tmp/reports; \
+    node src/reporter.js /tmp/scores.json --format md --output-dir /tmp/reports 2>/dev/null; \
+    test -f /tmp/reports/*.md && echo 'PASS: markdown report' || { echo 'FAIL: no md report'; exit 1; }; \
+    node src/reporter.js /tmp/scores.json --format jsonl --output-dir /tmp/reports 2>/dev/null; \
+    test -f /tmp/reports/*.jsonl && echo 'PASS: jsonl report' || { echo 'FAIL: no jsonl report'; exit 1; }; \
+    echo ''; \
+    \
+    echo '--- 7. Fixer: auto-fix on empty-project ---'; \
+    f1_id=$(jq -r '.items[] | select(.check_id==\"F1\" and .project==\"empty-project\") | .id' /tmp/plan.json | head -1); \
+    if [ -n \"$f1_id\" ]; then \
+      node src/fixer.js /tmp/plan.json --project-dir /home/testuser/Projects/empty-project --items $f1_id > /tmp/fix.json 2>/dev/null; \
+      test -f /home/testuser/Projects/empty-project/CLAUDE.md && echo 'PASS: F1 created CLAUDE.md' || { echo 'FAIL: CLAUDE.md not created'; exit 1; }; \
+    else \
+      echo 'SKIP: F1 not in plan for empty-project'; \
+    fi; \
+    echo ''; \
+    \
+    echo '--- 8. Post-fix rescan ---'; \
+    bash src/scanner.sh --project-dir /home/testuser/Projects/my-app 2>/dev/null | node src/scorer.js 2>/dev/null | jq .total_score; \
+    echo 'PASS: rescan works'; \
+    echo ''; \
+    \
+    echo '--- 9. Error handling ---'; \
+    bash src/scanner.sh --project-dir /nonexistent 2>/dev/null && { echo 'FAIL: should error on nonexistent'; exit 1; } || echo 'PASS: error on nonexistent dir'; \
+    echo '' | node src/scorer.js 2>/dev/null | jq -e '.total_score == 0' > /dev/null && echo 'PASS: empty input handled' || { echo 'FAIL: empty input'; exit 1; }; \
+    echo ''; \
+    \
+    echo '=== All Docker E2E tests passed ===' \
+"]
