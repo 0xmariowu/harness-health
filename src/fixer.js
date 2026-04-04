@@ -264,26 +264,12 @@ function looksLikeReference(candidate) {
 function extractReferences(line) {
   const results = [];
   const linkRegex = /\[[^\]]*\]\(([^)\s]+)\)/g;
-  const codeRegex = /`([^`]+)`/g;
 
+  // Only extract from markdown links [text](path)
+  // Skip inline code and bare paths — too many false positives
   let match;
   while ((match = linkRegex.exec(line)) !== null) {
     const ref = normalizeReference(match[1]);
-    if (looksLikeReference(ref)) {
-      results.push(ref);
-    }
-  }
-
-  while ((match = codeRegex.exec(line)) !== null) {
-    const ref = normalizeReference(match[1]);
-    if (looksLikeReference(ref)) {
-      results.push(ref);
-    }
-  }
-
-  const rawTokens = line.split(/\s+/);
-  for (const token of rawTokens) {
-    const ref = normalizeReference(token);
     if (looksLikeReference(ref)) {
       results.push(ref);
     }
@@ -314,8 +300,28 @@ function removeLinesWithBrokenReferences(filePath, projectDir) {
   const lines = original.split(/\r?\n/);
   const filtered = [];
   let removed = 0;
+  let inFencedBlock = false;
 
   for (const line of lines) {
+    // Track fenced code blocks (``` or ~~~)
+    if (/^(`{3,}|~{3,})/.test(line.trim())) {
+      inFencedBlock = !inFencedBlock;
+      filtered.push(line);
+      continue;
+    }
+
+    // Skip lines inside fenced code blocks
+    if (inFencedBlock) {
+      filtered.push(line);
+      continue;
+    }
+
+    // Skip indented code blocks (4+ spaces or tab)
+    if (/^(\s{4,}|\t)/.test(line)) {
+      filtered.push(line);
+      continue;
+    }
+
     const refs = extractReferences(line);
     const hasBroken = refs.some((ref) => {
       if (!looksLikeReference(ref)) return false;

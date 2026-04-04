@@ -30,7 +30,7 @@ const CHECK_FIX_ACTIONS = {
 };
 
 const ASSISTED_FIXES = new Set(['F1', 'C2']);
-const AUTO_FIXES = new Set(['F5', 'I5']);
+const AUTO_FIXES = new Set(['I5']);
 const GUIDED_FIXES = new Set(['I3', 'W3', 'C1']);
 
 function isObject(value) {
