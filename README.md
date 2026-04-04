@@ -20,6 +20,12 @@ Then start a new Claude Code session and run:
 /hh
 ```
 
+### Update
+
+```bash
+claude plugin update harness-health@harness-health
+```
+
 ### Requirements
 
 - Claude Code
