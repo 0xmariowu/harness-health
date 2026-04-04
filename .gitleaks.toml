@@ -27,4 +27,8 @@ keywords = [".ts.net"]
 description = "Project-level allowlist"
 paths = [
   '''\.gitleaks\.toml$''',
+  '''README\.md$''',
+  '''docs/checks\.md$''',
+  '''docs/scoring\.md$''',
+  '''standards/evidence\.json$''',
 ]
