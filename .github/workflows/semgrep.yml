@@ -12,10 +12,10 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Install Semgrep
-        run: pip install semgrep
+        run: pip install 'semgrep>=1.75.0'
 
       - name: Run Semgrep
-        run: semgrep scan --config auto --error
+        run: semgrep scan --config p/default --error
