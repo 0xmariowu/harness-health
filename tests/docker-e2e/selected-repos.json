@@ -1,0 +1,266 @@
+{
+  "description": "Selected repos for Docker E2E testing (from claude-repo corpus)",
+  "generated": "2026-04-04",
+  "repos": [
+    {
+      "name": "n8n-io__n8n",
+      "tier": "A",
+      "stars": 179208,
+      "lang": "TypeScript",
+      "has_claude": true,
+      "has_agents": true,
+      "has_workflows": true,
+      "corpus_files": [
+        ".claude",
+        ".prettierrc.js",
+        "AGENTS.md",
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "agents",
+        "biome.jsonc",
+        "claude-commands-listing.txt",
+        "claude-dir-listing.txt",
+        "claude-rules-listing.txt",
+        "commands",
+        "jest.config.js",
+        "package.json",
+        "repo-info.json",
+        "root-tree.txt",
+        "settings.json",
+        "tsconfig.json",
+        "workflows"
+      ]
+    },
+    {
+      "name": "vercel__next.js",
+      "tier": "A",
+      "stars": 138292,
+      "lang": "JavaScript",
+      "has_claude": true,
+      "has_agents": true,
+      "has_workflows": true,
+      "corpus_files": [
+        ".prettierrc.json",
+        "AGENTS.md",
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "commands",
+        "eslint.config.mjs",
+        "jest.config.js",
+        "package.json",
+        "root-tree.txt",
+        "tsconfig.json",
+        "workflows"
+      ]
+    },
+    {
+      "name": "langchain-ai__langchain",
+      "tier": "A",
+      "stars": 129529,
+      "lang": "Python",
+      "has_claude": true,
+      "has_agents": true,
+      "has_workflows": true,
+      "corpus_files": [
+        "AGENTS.md",
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "electron__electron",
+      "tier": "A",
+      "stars": 120480,
+      "lang": "C++",
+      "has_claude": true,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        ".eslintrc.json",
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "package.json",
+        "root-tree.txt",
+        "settings.json",
+        "tsconfig.json",
+        "workflows"
+      ]
+    },
+    {
+      "name": "denoland__deno",
+      "tier": "A",
+      "stars": 106337,
+      "lang": "Rust",
+      "has_claude": true,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "restsharp__RestSharp",
+      "tier": "B",
+      "stars": 9830,
+      "lang": "C#",
+      "has_claude": true,
+      "has_agents": true,
+      "has_workflows": true,
+      "corpus_files": [
+        "AGENTS.md",
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "agents",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "pbakaus__impeccable",
+      "tier": "B",
+      "stars": 8436,
+      "lang": "JavaScript",
+      "has_claude": true,
+      "has_agents": true,
+      "has_workflows": true,
+      "corpus_files": [
+        "AGENTS.md",
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "biome.json",
+        "package.json",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "radix-ui__themes",
+      "tier": "B",
+      "stars": 8218,
+      "lang": "TypeScript",
+      "has_claude": true,
+      "has_agents": true,
+      "has_workflows": true,
+      "corpus_files": [
+        ".prettierrc",
+        "AGENTS.md",
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "package.json",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "rtk-ai__rtk",
+      "tier": "B",
+      "stars": 8032,
+      "lang": "Rust",
+      "has_claude": true,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "Cargo.toml",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "peco__peco",
+      "tier": "B",
+      "stars": 7874,
+      "lang": "Go",
+      "has_claude": true,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "CLAUDE.first.md",
+        "CLAUDE.md",
+        "go.mod",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "expo__expo",
+      "tier": "C",
+      "stars": 47970,
+      "lang": "TypeScript",
+      "has_claude": false,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "Gemfile",
+        "package.json",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "flipped-aurora__gin-vue-admin",
+      "tier": "C",
+      "stars": 24438,
+      "lang": "Go",
+      "has_claude": false,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "root-tree.txt",
+        "rules",
+        "workflows"
+      ]
+    },
+    {
+      "name": "d4rken-org__sdmaid-se",
+      "tier": "C",
+      "stars": 6322,
+      "lang": "Kotlin",
+      "has_claude": false,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "CLAUDE.first.md",
+        "Gemfile",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "google__perfetto",
+      "tier": "C",
+      "stars": 5647,
+      "lang": "C++",
+      "has_claude": false,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "CLAUDE.first.md",
+        "root-tree.txt",
+        "workflows"
+      ]
+    },
+    {
+      "name": "InternLM__xtuner",
+      "tier": "C",
+      "stars": 5097,
+      "lang": "Python",
+      "has_claude": false,
+      "has_agents": false,
+      "has_workflows": true,
+      "corpus_files": [
+        "pyproject.toml",
+        "requirements.txt",
+        "root-tree.txt",
+        "rules",
+        "workflows"
+      ]
+    }
+  ]
+}

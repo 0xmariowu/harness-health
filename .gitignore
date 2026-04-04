@@ -6,3 +6,5 @@ reports/
 experience/
 .env
 .env.*
+tests/docker-e2e/corpus-data.tar.gz
+tests/docker-e2e/corpus-full.tar.gz

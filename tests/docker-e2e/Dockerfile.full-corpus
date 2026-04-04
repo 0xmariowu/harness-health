@@ -1,0 +1,21 @@
+FROM node:20-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash jq git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git config --global user.email "test@test.com" \
+    && git config --global user.name "Test User"
+
+WORKDIR /app
+COPY . /app/
+
+# Unpack corpus data
+RUN mkdir -p /tmp/corpus-raw /home/testuser/Projects \
+    && tar -xzf tests/docker-e2e/corpus-full.tar.gz -C /tmp/corpus-raw
+
+# Reconstruct all repos (separate script to handle errors gracefully)
+RUN bash tests/docker-e2e/reconstruct-all.sh \
+    && rm -rf /tmp/corpus-raw
+
+CMD ["bash", "tests/docker-e2e/run-full-corpus.sh"]

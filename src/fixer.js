@@ -573,6 +573,12 @@ function run() {
         continue;
       }
 
+      if (selected.check_id === 'F5' || selected.check_id === 'I5') {
+        const result = executeAutoFix(selected.check_id, projectDir, entryFile, backupDir, backedSet);
+        executed.push(buildExecutedRecord(selected, result.status, result.detail));
+        continue;
+      }
+
       executed.push(buildExecutedRecord(selected, 'failed', `No assisted strategy for ${selected.check_id}.`));
       continue;
     }

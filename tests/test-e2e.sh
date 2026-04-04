@@ -392,7 +392,7 @@ fi
 
 # verify broken refs are removed
 gamma_after="$(cat "${gamma_dir}/CLAUDE.md")"
-if ! echo "${gamma_after}" | grep -q "nonexistent"; then
+if ! echo "${gamma_after}" | grep -q "missing-guide"; then
   pass "broken references removed from gamma CLAUDE.md"
 else
   fail "broken references still in gamma CLAUDE.md"
