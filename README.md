@@ -3,9 +3,9 @@
 [![CI](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/0xmariowu/agent-lint)](https://github.com/0xmariowu/agent-lint/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Checks](https://img.shields.io/badge/checks-31-00b48c)](https://github.com/0xmariowu/agent-lint#what-it-checks)
+[![Checks](https://img.shields.io/badge/checks-33-00b48c)](https://github.com/0xmariowu/agent-lint#what-it-checks)
 
-**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 31 checks, every one backed by data.
+**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 33 checks, every one backed by data.
 
 > We analyzed 265 versions of Anthropic's Claude Code system prompt, reverse-engineered the hard limits, audited thousands of real repos, and read 6 academic papers. The result: a single command that tells you exactly what your AI agent is struggling with and why.
 
@@ -115,6 +115,8 @@ AgentLint is built on data most developers never see:
 | S4 | SECURITY.md exists | AI needs security context for sensitive code decisions |
 | S5 | Workflow permissions minimized | AI-triggered workflows shouldn't have write access by default |
 | S6 | No hardcoded secrets | Detects `sk-`, `ghp_`, `AKIA`, private key patterns in source |
+| S7 | No personal paths | `/Users/xxx/` in source = AI copies and spreads the leak |
+| S8 | No pull_request_target | AI pushes trigger CI. Elevated permissions = attack vector |
 
 ### Optional: AI Deep Analysis
 

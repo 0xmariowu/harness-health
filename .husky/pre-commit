@@ -26,7 +26,7 @@ if [ -n "$SCAN_FILES" ]; then
     exit 1
   fi
   # Personal paths and hostnames
-  PII_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '/Users/[a-zA-Z]|/home/[a-z]|\.ts\.net|tailcca|vimalamac' "$f" 2>/dev/null; done || true)
+  PII_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '/Users/[a-zA-Z]|/home/[a-z]|\.ts\.net|tailcca|vimalamac' "$f" 2>/dev/null; done | grep -v '/Users/xxx\|/home/xxx\|/home/testuser' || true)
   if [ -n "$PII_MATCHES" ]; then
     echo "error: personal paths or hostnames in staged files:"
     echo "$PII_MATCHES"

@@ -229,6 +229,18 @@
       "evidence_sources": ["practical-audit"],
       "evidence_text": "Hardcoded API keys, tokens, and private keys in source code are the most common credential leak vector. AI agents may copy-paste patterns with embedded secrets."
     },
+    "S7": {
+      "dimension": "safety",
+      "name": "No personal paths in source",
+      "evidence_sources": ["practical-audit", "anthropic-265"],
+      "evidence_text": "Personal filesystem paths (/Users/xxx/, /home/xxx/) in source files reveal developer identity. Claude Code behavior: Glob tool defaults to ignoring .gitignore, making these paths visible to AI. AI copy-paste patterns spread leaked paths to new files."
+    },
+    "S8": {
+      "dimension": "safety",
+      "name": "No pull_request_target trigger",
+      "evidence_sources": ["practical-audit"],
+      "evidence_text": "Workflows using pull_request_target run with write access and secrets from the base branch. AI agents push code and create PRs frequently, increasing exposure to this attack vector. A malicious PR can execute arbitrary code with elevated permissions."
+    },
     "I7": {
       "dimension": "instructions",
       "name": "Entry file size within limit",

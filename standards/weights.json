@@ -11,7 +11,7 @@
     "I1": 1, "I2": 2, "I3": 2, "I4": 1, "I5": 1, "I6": 1, "I7": 2,
     "W1": 3, "W2": 1, "W3": 2, "W4": 1, "W5": 2, "W6": 1,
     "C1": 3, "C2": 2, "C3": 1, "C4": 1, "C5": 1,
-    "S1": 2, "S2": 2, "S3": 1, "S4": 1, "S5": 1, "S6": 3
+    "S1": 2, "S2": 2, "S3": 1, "S4": 1, "S5": 1, "S6": 3, "S7": 1, "S8": 1
   },
   "note": "Instructions heaviest (0.30) — unique value. Safety (0.15) — AI agent security posture. S6 (hardcoded secrets) weighted highest — most dangerous."
 }

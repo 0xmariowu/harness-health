@@ -1224,6 +1224,47 @@ WF2
   else
     emit_result "$project_name" "S6" "$secret_hits" "0" "0" "${secret_hits} file(s) contain hardcoded secret patterns: ${secret_examples}"
   fi
+
+  # S7 — No personal paths in source
+  local path_hits=0
+  local path_examples=""
+  if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    path_hits="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
+      -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
+      ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' \
+      2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build' || true)" || path_hits=0
+    if [ "${path_hits:-0}" -gt 0 ]; then
+      path_examples="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
+        -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
+        ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' \
+        2>/dev/null | grep -v 'node_modules\|\.git\|vendor' | head -3 | tr '\n' ', ' | sed 's/, $//')"
+    fi
+  fi
+  if [ "${path_hits:-0}" -eq 0 ]; then
+    emit_result "$project_name" "S7" "0" "0" "1" "No personal filesystem paths found in source"
+  else
+    emit_result "$project_name" "S7" "$path_hits" "0" "0" "${path_hits} file(s) contain personal paths (/Users/ or /home/): ${path_examples}"
+  fi
+
+  # S8 — No pull_request_target in workflows
+  local prt_count=0
+  local prt_files=""
+  if [ -d "$wf_dir" ]; then
+    while IFS= read -r wf_file; do
+      [ -z "$wf_file" ] && continue
+      if grep -q 'pull_request_target' "$wf_file" 2>/dev/null; then
+        prt_count=$((prt_count + 1))
+        prt_files="${prt_files:+${prt_files}, }$(basename "$wf_file")"
+      fi
+    done <<WF_PRT
+$(find "$wf_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null)
+WF_PRT
+  fi
+  if [ "$prt_count" -eq 0 ]; then
+    emit_result "$project_name" "S8" "0" "null" "1" "No workflows use pull_request_target"
+  else
+    emit_result "$project_name" "S8" "$prt_count" "null" "0" "${prt_count} workflow(s) use pull_request_target: ${prt_files}"
+  fi
 }
 
 discover_projects() {

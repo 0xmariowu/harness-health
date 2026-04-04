@@ -55,3 +55,5 @@
 | S4 | Security policy exists | Checks whether `SECURITY.md` exists at the repo root. | `practical-audit` | Add `SECURITY.md` with vulnerability reporting instructions. |
 | S5 | Workflow permissions minimized | Checks whether workflow-level `contents: write` is avoided in favor of job-level permissions. | `practical-audit` | Use `permissions: contents: read` at workflow level, elevate per-job only where needed. |
 | S6 | No hardcoded secrets | Scans source files for hardcoded API keys, tokens, and private key patterns. | `practical-audit` | Move secrets to environment variables or a secrets manager. |
+| S7 | No personal paths in source | Checks whether source files contain personal filesystem paths (`/Users/xxx/`, `/home/xxx/`). | `practical-audit`, `anthropic-265` | Replace personal paths with environment variables or relative paths. AI's Glob tool ignores .gitignore — personal paths are visible. |
+| S8 | No pull_request_target trigger | Checks whether workflows use `pull_request_target`, which runs with elevated permissions. | `practical-audit` | Use `pull_request` instead. Only use `pull_request_target` when secrets are explicitly needed. |
