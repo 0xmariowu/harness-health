@@ -271,25 +271,25 @@
       "evidence_sources": ["anthropic-265", "agent-readmes"],
       "evidence_text": "'Follow security best practices' was deleted — no decision boundary. Agent READMEs: abstract instructions (F1=0.42) understood at half the rate of concrete ones (F1=0.94)."
     },
-    "S1": {
+    "SS1": {
       "dimension": "session",
       "name": "Repeated instructions",
       "evidence_sources": ["claude-insights"],
       "evidence_text": "Claude Code /insights: 'PRIORITIZE instructions that appear MULTIPLE TIMES in user data. If user told Claude the same thing in 2+ sessions, that's a PRIME candidate for CLAUDE.md.'"
     },
-    "S2": {
+    "SS2": {
       "dimension": "session",
       "name": "Ignored rules",
       "evidence_sources": ["anthropic-265", "claude-insights"],
       "evidence_text": "A rule that exists in CLAUDE.md but is repeatedly violated in sessions may be too abstract, poorly worded, or conflicting with another rule. Signal for rewriting, not deleting."
     },
-    "S3": {
+    "SS3": {
       "dimension": "session",
       "name": "Friction hotspots",
       "evidence_sources": ["claude-insights"],
       "evidence_text": "Claude Code /insights friction_analysis: categorized friction by type (misunderstood_request, wrong_approach, buggy_code, excessive_changes). File/directory level aggregation reveals structural issues."
     },
-    "S4": {
+    "SS4": {
       "dimension": "session",
       "name": "Missing rule suggestions",
       "evidence_sources": ["claude-insights"],

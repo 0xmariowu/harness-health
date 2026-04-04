@@ -572,7 +572,7 @@ function buildS1Findings(sessions) {
   return clusters.map((cluster) => ({
     project: 'global',
     dimension: 'session',
-    check_id: 'S1',
+    check_id: 'SS1',
     name: 'Repeated instructions',
     measured_value: {
       instruction: cluster.instruction,
@@ -581,7 +581,7 @@ function buildS1Findings(sessions) {
     },
     score: 0,
     detail: `You said '${cluster.instruction}' in ${cluster.sessions} sessions`,
-    evidence_id: 'S1',
+    evidence_id: 'SS1',
   }));
 }
 
@@ -604,7 +604,7 @@ function buildS4Findings(sessions) {
   return clusters.map((cluster) => ({
     project: 'global',
     dimension: 'session',
-    check_id: 'S4',
+    check_id: 'SS4',
     name: 'Missing rule suggestions',
     measured_value: {
       suggested_rule: cluster.instruction,
@@ -613,7 +613,7 @@ function buildS4Findings(sessions) {
     },
     score: 0,
     detail: `Suggested CLAUDE.md rule from repeated instruction: '${cluster.instruction}'`,
-    evidence_id: 'S4',
+    evidence_id: 'SS4',
   }));
 }
 
@@ -674,7 +674,7 @@ function buildS2Findings(sessions, catalog) {
     .map((hit) => ({
       project: hit.project,
       dimension: 'session',
-      check_id: 'S2',
+      check_id: 'SS2',
       name: 'Ignored rules',
       measured_value: {
         rule: hit.rule,
@@ -683,7 +683,7 @@ function buildS2Findings(sessions, catalog) {
       },
       score: 0,
       detail: `Potentially ignored rule in ${hit.project}: '${hit.rule}' (${hit.count} matching corrections in ${hit.sessions.size} sessions)`,
-      evidence_id: 'S2',
+      evidence_id: 'SS2',
     }));
 }
 
@@ -716,7 +716,7 @@ function buildS3Findings(sessions) {
       findings.push({
         project: stat.project,
         dimension: 'session',
-        check_id: 'S3',
+        check_id: 'SS3',
         name: 'Friction hotspots',
         measured_value: {
           project: stat.project,
@@ -725,7 +725,7 @@ function buildS3Findings(sessions) {
         },
         score: 0,
         detail: `Above-average friction in ${stat.project}: ${avg.toFixed(2)} corrections/session (global ${globalAverage.toFixed(2)})`,
-        evidence_id: 'S3',
+        evidence_id: 'SS3',
       });
     }
   }
