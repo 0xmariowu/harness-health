@@ -47,6 +47,10 @@ Select items → AgentLint fixes → re-scores → saves HTML report
 
 The HTML report shows a segmented gauge, expandable dimension breakdowns with per-check detail, and a prioritized issues list. Before/after comparison when fixes are applied.
 
+<p align="center">
+  <img src="assets/report-example.png" alt="AgentLint HTML report" width="680">
+</p>
+
 ## Why this matters
 
 AI coding agents read your repo structure, docs, CI config, and handoff notes. They `git push`, trigger pipelines, and write files. A well-structured repo gets dramatically better AI output. A poorly structured one wastes tokens, ignores rules, repeats mistakes, and may expose secrets.
