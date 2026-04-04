@@ -6,7 +6,7 @@ set -u
 
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
-ARMORY_DIR="${HOME}/corpus/sources"
+CORPUS_DIR="${AL_CORPUS_DIR:-${HOME}/corpus/sources}"
 LABELS="${ROOT_DIR}/tests/accuracy/labels.json"
 REPOS="${ROOT_DIR}/tests/accuracy/repos.json"
 
@@ -23,7 +23,7 @@ repo_count="$(node -e "console.log(JSON.parse(require('fs').readFileSync('${REPO
 for i in $(seq 0 $((repo_count - 1))); do
   repo_path="$(node -e "console.log(JSON.parse(require('fs').readFileSync('${REPOS}')).repos[$i].path)")"
   repo_name="$(node -e "console.log(JSON.parse(require('fs').readFileSync('${REPOS}')).repos[$i].name)")"
-  repo_dir="${ARMORY_DIR}/${repo_path}"
+  repo_dir="${CORPUS_DIR}/${repo_path}"
 
   if [ ! -d "$repo_dir" ]; then
     echo "SKIP: ${repo_name}" >&2
