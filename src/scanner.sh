@@ -959,6 +959,119 @@ EOF
     detail="Found plan directories: $(printf '%s, ' "${plan_dirs[@]}" | sed 's/, $//')"
   fi
   emit_result "$project_name" "C4" "$plans_json" "null" "$score" "$detail"
+
+  # C5 — CLAUDE.local.md not tracked in git
+  if [ -f "${project_dir}/CLAUDE.local.md" ]; then
+    if git -C "$project_dir" ls-files --error-unmatch "CLAUDE.local.md" >/dev/null 2>&1; then
+      emit_result "$project_name" "C5" "true" "null" "0" "CLAUDE.local.md is tracked in git — should be in .gitignore"
+    else
+      emit_result "$project_name" "C5" "false" "null" "1" "CLAUDE.local.md exists and is not tracked (good)"
+    fi
+  else
+    emit_result "$project_name" "C5" "null" "null" "1" "No CLAUDE.local.md (OK)"
+  fi
+
+  # I7 — Entry file size within 40,000 character limit
+  if [ -n "$entry_abs" ]; then
+    local char_count=0
+    char_count="$(wc -c < "$entry_abs" | tr -d '[:space:]')"
+    if [ "$char_count" -le 40000 ]; then
+      score="1"
+      detail="${entry_rel} is ${char_count} characters (limit: 40,000)"
+    else
+      score="$(awk -v cc="$char_count" 'BEGIN { s = 40000 / cc; if (s < 0) s = 0; if (s > 1) s = 1; print s }')"
+      detail="${entry_rel} is ${char_count} characters — exceeds Claude Code 40,000 char limit"
+    fi
+    emit_result "$project_name" "I7" "$char_count" "40000" "$score" "$detail"
+  else
+    emit_result "$project_name" "I7" "0" "40000" "0" "Skipped because no entry file exists"
+  fi
+
+  # F7 — @include directives resolve
+  if [ -n "$entry_abs" ]; then
+    local include_total=0
+    local include_broken=0
+    local include_target=""
+    while IFS= read -r line || [ -n "$line" ]; do
+      # Match @./path, @path, @~/path patterns (not inside code blocks)
+      if printf '%s\n' "$line" | grep -Eq '^[^`]*@\.?\.?/[^ ]+|^[^`]*@[a-zA-Z][^ ]*\.[a-zA-Z]'; then
+        include_target="$(printf '%s\n' "$line" | grep -Eo '@[^ ]+' | head -1 | sed 's/^@//')"
+        [ -z "$include_target" ] && continue
+        include_total=$((include_total + 1))
+        # Resolve relative to project dir
+        case "$include_target" in
+          ./*|../*)
+            [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
+            ;;
+          ~/*)
+            [ ! -f "${HOME}/${include_target#\~/}" ] && include_broken=$((include_broken + 1))
+            ;;
+          /*)
+            [ ! -f "$include_target" ] && include_broken=$((include_broken + 1))
+            ;;
+          *)
+            [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
+            ;;
+        esac
+      fi
+    done < "$entry_abs"
+    if [ "$include_total" -eq 0 ]; then
+      emit_result "$project_name" "F7" "0" "0" "1" "No @include directives found"
+    elif [ "$include_broken" -eq 0 ]; then
+      emit_result "$project_name" "F7" "0" "0" "1" "All ${include_total} @include directives resolve"
+    else
+      emit_result "$project_name" "F7" "$include_broken" "0" "0" "${include_broken}/${include_total} @include directives point to missing files"
+    fi
+  else
+    emit_result "$project_name" "F7" "0" "0" "0" "Skipped because no entry file exists"
+  fi
+
+  # W5 — No oversized source files (> 256 KB)
+  local oversized_count=0
+  local oversized_examples=""
+  while IFS= read -r file; do
+    case "$file" in
+      */.git/*|*/node_modules/*|*/__pycache__/*|*/dist/*|*/build/*|*/vendor/*|*/.next/*) continue ;;
+      *package-lock.json|*yarn.lock|*pnpm-lock.yaml|*bun.lock|*Cargo.lock|*poetry.lock|*uv.lock|*Gemfile.lock|*composer.lock) continue ;;
+    esac
+    local fsize=0
+    fsize="$(wc -c < "$file" 2>/dev/null | tr -d '[:space:]')"
+    if [ "${fsize:-0}" -gt 262144 ]; then
+      oversized_count=$((oversized_count + 1))
+      if [ "$oversized_count" -le 3 ]; then
+        oversized_examples="${oversized_examples}$(basename "$file")(${fsize}B), "
+      fi
+    fi
+  done <<EOF
+$(find "$project_dir" -type f \( -name '*.js' -o -name '*.ts' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.java' -o -name '*.rb' -o -name '*.sql' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' -o -name '*.md' -o -name '*.sh' -o -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.cs' -o -name '*.php' -o -name '*.swift' -o -name '*.kt' \) 2>/dev/null)
+EOF
+  if [ "$oversized_count" -eq 0 ]; then
+    emit_result "$project_name" "W5" "0" "0" "1" "No source files exceed 256 KB"
+  else
+    oversized_examples="$(printf '%s' "$oversized_examples" | sed 's/, $//')"
+    emit_result "$project_name" "W5" "$oversized_count" "0" "0" "${oversized_count} source files exceed 256 KB (Claude Code cannot read them): ${oversized_examples}"
+  fi
+
+  # W6 — Pre-commit hooks are fast
+  local hook_file=""
+  local hook_time=0
+  if [ -f "${project_dir}/.husky/pre-commit" ]; then
+    hook_file="${project_dir}/.husky/pre-commit"
+  elif [ -f "${project_dir}/.git/hooks/pre-commit" ] && [ -x "${project_dir}/.git/hooks/pre-commit" ]; then
+    hook_file="${project_dir}/.git/hooks/pre-commit"
+  fi
+  if [ -n "$hook_file" ]; then
+    # Measure hook execution time (timeout at 15s)
+    hook_time="$(cd "$project_dir" && { time timeout 15 bash "$hook_file" >/dev/null 2>&1; } 2>&1 | grep real | awk '{print $2}' | sed 's/[ms]/ /g' | awk '{if (NF==2) print $1*60+$2; else print $1}' 2>/dev/null)" || hook_time="15"
+    hook_time="${hook_time:-0}"
+    if awk -v t="$hook_time" 'BEGIN { exit (t <= 10) ? 0 : 1 }'; then
+      emit_result "$project_name" "W6" "$hook_time" "10" "1" "Pre-commit hook runs in ${hook_time}s (limit: 10s)"
+    else
+      emit_result "$project_name" "W6" "$hook_time" "10" "0" "Pre-commit hook takes ${hook_time}s — will stall Claude Code commits"
+    fi
+  else
+    emit_result "$project_name" "W6" "0" "10" "1" "No pre-commit hook (OK)"
+  fi
 }
 
 discover_projects() {

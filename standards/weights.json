@@ -6,10 +6,10 @@
     "continuity": {"weight": 0.20, "max_score": 10}
   },
   "check_weights": {
-    "F1": 3, "F2": 1, "F3": 2, "F4": 1, "F5": 2, "F6": 1,
-    "I1": 1, "I2": 2, "I3": 2, "I4": 1, "I5": 1, "I6": 1,
-    "W1": 3, "W2": 1, "W3": 2, "W4": 1,
-    "C1": 3, "C2": 2, "C3": 1, "C4": 1
+    "F1": 3, "F2": 1, "F3": 2, "F4": 1, "F5": 2, "F6": 1, "F7": 2,
+    "I1": 1, "I2": 2, "I3": 2, "I4": 1, "I5": 1, "I6": 1, "I7": 2,
+    "W1": 3, "W2": 1, "W3": 2, "W4": 1, "W5": 2, "W6": 1,
+    "C1": 3, "C2": 2, "C3": 1, "C4": 1, "C5": 1
   },
   "note": "Instructions weight highest (0.35) — unique selling point. W1 (build/test commands) highest in workability — AI can't work without knowing how to run things."
 }

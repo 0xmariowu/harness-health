@@ -54,7 +54,7 @@ Select items to fix → HH executes automatically → re-scores
 
 ## What it checks
 
-Four dimensions, 20 evidence-backed checks:
+Four dimensions, 25 evidence-backed checks:
 
 ### Findability — can AI find what it needs?
 
@@ -66,6 +66,7 @@ Four dimensions, 20 evidence-backed checks:
 | F4 | Large directories have index | Directories with >10 files need INDEX for navigation |
 | F5 | All file references resolve | Broken links waste tokens on dead-end reads |
 | F6 | Predictable file naming | Standard names (README.md, CLAUDE.md) are auto-discovered |
+| F7 | @include directives resolve | CC source: missing @include targets are silently ignored |
 
 ### Instruction Quality — are your rules well-written?
 
@@ -77,6 +78,7 @@ Four dimensions, 20 evidence-backed checks:
 | I4 | Action-oriented structure | Anthropic deleted all identity sections ("You are a...") |
 | I5 | No identity language | "Follow coding conventions" deleted — model already does this |
 | I6 | Entry file length | Reference points: 60-120 lines typical, 660 lines (Codified Context) |
+| I7 | Entry file within size limit | CC source: hard limit 40,000 chars, /doctor warns above this |
 
 ### Workability — can AI build and test?
 
@@ -86,6 +88,8 @@ Four dimensions, 20 evidence-backed checks:
 | W2 | CI exists | Harness Engineering: "Put rules in CI, not just docs" |
 | W3 | Tests exist (not empty shell) | Real audit: project had CI running pytest but 0 test files |
 | W4 | Linter configured | Mechanical enforcement frees AI from guessing conventions |
+| W5 | No oversized source files | CC source: FileReadTool hard limit 256 KB, hard error above |
+| W6 | Pre-commit hooks are fast | CC source: never skips --no-verify, slow hooks stall commits |
 
 ### Continuity — can next session pick up?
 
@@ -95,6 +99,7 @@ Four dimensions, 20 evidence-backed checks:
 | C2 | Handoff info exists | Anthropic: "structured progress files for session continuity" |
 | C3 | Changelog has "why" | "Updated INDEX" says nothing. "Fixed broken path" says everything. |
 | C4 | Plans in repo | Harness Engineering: "Plans in Jira don't exist for AI" |
+| C5 | CLAUDE.local.md not tracked | CC source: private per-user file, must be in .gitignore |
 
 ### Optional: AI Deep Analysis
 
