@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.0 (2026-04-04)
+
+New Safety dimension. 31 checks total.
+
+- New: Safety dimension (15% weight) with 6 checks — .env exposure, Actions SHA pinning, secret scanning, SECURITY.md, workflow permissions, hardcoded secrets
+- Fix: F5 broken reference detection no longer deletes valid content (was removing code examples from real repos)
+- Fix: F5 demoted from auto-fix to assisted (too dangerous to auto-delete lines)
+- Fix: I3 detail string had escaped quotes that broke JSON parsing
+- Validated on 10 real open-source repos (bun, streamlit, tldraw, n8n, nx, etc.)
+
 ## v0.2.0 (2026-04-04)
 
 New brand, new command: `/al`.
