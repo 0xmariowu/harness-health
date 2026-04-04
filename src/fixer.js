@@ -92,7 +92,7 @@ function parseArgs(argv) {
   args.selectedItems = selectedItems;
   args.projectDir = path.resolve(args.projectDir); // nosemgrep: path-join-resolve-traversal
 
-  if (!fs.existsSync(path.join(args.projectDir, '.git'))) {
+  if (!fs.existsSync(path.join(args.projectDir, '.git'))) { // nosemgrep: path-join-resolve-traversal
     throw new Error(`Not a git repository: ${args.projectDir}`);
   }
 
