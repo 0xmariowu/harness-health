@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -24,16 +28,45 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+      - name: Validate tag matches source version
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if [ -f .claude-plugin/plugin.json ]; then
+            PLUGIN_VERSION=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+            if [ "$VERSION" != "$PLUGIN_VERSION" ]; then
+              echo "::error::Tag v$VERSION does not match plugin.json version $PLUGIN_VERSION"
+              echo "::error::Run: scripts/bump-version.sh $VERSION"
+              exit 1
+            fi
+          fi
+
       - name: Extract changelog for this version
         if: steps.check.outputs.exists == 'false'
         id: changelog
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
-          # Extract the section for this version from CHANGELOG.md
-          awk "/^## v${TAG}/,/^## v[0-9]/{if(/^## v[0-9]/ && !/^## v${TAG}/)exit; print}" CHANGELOG.md > /tmp/release-notes.md
+          SAFE_TAG="${TAG//./\\.}"
+          NOTES=""
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(awk "/^## v${SAFE_TAG}([[:space:]]|$)/{found=1; next} /^## v[0-9]/{if(found) exit} found" CHANGELOG.md | awk 'NF{p=1} p')
+          fi
+          if [ -n "$NOTES" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "$NOTES" > /tmp/release-notes.md
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe  # v2.6.1
+      - name: Create GitHub Release
         if: steps.check.outputs.exists == 'false'
-        with:
-          body_path: /tmp/release-notes.md
-          files: .claude-plugin/plugin.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          if [ "${{ steps.changelog.outputs.found }}" == "true" ]; then
+            gh release create "$TAG" --title "AgentLint ${VERSION}" --notes-file /tmp/release-notes.md
+          else
+            gh release create "$TAG" --title "AgentLint ${VERSION}" --generate-notes
+          fi

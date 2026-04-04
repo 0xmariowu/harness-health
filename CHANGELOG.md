@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.3.2 (2026-04-04)
+
+Security hardening + privacy cleanup.
+
+- Fix: eliminate RCE in W6 hook check — static analysis replaces direct execution of user repo hooks
+- Fix: `pull_request_target` → `pull_request` in PR lint workflow
+- Fix: path traversal guard in fixer (rejects non-git directories)
+- Fix: file probe oracle in scanner (skips absolute paths in reference resolution)
+- Fix: XSS escaping for all HTML report template values
+- Fix: Python injection in bump-version.sh (environment variables, not string interpolation)
+- Fix: glob character escaping in find -name for reference resolution
+- Fix: `set -euo pipefail` in scanner.sh with guarded pipe exits
+- Fix: remaining `/hh` → `/al` in hooks and commands
+- Fix: F5 DEFAULT_ITEM_IDS auto → assisted (matches documented behavior)
+- New: test-html-report.js added to CI
+- Docs: checks.md updated from 20 → 31 checks, scoring.md corrected weights + Safety dimension
+- Docs: SECURITY.md updated with version table, response times, session data access
+- Privacy: removed private hostnames, corpus paths, old product references, internal exec plans
+- Privacy: git history cleaned — removed experience/ directory, unified author name
+- Release workflow improved — version validation, better changelog extraction, idempotent creation
+
 ## v0.3.1 (2026-04-04)
 
 HTML report redesign.
