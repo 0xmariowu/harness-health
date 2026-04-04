@@ -5,9 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Checks](https://img.shields.io/badge/checks-31-00b48c)](https://github.com/0xmariowu/agent-lint#what-it-checks)
 
-**Lint your repo for AI agent compatibility.** 31 evidence-backed checks, one command.
+**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 31 checks, every one backed by data.
 
-> AI coding agents are only as good as the repo they work in. AgentLint checks what most developers miss — file structure, instruction quality, build setup, session continuity, and security posture. Every check backed by data, not opinions.
+> We analyzed 265 versions of Anthropic's Claude Code system prompt, reverse-engineered the hard limits, audited thousands of real repos, and read 6 academic papers. The result: a single command that tells you exactly what your AI agent is struggling with and why.
 
 ## Install
 
@@ -49,20 +49,18 @@ The HTML report shows a segmented gauge, expandable dimension breakdowns with pe
 
 ## Why this matters
 
-AI coding agents don't just read your code — they read your repo structure, your docs, your CI config, your handoff notes. They also `git push`, trigger CI pipelines, and write files. A repo that's set up right gets dramatically better AI output. One that isn't wastes tokens, ignores rules, repeats mistakes, and may silently expose secrets or trigger vulnerable workflows.
+AI coding agents read your repo structure, docs, CI config, and handoff notes. They `git push`, trigger pipelines, and write files. A well-structured repo gets dramatically better AI output. A poorly structured one wastes tokens, ignores rules, repeats mistakes, and may expose secrets.
 
-The problem: **nobody knows what makes a repo AI-friendly.** Until now.
+AgentLint is built on data most developers never see:
 
-AgentLint is built on data from places most developers never look:
-
-- **265 versions** of Anthropic's own Claude Code system prompt — we tracked every word they added, deleted, and rewrote
-- **Claude Code internals** — we found the hard limits (40K char max, 256KB file read limit, pre-commit hook behavior) that silently break your setup
-- **Real production audits** across open-source codebases — finding the security gaps AI agents walk into
-- **6 academic papers** on instruction-following, context file effectiveness, and documentation decay
+- **265 versions** of Anthropic's Claude Code system prompt — every word added, deleted, and rewritten
+- **Claude Code internals** — hard limits (40K char max, 256KB file read limit, pre-commit hook behavior) that silently break your setup
+- **Production security audits** across open-source codebases — the gaps AI agents walk into
+- **6 academic papers** on instruction-following, context files, and documentation decay
 
 ## What it checks
 
-### 🔍 Findability — can AI find what it needs?
+### Findability — can AI find what it needs?
 
 | Check | What | Why |
 |-------|------|-----|
@@ -74,7 +72,7 @@ AgentLint is built on data from places most developers never look:
 | F6 | Standard file naming | README.md, CLAUDE.md are auto-discovered |
 | F7 | @include directives resolve | Missing targets are silently ignored — you think it's loaded, it isn't |
 
-### 📝 Instructions — are your rules well-written?
+### Instructions — are your rules well-written?
 
 | Check | What | Why |
 |-------|------|-----|
@@ -86,7 +84,7 @@ AgentLint is built on data from places most developers never look:
 | I6 | Entry file length | 60-120 lines is the sweet spot. Longer dilutes priority |
 | I7 | Under 40,000 characters | Claude Code hard limit. Above this, your file is truncated |
 
-### 🔨 Workability — can AI build and test?
+### Workability — can AI build and test?
 
 | Check | What | Why |
 |-------|------|-----|
@@ -97,7 +95,7 @@ AgentLint is built on data from places most developers never look:
 | W5 | No files over 256 KB | Claude Code cannot read them — hard error |
 | W6 | Pre-commit hooks are fast | Claude Code never uses --no-verify. Slow hooks = stuck commits |
 
-### 🔄 Continuity — can next session pick up?
+### Continuity — can next session pick up?
 
 | Check | What | Why |
 |-------|------|-----|
@@ -107,7 +105,7 @@ AgentLint is built on data from places most developers never look:
 | C4 | Plans in repo | Plans in Jira don't exist for AI |
 | C5 | CLAUDE.local.md not in git | Private per-user file. Claude Code requires .gitignore |
 
-### 🔒 Safety — is AI working securely?
+### Safety — is AI working securely?
 
 | Check | What | Why |
 |-------|------|-----|
@@ -118,14 +116,14 @@ AgentLint is built on data from places most developers never look:
 | S5 | Workflow permissions minimized | AI-triggered workflows shouldn't have write access by default |
 | S6 | No hardcoded secrets | Detects `sk-`, `ghp_`, `AKIA`, private key patterns in source |
 
-### 🧠 Optional: AI Deep Analysis
+### Optional: AI Deep Analysis
 
 Spawns AI subagents to find what mechanical checks can't:
 - Contradictory rules that confuse the model
 - Dead-weight rules the model would follow without being told
 - Vague rules without decision boundaries
 
-### 📊 Optional: Session Analysis
+### Optional: Session Analysis
 
 Reads your Claude Code session logs to find:
 - Instructions you repeat across sessions (should be in CLAUDE.md)
@@ -134,7 +132,7 @@ Reads your Claude Code session logs to find:
 
 ## How scoring works
 
-Each check → score (0-1) → weighted by dimension → total out of 100.
+Each check produces a 0-1 score, weighted by dimension, scaled to 100.
 
 | Dimension | Weight | Why? |
 |-----------|--------|------|
@@ -144,7 +142,7 @@ Each check → score (0-1) → weighted by dimension → total out of 100.
 | Safety | 15% | Is AI working without exposing secrets or triggering vulnerabilities? |
 | Continuity | 15% | Does knowledge survive across sessions? |
 
-Scores are **measurements, not judgments**. Reference values come from Anthropic's own data. You decide what to fix.
+Scores are measurements, not judgments. Reference values come from Anthropic's own data. You decide what to fix.
 
 ## Update
 
@@ -154,7 +152,7 @@ claude plugin update agent-lint@agent-lint
 
 ## Evidence
 
-Every check cites its source. No opinions, no best practices — data.
+Every check cites its source. Full citations in [`standards/evidence.json`](standards/evidence.json).
 
 | Source | Type |
 |--------|------|
@@ -164,8 +162,6 @@ Every check cites its source. No opinions, no best practices — data.
 | [ETH Zurich](https://arxiv.org/abs/2602.11988) | Do context files help coding agents? |
 | [Codified Context](https://arxiv.org/abs/2602.20478) | Stale content as #1 failure mode |
 | [Agent READMEs](https://arxiv.org/abs/2511.12884) | Concrete vs abstract effectiveness |
-
-Full citations in [`standards/evidence.json`](standards/evidence.json).
 
 ## Requirements
 
