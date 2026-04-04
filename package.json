@@ -9,13 +9,17 @@
   },
   "keywords": [
     "claude-code",
-    "plugin",
+    "claude-code-plugin",
     "ai-friendly",
     "agent-lint",
-    "health-check",
+    "linter",
+    "static-analysis",
     "claude-md",
     "agents-md",
-    "developer-tools"
+    "developer-tools",
+    "ai-agent",
+    "cursor",
+    "devtools"
   ],
   "files": [
     "src/",
