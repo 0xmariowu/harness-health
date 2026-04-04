@@ -59,10 +59,10 @@ Workability      ████████████░░░░░░░░  6
 Continuity       ██████████████░░░░░░  7/10
 
 By Project:
-  atoms                 10  ████████████████████
-  kalami                 8  ████████████████░░░░
-  harness-health         6  ████████████░░░░░░░░
-  alaya-os               5  ██████████░░░░░░░░░░
+  my-api                 9  ██████████████████░░
+  web-app                8  ████████████████░░░░
+  cli-tool               6  ████████████░░░░░░░░
+  new-project            4  ████████░░░░░░░░░░░░
 ```
 
 ### Step 5: Fix Plan + Select
@@ -79,26 +79,22 @@ Read `/tmp/hh-plan.json`. **First print the full plan as readable text**, then A
 Read the grouped items from the plan JSON and output a summary like this:
 
 ```
-📋 Fix Plan — 47 items
+📋 Fix Plan — 12 items
 
-🔴 High (39 items):
-  [auto] All references resolve — 10 projects (alaya-os, armory-lab, kalami, ...)
-  [assisted] Missing HANDOFF — alaya-os, atoms, kalami2, router, project-templates
-  [assisted] Missing plans directory — alaya-os, atoms, kalami2, router, project-templates
-  [guided] Missing tests — alaya-os, kalami2, armory-lab
-  [guided] Missing linter config — alaya-os, harness-health, kalami2, atoms, project-templates
-  [guided] No build/test commands in entry file — armory-lab, harness-health, kalami2, project-templates
-  [auto] Identity language lines — atoms
-  [guided] Missing CI — alaya-os
+🔴 High (8 items):
+  [auto] All references resolve — 3 projects (my-api, web-app, cli-tool)
+  [assisted] Missing HANDOFF — my-api, web-app
+  [guided] Missing tests — my-api, cli-tool
+  [guided] Missing linter config — my-api, web-app
+  [guided] No build/test commands in entry file — cli-tool
 
 🟡 Medium (2 items):
-  [guided] Rule specificity < 50% — harness-health
-  [guided] Entry file too short — kalami
+  [guided] Rule specificity < 50% — web-app
+  [guided] Entry file too short — cli-tool
 
-⚪ Low (6 items):
-  [guided] Rule specificity — alaya-os, autosearch, kalami2, project-templates
-  [guided] Entry file length — armory-lab, atoms, harness-health, project-templates
-  [guided] Keyword density — autosearch
+⚪ Low (2 items):
+  [guided] Entry file length — my-api
+  [guided] Keyword density — web-app
 ```
 
 For each grouped item, show: `[fix_type] check name — project list`. Use the merged items from `plan.grouped.{severity}.items`. List all project names (from the `projects` array on merged items).
@@ -129,15 +125,14 @@ node "$HH_DIR/src/fixer.js" --items "1,2,3" --project-dir ~/Projects < /tmp/hh-p
 
 Present results:
 ```
-✓ 5 projects: cleaned 38 broken references
-✓ harness-health: generated CLAUDE.md from template
-ℹ 3 projects: add test files (manual — see details below)
+✓ 3 projects: cleaned 12 broken references
+✓ cli-tool: generated CLAUDE.md from template
+ℹ 2 projects: add test files (manual — see details below)
 ℹ 2 projects: add linter config (manual — see details below)
 
   Manual items:
-  - kalami2: no tests/ directory. Run: mkdir tests && touch tests/test_smoke.py
-  - alaya-os: no tests/ directory (no code yet — skip for now)
-  ...
+  - my-api: no tests/ directory. Run: mkdir tests && touch tests/test_smoke.py
+  - new-project: no tests/ directory (no code yet — skip for now)
 ```
 
 ### Step 7: Verify + Report (no interaction)
