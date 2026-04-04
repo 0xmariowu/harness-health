@@ -120,6 +120,10 @@ function generateJsonl(scores, date) {
   return lines.join('\n') + '\n';
 }
 
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function generateHtmlReport(scores, beforeScores, plan, date) {
   const dims = scores.dimensions || {};
   const dimNames = Object.keys(dims);
@@ -128,169 +132,229 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
   const beforeTotal = hasBefore ? beforeScores.total_score : 0;
   const delta = hasBefore ? totalScore - beforeTotal : 0;
 
-  function scoreColor(pct) {
-    if (pct >= 90) return 'var(--pass)';
-    if (pct >= 50) return 'var(--avg)';
-    return 'var(--fail)';
-  }
+  // Read version from package.json
+  let alVersion = '';
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+    alVersion = pkg.version || '';
+  } catch (_) { /* ignore */ }
 
-  function badgeClass(score) {
-    if (score >= 0.9) return 'badge--pass';
-    if (score >= 0.5) return 'badge--avg';
-    return 'badge--fail';
-  }
-
-  // Animated SVG gauge
-  const circumference = 2 * Math.PI * 54;
-  const gaugeOffset = circumference * (1 - totalScore / 100);
-  const gaugeColor = scoreColor(totalScore);
-
-  const gaugeSvg = `<svg class="gauge" viewBox="0 0 120 120" width="130" height="130">
-    <circle cx="60" cy="60" r="54" fill="none" stroke="var(--g100)" stroke-width="8"/>
-    <circle cx="60" cy="60" r="54" fill="none" stroke="${gaugeColor}" stroke-width="8"
-      stroke-dasharray="${circumference}" stroke-dashoffset="${gaugeOffset}"
-      stroke-linecap="round" transform="rotate(-90 60 60)"
-      style="animation:gauge-fill 1s ease-out both;animation-delay:.2s"/>
-    <text x="60" y="56" text-anchor="middle" dominant-baseline="middle"
-      font-size="34" font-weight="800" fill="var(--g900)" letter-spacing="-1">${totalScore}</text>
-    <text x="60" y="77" text-anchor="middle" font-size="12" fill="var(--g300)" font-weight="400">/100</text>
-  </svg>`;
-
-  // Before/after delta
-  let deltaHtml = '';
-  if (hasBefore) {
-    const sign = delta > 0 ? '+' : '';
-    const dColor = delta > 0 ? 'var(--pass)' : delta < 0 ? 'var(--fail)' : 'var(--g500)';
-    deltaHtml = `<div class="delta"><span class="delta-from">${beforeTotal}</span><span class="delta-arrow">\u2192</span><span class="delta-to">${totalScore}</span><span class="delta-diff" style="color:${dColor}">${sign}${delta}</span></div>`;
-  }
-
-  // Dimension metric cards
-  const metricCards = dimNames.map(name => {
-    const dim = dims[name];
-    const pct = Math.round((dim.score / dim.max) * 100);
-    const label = name.charAt(0).toUpperCase() + name.slice(1);
-    const color = scoreColor(pct);
-    let beforeLine = '';
-    if (hasBefore) {
-      const bd = (beforeScores.dimensions || {})[name] || { score: 0, max: 10 };
-      const diff = dim.score - bd.score;
-      if (diff !== 0) {
-        beforeLine = `<div class="metric-delta" style="color:${diff > 0 ? 'var(--pass)' : 'var(--fail)'}">${diff > 0 ? '\u2191+' : '\u2193'}${diff}</div>`;
+  // Collect checks grouped by dimension
+  const checksByDim = {};
+  const projectCount = Object.keys(scores.by_project || {}).length;
+  for (const [project, pd] of Object.entries(scores.by_project || {})) {
+    for (const [dimName, dim] of Object.entries(pd)) {
+      if (!checksByDim[dimName]) checksByDim[dimName] = [];
+      for (const check of dim.checks || []) {
+        checksByDim[dimName].push({ project, ...check });
       }
     }
-    return `<div class="metric-card">
-      <div class="metric-value" style="color:${color}">${dim.score}</div>
-      <div class="metric-max">/ ${dim.max}</div>
-      <div class="metric-label">${label}</div>
-      <div class="metric-bar"><div class="metric-fill" style="width:${pct}%;background:${color}"></div></div>
-      ${beforeLine}
-    </div>`;
-  }).join('');
-
-  // Radar chart
-  const radarSize = 300;
-  const radarCenter = radarSize / 2;
-  const radarRadius = 90;
-  const angles = dimNames.map((_, i) => (Math.PI * 2 * i) / dimNames.length - Math.PI / 2);
-  function rp(angle, value, max) {
-    const r = (value / max) * radarRadius;
-    return [radarCenter + r * Math.cos(angle), radarCenter + r * Math.sin(angle)];
-  }
-  const gridSvg = [0.25, 0.5, 0.75, 1.0].map(level => {
-    const pts = angles.map(a => rp(a, level * 10, 10).join(',')).join(' ');
-    return `<polygon points="${pts}" fill="none" stroke="var(--g200)" stroke-width="0.5"/>`;
-  }).join('');
-  const axisSvg = angles.map((a, i) => {
-    const [ex, ey] = rp(a, 10, 10);
-    const [lx, ly] = rp(a, 13, 10);
-    const label = dimNames[i].charAt(0).toUpperCase() + dimNames[i].slice(1);
-    const anchor = Math.abs(lx - radarCenter) < 5 ? 'middle' : lx > radarCenter ? 'start' : 'end';
-    return `<line x1="${radarCenter}" y1="${radarCenter}" x2="${ex}" y2="${ey}" stroke="var(--g200)" stroke-width="0.5"/>
-      <text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" fill="var(--g500)" font-size="11" font-weight="500">${label}</text>`;
-  }).join('');
-  const afterPts = dimNames.map((n, i) => rp(angles[i], dims[n].score, dims[n].max).join(',')).join(' ');
-  let beforePoly = '';
-  if (hasBefore) {
-    const bd = beforeScores.dimensions || {};
-    const bPts = dimNames.map((n, i) => rp(angles[i], (bd[n] || { score: 0 }).score, 10).join(',')).join(' ');
-    beforePoly = `<polygon points="${bPts}" fill="rgba(220,38,38,0.08)" stroke="var(--fail)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
-  }
-  const radarSvg = `<svg viewBox="0 0 ${radarSize} ${radarSize}" width="320" height="320" class="radar">
-    ${gridSvg}${axisSvg}${beforePoly}
-    <polygon points="${afterPts}" fill="rgba(10,138,82,0.1)" stroke="var(--pass)" stroke-width="2"/>
-    ${dimNames.map((n, i) => { const [cx, cy] = rp(angles[i], dims[n].score, dims[n].max); return `<circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--pass)"/>`; }).join('')}
-  </svg>`;
-
-  // Project table
-  let projectSection = '';
-  if (scores.by_project && Object.keys(scores.by_project).length > 1) {
-    const rows = Object.entries(scores.by_project).map(([project, pd]) => {
-      let t = 0, w = 0;
-      for (const d of Object.values(pd)) { t += d.score * d.weight; w += d.weight; }
-      const ps = w > 0 ? Math.round((t / w) * 10) : 0;
-      const dimCells = dimNames.map(n => {
-        const d = pd[n] || { score: 0, max: 10 };
-        const p = Math.round((d.score / d.max) * 100);
-        return `<td class="tc"><span class="${badgeClass(p / 100)}-text">${d.score}</span><span class="dim-max">/${d.max}</span></td>`;
-      }).join('');
-      return `<tr><td class="project-name">${project}</td>${dimCells}<td class="tc"><strong style="color:${scoreColor(ps * 10)}">${ps}</strong></td></tr>`;
-    }).join('');
-    projectSection = `<section class="section"><h2 class="section-title">Projects</h2>
-      <div class="table-wrap"><table class="data-table">
-        <thead><tr><th class="tl">Project</th>${dimNames.map(n => `<th class="tc">${n.charAt(0).toUpperCase() + n.slice(1)}</th>`).join('')}<th class="tc">Score</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div></section>`;
   }
 
-  // Issues grouped by dimension
-  let issuesSection = '';
-  if (scores.by_project) {
-    const allChecks = [];
-    for (const [project, pd] of Object.entries(scores.by_project)) {
+  // Compare with before to detect fixed/improved
+  if (hasBefore && beforeScores.by_project) {
+    const beforeMap = {};
+    for (const [project, pd] of Object.entries(beforeScores.by_project)) {
       for (const [dimName, dim] of Object.entries(pd)) {
         for (const check of dim.checks || []) {
-          allChecks.push({ project, dimension: dimName, ...check });
+          beforeMap[`${project}:${check.check_id}`] = check.score;
         }
       }
     }
-    const failed = allChecks.filter(c => c.score < 0.8).sort((a, b) => a.score - b.score);
-    if (failed.length > 0) {
-      const byDim = {};
-      for (const c of failed) {
-        if (!byDim[c.dimension]) byDim[c.dimension] = [];
-        byDim[c.dimension].push(c);
+    for (const checks of Object.values(checksByDim)) {
+      for (const c of checks) {
+        const prev = beforeMap[`${c.project}:${c.check_id}`];
+        if (prev !== undefined) {
+          if (prev < 0.8 && c.score >= 0.8) c.fixed = true;
+          else if (c.score > prev && c.score < 0.8) c.improved = true;
+        }
       }
-      const dimSections = Object.entries(byDim).map(([dim, checks]) => {
-        const label = dim.charAt(0).toUpperCase() + dim.slice(1);
-        const items = checks.map(c => {
-          const pct = Math.round(c.score * 100);
-          const bc = badgeClass(c.score);
-          return `<details class="issue-card">
-            <summary class="issue-summary">
-              <span class="badge ${bc}">${pct}%</span>
-              <span class="issue-id">${c.check_id}</span>
-              <span class="issue-name">${c.name || ''}</span>
-              <span class="issue-project">${c.project}</span>
-            </summary>
-            <div class="issue-body">${c.detail || 'No detail available'}</div>
-          </details>`;
-        }).join('');
-        return `<div class="dim-group">
-          <h3 class="dim-header">${label} <span class="dim-count">${checks.length}</span></h3>
-          ${items}
-        </div>`;
-      }).join('');
-      issuesSection = `<section class="section"><h2 class="section-title">Issues <span class="issue-total">${failed.length}</span></h2>${dimSections}</section>`;
     }
   }
 
-  // Legend
-  const legend = `<div class="legend">
-    <span><span class="dot dot--pass"></span> 90-100 Pass</span>
-    <span><span class="dot dot--avg"></span> 50-89 Needs work</span>
-    <span><span class="dot dot--fail"></span> 0-49 Fail</span>
-    ${hasBefore ? '<span class="legend-sep">|</span><span><span class="dot dot--before"></span> Before</span>' : ''}
-  </div>`;
+  // Stats
+  const allChecks = Object.values(checksByDim).flat();
+  const fixedCount = allChecks.filter(c => c.fixed).length;
+  const improvedCount = allChecks.filter(c => c.improved).length;
+  const failCount = allChecks.filter(c => c.score < 0.5).length;
+  const warnCount = allChecks.filter(c => c.score >= 0.5 && c.score < 0.8).length;
+  const passCount = allChecks.filter(c => c.score >= 0.8).length;
+  const remainingCount = failCount + warnCount;
+
+  // Color helpers
+  function scoreColor(s) { return s >= 80 ? '#1D9E75' : s >= 60 ? '#534AB7' : '#E24B4A'; }
+  function dimColor(s, max) { const p = (s / max) * 100; return p >= 80 ? '#1D9E75' : p >= 60 ? '#534AB7' : '#E24B4A'; }
+  function checkDot(s) { return s >= 0.8 ? '#1D9E75' : s >= 0.5 ? '#EF9F27' : '#E24B4A'; }
+
+  // ── Segmented arc gauge ──
+  const gW = 220, gH = 148, gCx = 110, gCy = 120, gR = 88;
+  const startAng = Math.PI * 1.22, endAng = Math.PI * -0.22;
+  const totalArc = startAng - endAng;
+  const segs = 52;
+  const filled = Math.round((totalScore / 100) * segs);
+  const prevFilled = hasBefore ? Math.round((beforeTotal / 100) * segs) : 0;
+  const gaugeColor = scoreColor(totalScore);
+
+  let gaugeLines = '';
+  for (let i = 0; i < segs; i++) {
+    const t = i / (segs - 1);
+    const ang = startAng - t * totalArc;
+    const cos = Math.cos(ang), sin = Math.sin(ang);
+    const inner = gR - 5, outer = gR + 5;
+    const x1 = (gCx + cos * inner).toFixed(1);
+    const y1 = (gCy - sin * inner).toFixed(1);
+    const x2 = (gCx + cos * outer).toFixed(1);
+    const y2 = (gCy - sin * outer).toFixed(1);
+    let stroke, op;
+    if (i < filled) { stroke = gaugeColor; op = 1; }
+    else if (hasBefore && i < prevFilled) { stroke = '#d1d5db'; op = 0.4; }
+    else { stroke = '#e5e7eb'; op = 0.3; }
+    gaugeLines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="4.5" stroke-linecap="round" opacity="${op}"/>`;
+  }
+
+  const gaugeSvg = `<svg width="${gW}" height="${gH}" viewBox="0 0 ${gW} ${gH}">${gaugeLines}</svg>`;
+
+  // ── Under-gauge stats ──
+  let statsLine = '';
+  if (hasBefore) {
+    const sign = delta > 0 ? '+' : '';
+    const dColor = delta >= 0 ? '#0F6E56' : '#991b1b';
+    statsLine = `<div class="hero-stats">
+      <span style="color:#9ca3af">from ${beforeTotal}</span>
+      <span class="stats-sep">\u00b7</span>
+      <span style="font-weight:500;color:${dColor}">${sign}${delta} points</span>
+    </div>`;
+  }
+
+  // ── Hero pills ──
+  let heroPills = '';
+  if (hasBefore) {
+    heroPills = `<div class="hero-pills">
+      ${fixedCount > 0 ? `<div class="pill"><div class="pill-dot" style="background:#1D9E75"></div><span class="pill-num">${fixedCount}</span><span class="pill-label">fixed</span></div>` : ''}
+      ${improvedCount > 0 ? `<div class="pill"><div class="pill-dot" style="background:#EF9F27"></div><span class="pill-num">${improvedCount}</span><span class="pill-label">improved</span></div>` : ''}
+      <div class="pill"><div class="pill-dot" style="background:#E24B4A"></div><span class="pill-num">${remainingCount}</span><span class="pill-label">remaining</span></div>
+    </div>`;
+  } else {
+    heroPills = `<div class="hero-pills">
+      <div class="pill"><div class="pill-dot" style="background:#1D9E75"></div><span class="pill-num">${passCount}</span><span class="pill-label">pass</span></div>
+      ${warnCount > 0 ? `<div class="pill"><div class="pill-dot" style="background:#EF9F27"></div><span class="pill-num">${warnCount}</span><span class="pill-label">needs work</span></div>` : ''}
+      ${failCount > 0 ? `<div class="pill"><div class="pill-dot" style="background:#E24B4A"></div><span class="pill-num">${failCount}</span><span class="pill-label">failing</span></div>` : ''}
+    </div>`;
+  }
+
+  // ── Dimension rows ──
+  let dimRows = '';
+  for (const name of dimNames) {
+    const dim = dims[name];
+    const label = name.charAt(0).toUpperCase() + name.slice(1);
+    const pct = Math.round((dim.score / dim.max) * 100);
+    const color = dimColor(dim.score, dim.max);
+    const checks = checksByDim[name] || [];
+    const dFails = checks.filter(c => c.score < 0.5).length;
+    const dWarns = checks.filter(c => c.score >= 0.5 && c.score < 0.8).length;
+
+    // Before ghost bar + delta
+    let prevBarHtml = '';
+    let deltaHtml = '<span class="delta-spacer"></span>';
+    if (hasBefore) {
+      const bd = (beforeScores.dimensions || {})[name] || { score: 0, max: dim.max };
+      const prevPct = Math.round((bd.score / bd.max) * 100);
+      prevBarHtml = `<div class="dim-bar-ghost" style="width:${prevPct}%"></div>`;
+      const diff = dim.score - bd.score;
+      if (diff > 0) deltaHtml = `<span class="delta-pill delta-up">+${diff}</span>`;
+      else if (diff < 0) deltaHtml = `<span class="delta-pill delta-down">${diff}</span>`;
+    }
+
+    // Issue count pills
+    let issuePills = '';
+    if (dFails > 0) issuePills += `<span class="issue-pill issue-fail">${dFails}</span>`;
+    if (dWarns > 0) issuePills += `<span class="issue-pill issue-warn">${dWarns}</span>`;
+    if (dFails === 0 && dWarns === 0) {
+      issuePills = `<svg width="14" height="14" viewBox="0 0 14 14"><path d="M3.5 7.5L5.5 9.5L10.5 4.5" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+
+    // Check items within this dimension
+    let checkItems = '';
+    for (const c of checks) {
+      const dot = checkDot(c.score);
+      let badges = '';
+      if (c.fixed) badges += '<span class="chk-badge chk-fixed">fixed</span>';
+      if (c.improved) badges += '<span class="chk-badge chk-improved">improved</span>';
+      const proj = projectCount > 1 ? `<span class="chk-project">${esc(c.project)}</span>` : '';
+      checkItems += `<details class="chk">
+          <summary class="chk-row">
+            <div class="chk-dot" style="background:${dot}"></div>
+            <span class="chk-id">${esc(c.check_id)}</span>
+            <span class="chk-name">${esc(c.name)}</span>
+            ${proj}${badges}
+          </summary>
+          <div class="chk-detail">${esc(c.detail)}</div>
+        </details>`;
+    }
+
+    dimRows += `<details class="dim">
+      <summary class="dim-row">
+        <span class="dim-label">${label}</span>
+        <div class="dim-bar">${prevBarHtml}<div class="dim-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="dim-score" style="color:${color}">${dim.score}</span>
+        <span class="dim-max">/${dim.max}</span>
+        ${deltaHtml}
+        <div class="dim-issues">${issuePills}</div>
+      </summary>
+      <div class="dim-checks">${checkItems}</div>
+    </details>`;
+  }
+
+  // ── Remaining fixes / issues section ──
+  let fixesSection = '';
+  const planItems = plan && plan.items ? plan.items.filter(item => item.fix_type) : [];
+  const failingChecks = allChecks.filter(c => c.score < 0.8).sort((a, b) => a.score - b.score);
+
+  if (planItems.length > 0) {
+    const fixRows = planItems.map((fix, i) => {
+      const isGuided = fix.fix_type === 'guided';
+      return `<div class="fix-item">
+        <div class="fix-num">${i + 1}</div>
+        <div class="fix-body">
+          <div class="fix-desc">${esc(fix.description)}</div>
+          <div class="fix-reason">${esc(fix.evidence ? fix.evidence.slice(0, 150) : '')}</div>
+        </div>
+        <div class="fix-meta">
+          <span class="fix-type ${isGuided ? 'fix-guided' : 'fix-assisted'}">${fix.fix_type}</span>
+          <span class="fix-check">${esc(fix.check_id || '')}</span>
+        </div>
+      </div>`;
+    }).join('');
+    fixesSection = `<div class="card">
+      <div class="card-head"><span class="card-title">Remaining fixes</span><span class="card-count">${planItems.length} items</span></div>
+      ${fixRows}
+    </div>`;
+  } else if (failingChecks.length > 0) {
+    const fixRows = failingChecks.map((c, i) => {
+      return `<div class="fix-item">
+        <div class="fix-num">${i + 1}</div>
+        <div class="fix-body">
+          <div class="fix-desc">${esc(c.name || c.check_id)}</div>
+          <div class="fix-reason">${esc(c.detail)}</div>
+        </div>
+        <div class="fix-meta">
+          <span class="fix-check">${esc(c.check_id)}</span>
+        </div>
+      </div>`;
+    }).join('');
+    fixesSection = `<div class="card">
+      <div class="card-head"><span class="card-title">Issues</span><span class="card-count">${failingChecks.length} items</span></div>
+      ${fixRows}
+    </div>`;
+  }
+
+  // Project label for header
+  const projectNames = Object.keys(scores.by_project || {});
+  const projectLabel = projectNames.length === 1
+    ? `${esc(projectNames[0])}/ \u00b7 `
+    : projectNames.length > 1
+      ? `${projectNames.length} projects \u00b7 `
+      : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -299,91 +363,108 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AgentLint Report \u2014 ${date}</title>
 <style>
-:root{--pass:#0a8a52;--avg:#d97706;--fail:#dc2626;--brand:#00b48c;--g50:#fafafa;--g100:#f5f5f5;--g200:#e5e7eb;--g300:#d1d5db;--g400:#9ca3af;--g500:#6b7280;--g600:#4b5563;--g700:#374151;--g900:#111827;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:'SF Mono',Menlo,Consolas,monospace;--max-w:960px}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--g50);color:var(--g700);font-family:var(--font);line-height:1.5;max-width:var(--max-w);margin:0 auto}
-.topbar{background:var(--g900);color:white;padding:0 24px;height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;position:sticky;top:0;z-index:20}
-.topbar-brand{font-weight:700;color:var(--brand);letter-spacing:.02em}
-.topbar-date{color:var(--g400);font-family:var(--mono);font-size:12px}
-.hero{display:flex;align-items:center;gap:28px;padding:28px 24px;background:white;border-bottom:1px solid var(--g200)}
-.hero-score{text-align:center;min-width:140px;flex-shrink:0}
-.gauge{filter:drop-shadow(0 1px 4px rgba(0,0,0,.04))}
-@keyframes gauge-fill{from{stroke-dashoffset:${circumference}}}
-.delta{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;color:var(--g400)}
-.delta-from{text-decoration:line-through}
-.delta-arrow{font-size:10px}
-.delta-to{font-weight:600;color:var(--g600)}
-.delta-diff{font-weight:600}
-.metric-grid{display:grid;grid-template-columns:repeat(${dimNames.length},1fr);gap:1px;flex:1;background:var(--g200);border:1px solid var(--g200);border-radius:8px;overflow:hidden}
-.metric-card{background:white;padding:18px 10px;text-align:center}
-.metric-value{font-size:28px;font-weight:700;line-height:1;letter-spacing:-.02em}
-.metric-max{font-size:12px;color:var(--g300);margin-top:2px;font-weight:400}
-.metric-label{font-size:11px;color:var(--g400);margin-top:8px;text-transform:uppercase;letter-spacing:.08em;font-weight:500}
-.metric-bar{height:3px;background:var(--g100);border-radius:2px;margin-top:10px;overflow:hidden}
-.metric-fill{height:100%;border-radius:2px;animation:bar-grow .8s ease both;animation-delay:.3s}
-@keyframes bar-grow{from{width:0 !important}}
-.metric-delta{font-size:11px;margin-top:6px;font-weight:400;color:var(--g400)}
-.legend{display:flex;gap:16px;font-size:11px;color:var(--g500);padding:8px 24px;flex-wrap:wrap}
-.legend-sep{color:var(--g300)}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
-.dot--pass{background:var(--pass)}.dot--avg{background:var(--avg)}.dot--fail{background:var(--fail)}
-.dot--before{background:var(--fail);opacity:.4}
-.section{padding:0 24px 24px}
-.section-title{font-size:16px;font-weight:600;color:var(--g900);margin:24px 0 12px;display:flex;align-items:center;gap:8px}
-.issue-total{background:var(--fail);color:white;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600}
-.table-wrap{overflow-x:auto}
-.data-table{width:100%;border-collapse:collapse;font-size:13px}
-.data-table th{background:var(--g100);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--g500);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--g200)}
-.data-table td{padding:10px 12px;border-bottom:1px solid var(--g100)}
-.data-table tbody tr:hover{background:#eff6ff}
-.tc{text-align:center}.tl{text-align:left}
-.project-name{font-weight:500;color:var(--g700)}
-.dim-max{color:var(--g400);font-size:11px}
-.badge--pass-text{color:var(--pass);font-weight:600}
-.badge--avg-text{color:var(--avg);font-weight:600}
-.badge--fail-text{color:var(--fail);font-weight:600}
-.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.03em;min-width:42px;text-align:center}
-.badge--pass{background:#d1fae5;color:#065f46}.badge--avg{background:#fef3c7;color:#92400e}.badge--fail{background:#fee2e2;color:#991b1b}
-.dim-group{margin-bottom:16px}
-.dim-header{font-size:13px;font-weight:600;color:var(--g600);text-transform:uppercase;letter-spacing:.05em;padding:8px 0;display:flex;align-items:center;gap:8px}
-.dim-count{background:var(--g200);color:var(--g600);font-size:10px;padding:1px 6px;border-radius:99px}
-.issue-card{border:1px solid var(--g200);border-radius:var(--radius);margin-bottom:6px;background:white;overflow:hidden}
-.issue-card[open]{box-shadow:var(--shadow)}
-.issue-summary{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:13px;list-style:none}
-.issue-summary::-webkit-details-marker{display:none}
-.issue-summary::after{content:'\\25BE';margin-left:auto;color:var(--g400);font-size:12px;transition:transform .2s}
-.issue-card[open] .issue-summary::after{transform:rotate(180deg)}
-.issue-card[open] .issue-summary{border-bottom:1px solid var(--g100)}
-.issue-id{font-family:var(--mono);font-size:12px;color:var(--g400);min-width:28px}
-.issue-name{color:var(--g700);font-weight:500;flex:1}
-.issue-project{font-size:11px;color:var(--g400);font-family:var(--mono)}
-.issue-body{padding:12px 14px;font-size:13px;color:var(--g600);line-height:1.6;background:var(--g50)}
-.footer{padding:24px;border-top:1px solid var(--g200);color:var(--g400);font-size:11px;text-align:center}
-.footer a{color:var(--brand);text-decoration:none;font-weight:500}
+:root{--font:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:'SF Mono',Menlo,Consolas,monospace}
+body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;max-width:720px;margin:0 auto;padding:8px 0}
+
+.hero{background:#f3f4f6;border-radius:16px;padding:28px 28px 26px;margin-bottom:14px}
+.hero-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.hero-brand{font-size:18px;font-weight:500;color:#111827}
+.hero-ver{font-size:11px;font-family:var(--mono);color:#9ca3af;background:#e5e7eb;padding:2px 8px;border-radius:8px;margin-left:10px}
+.hero-meta{font-size:12px;color:#9ca3af}
+.hero-gauge{position:relative;width:220px;height:148px;margin:0 auto}
+.hero-gauge-num{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:60px;font-weight:500;color:#111827;line-height:1;letter-spacing:-3px}
+.hero-stats{text-align:center;margin-top:2px;font-size:13px}
+.stats-sep{color:#9ca3af;margin:0 6px}
+.hero-pills{display:flex;justify-content:center;gap:10px;margin-top:20px}
+.pill{display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:10px;background:#fff;border:0.5px solid #e5e7eb}
+.pill-dot{width:8px;height:8px;border-radius:50%}
+.pill-num{font-size:14px;font-weight:500;color:#111827}
+.pill-label{font-size:13px;color:#4b5563}
+
+.card{border:0.5px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;margin-bottom:14px}
+.card-head{padding:16px 20px 4px;display:flex;align-items:baseline;gap:8px}
+.card-title{font-size:16px;font-weight:500;color:#111827}
+.card-count{font-size:12px;color:#9ca3af}
+
+.dim{border-top:0.5px solid #e5e7eb}
+.dim>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:13px 20px}
+.dim>summary::-webkit-details-marker{display:none}
+.dim-label{font-size:14px;font-weight:500;color:#111827;width:100px;flex-shrink:0}
+.dim-bar{flex:1;position:relative;height:6px;border-radius:3px;background:#e5e7eb;overflow:hidden}
+.dim-bar-ghost{position:absolute;height:100%;border-radius:3px;background:#d1d5db;opacity:.3}
+.dim-bar-fill{position:relative;height:100%;border-radius:3px}
+.dim-score{font-size:20px;font-weight:500;line-height:1;min-width:28px;text-align:right;flex-shrink:0}
+.dim-max{font-size:12px;color:#9ca3af;flex-shrink:0}
+.delta-pill{font-size:11px;font-weight:500;padding:2px 7px;border-radius:8px;min-width:28px;text-align:center;flex-shrink:0}
+.delta-up{background:rgba(29,158,117,.1);color:#0F6E56}
+.delta-down{background:rgba(226,75,74,.1);color:#991b1b}
+.delta-spacer{min-width:28px;flex-shrink:0}
+.dim-issues{width:44px;display:flex;gap:4px;flex-shrink:0;justify-content:flex-end;align-items:center}
+.issue-pill{font-size:11px;padding:2px 7px;border-radius:10px;font-weight:500}
+.issue-fail{background:rgba(226,75,74,.1);color:#A32D2D}
+.issue-warn{background:rgba(239,159,39,.1);color:#854F0B}
+
+.dim-checks{background:#f9fafb;border-top:0.5px solid #e5e7eb}
+.chk{border-bottom:0.5px solid #e5e7eb}
+.chk:last-child{border-bottom:none}
+.chk>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 20px;-webkit-user-select:none;user-select:none}
+.chk>summary::-webkit-details-marker{display:none}
+.chk>summary::after{content:'\\203A';margin-left:auto;color:#9ca3af;font-size:14px;transition:transform .15s}
+.chk[open]>summary::after{transform:rotate(90deg)}
+.chk-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.chk-id{font-size:11px;font-family:var(--mono);color:#9ca3af;width:24px;flex-shrink:0}
+.chk-name{flex:1;font-size:13px;color:#111827}
+.chk-project{font-size:11px;color:#9ca3af;font-family:var(--mono)}
+.chk-badge{font-size:10px;font-weight:500;padding:2px 7px;border-radius:6px}
+.chk-fixed{background:rgba(29,158,117,.1);color:#0F6E56}
+.chk-improved{background:rgba(239,159,39,.1);color:#854F0B}
+.chk-detail{padding:0 20px 12px 51px;font-size:12.5px;color:#4b5563;line-height:1.7}
+
+.fix-item{display:flex;align-items:flex-start;gap:14px;padding:14px 20px;border-top:0.5px solid #e5e7eb}
+.fix-num{width:24px;height:24px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#4b5563;flex-shrink:0}
+.fix-body{flex:1;min-width:0}
+.fix-desc{font-size:14px;font-weight:500;color:#111827;margin-bottom:3px}
+.fix-reason{font-size:12px;color:#4b5563;line-height:1.5}
+.fix-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-top:2px}
+.fix-type{font-size:10px;font-weight:500;padding:3px 9px;border-radius:8px;text-transform:uppercase;letter-spacing:.4px}
+.fix-guided{background:rgba(24,95,165,.08);color:#185FA5}
+.fix-assisted{background:rgba(186,117,23,.08);color:#854F0B}
+.fix-check{font-size:11px;font-family:var(--mono);color:#9ca3af}
+
+.evidence{background:#f3f4f6;border-radius:14px;padding:16px 20px;font-size:12px;color:#9ca3af;line-height:1.7}
+.evidence code{font-family:var(--mono);font-size:11px}
+.footer{padding:20px;color:#9ca3af;font-size:11px;text-align:center}
+.footer a{color:#00b48c;text-decoration:none;font-weight:500}
 </style>
 </head>
 <body>
-  <div class="topbar">
-    <span class="topbar-brand">AgentLint</span>
-    <span class="topbar-date">${date}</span>
-  </div>
-
   <div class="hero">
-    <div class="hero-score">
+    <div class="hero-head">
+      <div style="display:flex;align-items:center">
+        <span class="hero-brand">AgentLint</span>
+        ${alVersion ? `<span class="hero-ver">v${alVersion}</span>` : ''}
+      </div>
+      <span class="hero-meta">${projectLabel}${date}</span>
+    </div>
+    <div class="hero-gauge">
       ${gaugeSvg}
-      ${deltaHtml}
+      <div class="hero-gauge-num">${totalScore}</div>
     </div>
-    <div class="metric-grid">
-      ${metricCards}
-    </div>
+    ${statsLine}
+    ${heroPills}
   </div>
 
-  <div style="display:flex;justify-content:center;align-items:center;gap:16px;padding:16px 24px">
-    ${legend}
+  <div class="card">
+    <div class="card-head"><span class="card-title">Dimensions</span></div>
+    ${dimRows}
   </div>
 
-  ${projectSection}
-  ${issuesSection}
+  ${fixesSection}
+
+  <div class="evidence">
+    All checks backed by data, not opinions. Details in <code>standards/evidence.json</code>.
+  </div>
 
   <div class="footer">
     Generated by <a href="https://github.com/0xmariowu/agent-lint">AgentLint</a>
