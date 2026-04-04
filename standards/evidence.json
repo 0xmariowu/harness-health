@@ -187,6 +187,36 @@
       "evidence_sources": ["harness-engineering"],
       "evidence_text": "Harness Engineering: 'Plans in Jira, Confluence, Slack — for Agent, these don't exist.' Plans must be in the repo as first-class artifacts."
     },
+    "C5": {
+      "dimension": "continuity",
+      "name": "CLAUDE.local.md not tracked",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Claude Code source: CLAUDE.local.md is for per-user private preferences. If tracked in git, all team members share private overrides. CC's /init explicitly recommends adding it to .gitignore."
+    },
+    "I7": {
+      "dimension": "instructions",
+      "name": "Entry file size within limit",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Claude Code source: MAX_MEMORY_CHARACTER_COUNT = 40000. CC's built-in /doctor command warns when any single memory file exceeds 40,000 characters. Large files dilute instruction priority."
+    },
+    "F7": {
+      "dimension": "findability",
+      "name": "Include directives resolve",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Claude Code source: @include paths that don't exist are silently ignored — no error, no warning. The user thinks the content is loaded but it isn't. CC supports @path, @./relative, @~/home syntax."
+    },
+    "W5": {
+      "dimension": "workability",
+      "name": "No oversized source files",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Claude Code source: FileReadTool hard limit is 256 KB (MAX_FILE_SIZE). Files exceeding this cause a hard error — CC cannot read them at all. Common culprits: generated files, minified JS, large SQL schemas."
+    },
+    "W6": {
+      "dimension": "workability",
+      "name": "Pre-commit hooks are fast",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "Claude Code source: CC is instructed to NEVER skip hooks (--no-verify). If a pre-commit hook is slow (>10s) or flaky, CC's commit workflow stalls visibly. CC will retry indefinitely on hook failure."
+    },
     "D1": {
       "dimension": "deep",
       "name": "Contradictory rules",
