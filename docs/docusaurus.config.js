@@ -8,6 +8,7 @@ const config = {
   baseUrl: '/',
   organizationName: '0xmariowu',
   projectName: 'AgentLint',
+  favicon: 'img/favicon.svg',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   trailingSlash: false,
