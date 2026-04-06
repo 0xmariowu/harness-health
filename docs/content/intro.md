@@ -13,7 +13,7 @@ slug: /
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/0xmariowu/agent-lint/main/scripts/install.sh | bash
+npm install -g @0xmariowu/agent-lint
 ```
 
 Then start a new Claude Code session:
@@ -96,5 +96,5 @@ Every check cites its source. Full citations in [`standards/evidence.json`](http
 ## Update
 
 ```bash
-claude plugin update agent-lint@agent-lint
+npm update -g @0xmariowu/agent-lint
 ```
