@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.4.1 (2026-04-06)
+
+Docs site, npm fixes, release automation.
+
+- New: Docusaurus docs site at docs.agentlint.app (replaces Jekyll)
+- New: Ionic-inspired theme with SCSS component partials, dark mode, custom Prism syntax colors
+- New: `release-metadata.json` — single source of truth for version, check counts, dimension data
+- New: `scripts/generate-metadata.sh` — auto-derives counts from weights.json
+- New: Cross-repo release sync — tag push auto-updates docs site and website
+- Changed: `scripts/bump-version.sh` now also updates SECURITY.md and README badge
+- Fix: npm package dimension names corrected (was: discoverability, context quality, etc.)
+- Fix: npm package engine requirement >=18 → >=20 to match README
+- Fix: SECURITY.md missing v0.4.x in supported versions table
+- Fix: serialize-javascript override to >=7.0.3 (GHSA-5c6j-r48x-rmvq)
+- CI: npm distribution with auto-publish on release
+
 ## v0.4.0 (2026-04-04)
 
 33 checks. Two new safety checks, hardened dev workflow.
