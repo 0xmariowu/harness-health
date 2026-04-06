@@ -1,0 +1,59 @@
+// Tables — Ionic-style wrapped scrollable tables
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 1.25rem;
+
+  table {
+    margin-bottom: 0;
+  }
+}
+
+table {
+  display: table;
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+
+  thead {
+    background: var(--ifm-code-background);
+
+    th {
+      font-weight: 600;
+      font-size: 0.8125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 0.625rem 1rem;
+      border-bottom: 1px solid var(--ifm-toc-border-color);
+      white-space: nowrap;
+    }
+  }
+
+  tbody {
+    tr {
+      transition: background 0.1s;
+
+      &:hover {
+        background: var(--ifm-code-background);
+      }
+
+      &:not(:last-child) td {
+        border-bottom: 1px solid var(--ifm-toc-border-color);
+      }
+    }
+
+    td {
+      padding: 0.625rem 1rem;
+      vertical-align: top;
+    }
+  }
+}
+
+// Remove default Docusaurus table border styles
+table tr:nth-child(2n) {
+  background: none;
+}

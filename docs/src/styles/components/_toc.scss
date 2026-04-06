@@ -1,0 +1,46 @@
+// Table of contents — Ionic-style sticky panel
+
+.table-of-contents {
+  font-size: 0.8125rem;
+
+  &::before {
+    content: 'Contents';
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--c-gray-50);
+    margin-bottom: 0.5rem;
+    padding: 0 0.5rem;
+  }
+
+  li {
+    margin: 0;
+  }
+
+  a {
+    display: block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    color: var(--c-gray-50);
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+    line-height: 1.5;
+
+    &:hover {
+      color: var(--ifm-font-color-base);
+      background: var(--ifm-code-background);
+    }
+
+    &.table-of-contents__link--active {
+      color: var(--ifm-color-primary);
+      font-weight: 600;
+    }
+  }
+}
+
+// TOC wrapper sticky
+.theme-doc-toc-desktop {
+  top: calc(3.5rem + 1rem);
+}

@@ -1,0 +1,92 @@
+// Navbar — Ionic-style clean top bar
+
+.navbar {
+  padding: 0 1.5rem;
+  height: 3.5rem;
+  box-shadow: var(--ifm-navbar-shadow);
+
+  &__brand {
+    margin-right: 1rem;
+  }
+
+  &__logo {
+    height: 1.5rem;
+  }
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  &__link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ifm-font-color-base);
+    opacity: 0.75;
+    transition: opacity 0.15s;
+
+    &:hover {
+      opacity: 1;
+      color: var(--ifm-font-color-base);
+    }
+
+    &--active {
+      opacity: 1;
+      color: var(--ifm-color-primary);
+    }
+  }
+
+  &__items--right {
+    gap: 0.25rem;
+  }
+}
+
+// Icon links — CSS mask pattern from Ionic
+.icon-link {
+  display: flex;
+  align-items: center;
+  padding: 0.375rem;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &::before {
+    content: '';
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: currentColor;
+  }
+
+  // Hide the label text
+  span,
+  .navbar__link {
+    display: none;
+  }
+}
+
+.icon-link-mask::before {
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.icon-link-github::before {
+  -webkit-mask-image: url('/logos/github.svg');
+  mask-image: url('/logos/github.svg');
+}
+
+// Separator between nav items and icon links
+.separator {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--ifm-toc-border-color);
+  margin: 0 0.375rem;
+}

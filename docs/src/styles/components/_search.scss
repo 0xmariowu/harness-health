@@ -1,0 +1,14 @@
+// Search — placeholder for future Algolia/local search styling
+
+.navbar__search-input {
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  background: var(--ifm-code-background);
+  transition: border-color 0.15s;
+
+  &:focus {
+    border-color: var(--ifm-color-primary);
+    outline: none;
+  }
+}

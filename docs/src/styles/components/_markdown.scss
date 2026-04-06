@@ -1,0 +1,76 @@
+// Markdown typography — Ionic-style generous spacing
+
+.markdown {
+  h1 {
+    font-size: clamp(2rem, 5vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 1px solid var(--ifm-toc-border-color);
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  h4 {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  // Intro paragraph right after the title
+  > h1 + p {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: var(--c-gray-50);
+  }
+
+  p,
+  li {
+    line-height: 1.8;
+  }
+
+  blockquote {
+    border-left: 3px solid var(--ifm-color-primary);
+    background: var(--c-brand-lightest);
+    padding: 1rem 1.25rem;
+    border-radius: 0 0.375rem 0.375rem 0;
+    font-size: 0.9375rem;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  // Image styling
+  img {
+    border-radius: 0.5rem;
+    border: 1px solid var(--ifm-toc-border-color);
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--ifm-toc-border-color);
+    margin: 2.5rem 0;
+  }
+}
+
+// Doc item max width — Ionic uses 42rem
+.theme-doc-markdown {
+  max-width: 44rem;
+}

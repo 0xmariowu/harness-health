@@ -1,0 +1,130 @@
+// Code blocks — custom Prism theme inspired by Ionic
+
+// Inline code
+code {
+  border: none;
+  vertical-align: baseline;
+}
+
+// Code blocks
+pre {
+  border: 1px solid var(--ifm-toc-border-color);
+
+  code {
+    font-size: 0.8125rem;
+    line-height: 1.7;
+  }
+}
+
+div[class*='codeBlockContainer'] {
+  border-radius: 0.5rem;
+  box-shadow: none;
+  border: 1px solid var(--ifm-toc-border-color);
+}
+
+div[class*='codeBlockTitle'] {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  padding: 0.5rem 1rem;
+}
+
+// Prism token colors
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #8c9296;
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: #a0a4a8;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol {
+  color: #00b48c;
+}
+
+.token.boolean,
+.token.number {
+  color: #8454ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin {
+  color: #42b983;
+}
+
+.token.operator,
+.token.entity,
+.token.url {
+  color: #e0ac08;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #3880ff;
+}
+
+.token.function,
+.token.class-name {
+  color: #ff6810;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #e0ac08;
+}
+
+.token.deleted {
+  color: #eb445a;
+}
+
+.token.inserted {
+  color: #2dd36f;
+}
+
+// Dark mode token overrides
+html[data-theme='dark'] {
+  .token.property,
+  .token.tag,
+  .token.constant,
+  .token.symbol {
+    color: #00d4a4;
+  }
+
+  .token.selector,
+  .token.attr-name,
+  .token.string,
+  .token.char,
+  .token.builtin {
+    color: #5ee6b8;
+  }
+
+  .token.atrule,
+  .token.attr-value,
+  .token.keyword {
+    color: #6ea8ff;
+  }
+
+  .token.function,
+  .token.class-name {
+    color: #ff884d;
+  }
+
+  .token.boolean,
+  .token.number {
+    color: #a78bfa;
+  }
+}

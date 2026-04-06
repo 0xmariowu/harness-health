@@ -1,0 +1,32 @@
+// Pagination — prev/next navigation
+
+.pagination-nav {
+  margin-top: 3rem;
+  gap: 0.75rem;
+
+  &__link {
+    border: 1px solid var(--ifm-toc-border-color);
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &:hover {
+      border-color: var(--ifm-color-primary);
+      box-shadow: 0 0 0 1px var(--ifm-color-primary);
+    }
+  }
+
+  &__sublabel {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--c-gray-50);
+    margin-bottom: 0.25rem;
+  }
+
+  &__label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+}

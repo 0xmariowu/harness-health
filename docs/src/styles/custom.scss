@@ -1,0 +1,102 @@
+@use './components/navbar';
+@use './components/doc-sidebar';
+@use './components/code';
+@use './components/markdown';
+@use './components/table';
+@use './components/admonition';
+@use './components/toc';
+@use './components/theme-toggle';
+@use './components/pagination';
+@use './components/search';
+
+// ── Design tokens ──────────────────────────────────────────────────
+
+:root {
+  // Brand
+  --c-brand: #00b48c;
+  --c-brand-dark: #00a27e;
+  --c-brand-light: #00c69a;
+  --c-brand-lightest: #e6f9f4;
+
+  // Grays
+  --c-gray-0: #f0f0f2;
+  --c-gray-10: #e3e3e8;
+  --c-gray-20: #c8c8d0;
+  --c-gray-30: #aeaeb8;
+  --c-gray-50: #73738c;
+  --c-gray-70: #46465a;
+  --c-gray-80: #2d2d3a;
+  --c-gray-90: #1a1a24;
+  --c-gray-100: #0d0d14;
+
+  // Semantic
+  --c-blue: #3880ff;
+  --c-red: #eb445a;
+  --c-yellow: #e0ac08;
+  --c-green: #2dd36f;
+
+  // Infima overrides
+  --ifm-color-primary: var(--c-brand);
+  --ifm-color-primary-dark: #00a27e;
+  --ifm-color-primary-darker: #009977;
+  --ifm-color-primary-darkest: #007e62;
+  --ifm-color-primary-light: #00c69a;
+  --ifm-color-primary-lighter: #00cfa1;
+  --ifm-color-primary-lightest: #00eabc;
+
+  --ifm-background-color: #fff;
+  --ifm-font-family-base: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI',
+    Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --ifm-font-family-monospace: 'SFMono-Regular', 'Roboto Mono', Consolas,
+    'Liberation Mono', Menlo, Courier, monospace;
+  --ifm-code-font-size: 90%;
+  --ifm-navbar-padding-vertical: 0;
+  --ifm-navbar-item-padding-vertical: 0;
+  --ifm-footer-padding-vertical: 2rem;
+  --ifm-menu-link-sublist-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>');
+
+  --doc-sidebar-width: 17.5rem;
+}
+
+// ── Light mode ─────────────────────────────────────────────────────
+
+html[data-theme='light'] {
+  --ifm-background-color: #fff;
+  --ifm-font-color-base: var(--c-gray-90);
+  --ifm-link-color: var(--c-brand-dark);
+  --ifm-navbar-shadow: 0 1px 0 0 var(--c-gray-0);
+  --ifm-heading-color: var(--c-gray-100);
+  --ifm-code-background: #f4f6f8;
+  --ifm-toc-border-color: var(--c-gray-0);
+  --code-block-bg: #f4f6f8;
+}
+
+// ── Dark mode ──────────────────────────────────────────────────────
+
+html[data-theme='dark'] {
+  --c-brand: #00d4a4;
+  --c-brand-dark: #00bf94;
+  --c-brand-light: #00e9b4;
+  --c-brand-lightest: #0d2b23;
+
+  --ifm-color-primary: var(--c-brand);
+  --ifm-color-primary-dark: #00bf94;
+  --ifm-color-primary-darker: #00b48c;
+  --ifm-color-primary-darkest: #009473;
+  --ifm-color-primary-light: #00e9b4;
+  --ifm-color-primary-lighter: #00f4bc;
+  --ifm-color-primary-lightest: #1affd2;
+
+  --ifm-background-color: #1a1a2e;
+  --ifm-background-surface-color: #20203a;
+  --ifm-font-color-base: #e0e0e8;
+  --ifm-link-color: var(--c-brand);
+  --ifm-navbar-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --ifm-heading-color: #fff;
+  --ifm-code-background: #252540;
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.08);
+  --ifm-dropdown-background-color: #20203a;
+  --ifm-menu-color: #b0b0c0;
+  --ifm-menu-color-active: var(--c-brand);
+  --code-block-bg: #16162a;
+}

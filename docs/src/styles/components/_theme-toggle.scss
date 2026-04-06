@@ -1,0 +1,10 @@
+// Theme toggle — clean icon switch like Ionic
+
+[data-toggle='colorMode'] {
+  // Keep Docusaurus default toggle but make it smaller
+  --docusaurus-toggle-width: 2.5rem;
+}
+
+.navbar__items--right .clean-btn[class*='toggleButton'] {
+  margin: 0 0.25rem;
+}

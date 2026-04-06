@@ -1,0 +1,79 @@
+// Admonitions — Ionic-style left-border with type-specific colors
+
+.admonition {
+  border: none;
+  border-left: 4px solid;
+  border-radius: 0 0.5rem 0.5rem 0;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
+  box-shadow: none;
+
+  .admonition-heading {
+    margin-bottom: 0.375rem;
+
+    h5 {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+  }
+
+  .admonition-content {
+    p:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+// Type colors
+.admonition-note {
+  border-left-color: var(--c-gray-30);
+  background: var(--c-gray-0);
+}
+
+.admonition-tip {
+  border-left-color: var(--c-brand);
+  background: var(--c-brand-lightest);
+}
+
+.admonition-info {
+  border-left-color: var(--c-blue);
+  background: #eef4ff;
+}
+
+.admonition-warning,
+.admonition-caution {
+  border-left-color: var(--c-yellow);
+  background: #fef9e7;
+}
+
+.admonition-danger {
+  border-left-color: var(--c-red);
+  background: #fef0f1;
+}
+
+// Dark mode admonitions
+html[data-theme='dark'] {
+  .admonition-note {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .admonition-tip {
+    background: rgba(0, 212, 164, 0.08);
+  }
+
+  .admonition-info {
+    background: rgba(56, 128, 255, 0.08);
+  }
+
+  .admonition-warning,
+  .admonition-caution {
+    background: rgba(224, 172, 8, 0.08);
+  }
+
+  .admonition-danger {
+    background: rgba(235, 68, 90, 0.08);
+  }
+}
