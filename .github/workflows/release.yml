@@ -87,3 +87,41 @@ jobs:
           npm publish --access public
           rm -f .npmrc
           echo "Published @0xmariowu/agent-lint@${VERSION} to npm"
+
+      - name: Sync to docs repo (AgentLint)
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          METADATA=$(cat release-metadata.json | jq -c .)
+          CHANGELOG=$(cat CHANGELOG.md | base64 -w0)
+          CHECKS=$(cat docs-source/checks.md 2>/dev/null || echo "" | base64 -w0)
+          SCORING=$(cat docs-source/scoring.md 2>/dev/null || echo "" | base64 -w0)
+          SECURITY=$(cat SECURITY.md | base64 -w0)
+          CONTRIBUTING=$(cat CONTRIBUTING.md | base64 -w0)
+
+          gh workflow run sync-from-release.yml \
+            --repo 0xmariowu/AgentLint \
+            -f version="$VERSION" \
+            -f metadata="$METADATA" \
+            -f changelog_b64="$CHANGELOG" \
+            -f security_b64="$SECURITY" \
+            -f contributing_b64="$CONTRIBUTING"
+
+          echo "Triggered docs sync for v${VERSION}"
+
+      - name: Sync to website repo (agent-lint-simple-green)
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          METADATA=$(cat release-metadata.json | jq -c .)
+
+          gh workflow run sync-from-release.yml \
+            --repo 0xmariowu/agent-lint-simple-green \
+            -f version="$VERSION" \
+            -f metadata="$METADATA"
+
+          echo "Triggered website sync for v${VERSION}"

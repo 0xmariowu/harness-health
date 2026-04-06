@@ -1,0 +1,78 @@
+{
+  "version": "0.4.0",
+  "check_count": 33,
+  "dimensions": [
+    {
+      "name": "Findability",
+      "id": "findability",
+      "checks": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6",
+        "F7"
+      ],
+      "count": 7
+    },
+    {
+      "name": "Instructions",
+      "id": "instructions",
+      "checks": [
+        "I1",
+        "I2",
+        "I3",
+        "I4",
+        "I5",
+        "I6",
+        "I7"
+      ],
+      "count": 7
+    },
+    {
+      "name": "Workability",
+      "id": "workability",
+      "checks": [
+        "W1",
+        "W2",
+        "W3",
+        "W4",
+        "W5",
+        "W6"
+      ],
+      "count": 6
+    },
+    {
+      "name": "Continuity",
+      "id": "continuity",
+      "checks": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ],
+      "count": 5
+    },
+    {
+      "name": "Safety",
+      "id": "safety",
+      "checks": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7",
+        "S8"
+      ],
+      "count": 8
+    }
+  ],
+  "stats": {
+    "prompt_versions_analyzed": 265,
+    "papers_referenced": 6
+  }
+}

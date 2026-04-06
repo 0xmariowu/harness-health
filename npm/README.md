@@ -16,12 +16,12 @@ Then start a new Claude Code session and run:
 
 ## What it does
 
-AgentLint scans your repository and scores how well it supports AI coding agents across 5 dimensions: discoverability, context quality, guardrails, workflow integration, and maintainability.
+AgentLint scans your repository and scores how well it supports AI coding agents across 5 dimensions: Findability, Instructions, Workability, Safety, and Continuity.
 
 ## Requirements
 
 - [Claude Code](https://claude.com/download)
-- Node.js 18+
+- Node.js 20+
 
 ## Links
 
