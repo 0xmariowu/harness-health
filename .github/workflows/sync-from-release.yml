@@ -29,56 +29,59 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Decode and update docs content
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_METADATA: ${{ inputs.metadata }}
+          INPUT_CHANGELOG_B64: ${{ inputs.changelog_b64 }}
+          INPUT_SECURITY_B64: ${{ inputs.security_b64 }}
+          INPUT_CONTRIBUTING_B64: ${{ inputs.contributing_b64 }}
         run: |
-          VERSION="${{ inputs.version }}"
-          METADATA='${{ inputs.metadata }}'
-          CHECK_COUNT=$(echo "$METADATA" | jq -r '.check_count')
-
           # Update changelog
-          echo "${{ inputs.changelog_b64 }}" | base64 -d > /tmp/changelog-raw.md
+          echo "$INPUT_CHANGELOG_B64" | base64 -d > /tmp/changelog-raw.md
           cat > docs/content/changelog.md << 'FRONT'
-          ---
-          title: Changelog
-          sidebar_position: 6
-          ---
+---
+title: Changelog
+sidebar_position: 6
+---
 
-          FRONT
+FRONT
           cat /tmp/changelog-raw.md >> docs/content/changelog.md
 
           # Update security
-          echo "${{ inputs.security_b64 }}" | base64 -d > /tmp/security-raw.md
+          echo "$INPUT_SECURITY_B64" | base64 -d > /tmp/security-raw.md
           cat > docs/content/security.md << 'FRONT'
-          ---
-          title: Security Policy
-          sidebar_position: 5
-          ---
+---
+title: Security Policy
+sidebar_position: 5
+---
 
-          FRONT
+FRONT
           cat /tmp/security-raw.md >> docs/content/security.md
 
           # Update contributing
-          echo "${{ inputs.contributing_b64 }}" | base64 -d > /tmp/contributing-raw.md
+          echo "$INPUT_CONTRIBUTING_B64" | base64 -d > /tmp/contributing-raw.md
           cat > docs/content/contributing.md << 'FRONT'
-          ---
-          title: Contributing
-          sidebar_position: 4
-          ---
+---
+title: Contributing
+sidebar_position: 4
+---
 
-          FRONT
+FRONT
           cat /tmp/contributing-raw.md >> docs/content/contributing.md
 
-          echo "Updated changelog, security, contributing for v${VERSION}"
+          echo "Updated changelog, security, contributing for v${INPUT_VERSION}"
 
       - name: Commit and push
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/content/
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "docs: sync content from agent-lint v${VERSION}"
+            git commit -m "docs: sync content from agent-lint v${INPUT_VERSION}"
             git push
-            echo "Pushed docs sync for v${VERSION}"
+            echo "Pushed docs sync for v${INPUT_VERSION}"
           fi
