@@ -5,46 +5,153 @@ sidebar_position: 6
 
 # Changelog
 
+## v0.4.1 (2026-04-06)
+
+Docs site, npm fixes, release automation.
+
+- New: Docusaurus docs site at docs.agentlint.app (replaces Jekyll)
+- New: Ionic-inspired theme with SCSS component partials, dark mode, custom Prism syntax colors
+- New: `release-metadata.json` — single source of truth for version, check counts, dimension data
+- New: `scripts/generate-metadata.sh` — auto-derives counts from weights.json
+- New: Cross-repo release sync — tag push auto-updates docs site and website
+- Changed: `scripts/bump-version.sh` now also updates SECURITY.md and README badge
+- Fix: npm package dimension names corrected (was: discoverability, context quality, etc.)
+- Fix: npm package engine requirement >=18 → >=20 to match README
+- Fix: SECURITY.md missing v0.4.x in supported versions table
+- Fix: serialize-javascript override to >=7.0.3 (GHSA-5c6j-r48x-rmvq)
+- CI: npm distribution with auto-publish on release
+
 ## v0.4.0 (2026-04-04)
 
 33 checks. Two new safety checks, hardened dev workflow.
 
 - New: S7 — detects personal filesystem paths in source files
 - New: S8 — detects `pull_request_target` trigger in GitHub Actions workflows
-- New: HTML report with before/after comparison when fixes are applied
-- New: Segmented gauge visualization in HTML report
-- New: Expandable dimension breakdowns with per-check detail
-- New: Deep analyzer spawns AI subagents for contradiction and dead-weight detection
-- New: Session analyzer reads Claude Code logs for recurring instruction gaps
-- Changed: Report shows prioritized issues list instead of flat check output
-- Changed: Fix plan groups items by fix type (guided, assisted, manual)
-- Fixed: F5 correctly resolves relative paths in entry file references
-- Fixed: W6 static analysis handles multi-line hook scripts
-- CI: Added author email check, gitleaks, semgrep, trivy workflows
-- CI: SHA-pinned all GitHub Actions
+- New: pre-commit hook with author whitelist, codename scan, PII scan, secret detection, shellcheck
+- New: CI author-email check — validates commit author uses noreply email and pseudonym
+- Fix: `set -euo pipefail` in all shell scripts with guarded pipe exits
+- Fix: gitleaks allowlist for documentation files containing example paths
+- Fix: CI name check skips push events (squash merge uses GitHub profile display name)
+- Docs: README brand refresh — sharper opening, updated check count, softened language
 
-## v0.3.0 (2026-04-02)
+## v0.3.2 (2026-04-04)
 
-31 checks across 5 dimensions. Major architecture upgrade.
+Security hardening + privacy cleanup.
 
-- New: Fixer with guided, assisted, and manual fix modes
-- New: Plan generator creates prioritized fix plans from scan results
-- New: HTML reporter with gauge visualization
-- New: S6 — detects hardcoded secrets (API keys, private keys)
-- New: Evidence-based reference thresholds from Anthropic data
-- Changed: Scanner outputs structured JSON per check
-- Changed: Scorer supports 0-1, 0-10, and 0-100 input ranges
-- Fixed: I6 entry file length scoring uses range instead of threshold
+- Fix: eliminate RCE in W6 hook check — static analysis replaces direct execution of user repo hooks
+- Fix: `pull_request_target` → `pull_request` in PR lint workflow
+- Fix: path traversal guard in fixer (rejects non-git directories)
+- Fix: file probe oracle in scanner (skips absolute paths in reference resolution)
+- Fix: XSS escaping for all HTML report template values
+- Fix: Python injection in bump-version.sh (environment variables, not string interpolation)
+- Fix: glob character escaping in find -name for reference resolution
+- Fix: `set -euo pipefail` in scanner.sh with guarded pipe exits
+- Fix: remaining `/hh` → `/al` in hooks and commands
+- Fix: F5 DEFAULT_ITEM_IDS auto → assisted (matches documented behavior)
+- New: test-html-report.js added to CI
+- Docs: checks.md updated from 20 → 31 checks, scoring.md corrected weights + Safety dimension
+- Docs: SECURITY.md updated with version table, response times, session data access
+- Privacy: removed private hostnames, corpus paths, old product references, internal exec plans
+- Privacy: git history cleaned — removed experience/ directory, unified author name
+- Release workflow improved — version validation, better changelog extraction, idempotent creation
 
-## v0.2.0 (2026-03-30)
+## v0.3.1 (2026-04-04)
 
-First public release. 29 checks, 5 dimensions.
+HTML report redesign.
 
-- Initial scanner with bash-based checks
-- Node.js scorer with weighted dimensions
-- Basic terminal output
-- Claude Code plugin integration via `/al` command
+- New: HTML report matches approved visual design — segmented arc gauge, expandable dimension rows, check items with status dots, numbered issues list
+- New: Before/after comparison in HTML — ghost gauge segments, delta pills, fixed/improved badges on checks
+- New: HTML escaping for all user-provided content (XSS safety)
+- New: Version badge in report header (read from package.json)
+- Removed: radar chart, metric cards grid, data table, topbar from HTML report
 
-## v0.1.0 (2026-03-28)
+## v0.3.0 (2026-04-04)
 
-Internal prototype. 15 checks, proof of concept.
+New Safety dimension. 31 checks total.
+
+- New: Safety dimension (15% weight) with 6 checks — .env exposure, Actions SHA pinning, secret scanning, SECURITY.md, workflow permissions, hardcoded secrets
+- Fix: F5 broken reference detection no longer deletes valid content (was removing code examples from real repos)
+- Fix: F5 demoted from auto-fix to assisted (too dangerous to auto-delete lines)
+- Fix: I3 detail string had escaped quotes that broke JSON parsing
+- Validated on 10 real open-source repos (bun, streamlit, tldraw, n8n, nx, etc.)
+
+## v0.2.0 (2026-04-04)
+
+New brand, new command: `/al`.
+
+- New name: AgentLint. Command: `/al`
+- New: HTML report with radar chart, dimension bars, before/after comparison (`--format html`)
+- New: `--before` flag for reporter to show fix delta
+- New: 5 checks from Claude Code behavior analysis (I7, F7, W5, W6, C5) — total 25 checks
+- New: SessionStart hook checks jq + node on startup
+- New: `${CLAUDE_PLUGIN_DATA}` for persistent config/reports
+- New: version sync + `scripts/bump-version.sh`
+- New: one-line install script
+- Repo standards: badges, CONTRIBUTING, CODE_OF_CONDUCT, PR template, SECURITY upgrade
+- Git history rewritten to remove personal information
+
+## v0.1.4 (2026-04-04)
+
+You can now see what needs fixing before choosing. Scanner finds nested repos.
+
+- Fix plan prints a readable summary before asking which items to fix (was hidden in collapsed output)
+- Scanner discovers projects up to 3 levels deep (was 1 — missed nested repos)
+- Fix: plan-generator now includes score in output items (was dropped, showed as -1)
+- Fix: severity thresholds in docs now match code (<0.5 = high)
+- Fix: 3 security workflows using nonexistent actions/checkout@v6
+- Fix: broken reference to docs/evidence-sources.md in README
+- Cleaned internal development notes
+- Cleaned .gitignore, package.json, hardcoded paths
+- Upgraded issue templates to YAML form format
+- Added Dependabot grouped updates
+- Added 10 fixer.js tests (auto-fix, assisted, guided, backup)
+- Suppressed 17 Semgrep false positives (path-traversal on local CLI tool)
+- All CI checks green (24 tests, shellcheck, semgrep, gitleaks, trivy)
+
+## v0.1.3 (2026-04-03)
+
+Fix: plugin was not discoverable — missing marketplace.json.
+
+- You can now actually install with `extraKnownMarketplaces` + `enabledPlugins`
+- Fix: added `.claude-plugin/marketplace.json` (tells Claude Code this repo is a marketplace with a plugin)
+
+## v0.1.2 (2026-04-03)
+
+Fix: `/al` is a user command, not an internal skill.
+
+- You can now `/al` in any Claude Code session after install
+- Fix: moved `skills/hh/SKILL.md` → `commands/al.md` (command = user-invocable, skill = internal)
+- Fix: simplified plugin.json to match official plugins (name + description + author only)
+- Fix: added `allowed-tools` to command frontmatter
+
+## v0.1.1 (2026-04-03)
+
+Fix: plugin format was wrong, users couldn't install from GitHub.
+
+- You can now install via `extraKnownMarketplaces` and it actually works
+- Fix: moved `plugin.json` to `.claude-plugin/plugin.json`
+- Fix: moved `skills/al.md` to `skills/hh/SKILL.md` (directory format)
+- Fix: removed explicit skills array from plugin.json (auto-discovered)
+
+## v0.1.0 (2026-04-03)
+
+First release. You can now:
+
+- Run `/al` in Claude Code to diagnose all your projects
+- See a score out of 100 across 4 dimensions (Findability, Instructions, Workability, Continuity)
+- Get a fix plan grouped by severity with auto/assisted/guided actions
+- Execute fixes automatically (broken references, missing files) or get guidance
+- Optionally run AI Deep Analysis to find contradictions, dead-weight rules, and vague rules
+- Optionally run Session Analysis to find repeated instructions and friction patterns
+
+### Technical
+
+- 20 evidence-backed checks (scanner.sh)
+- Weighted scoring algorithm (scorer.js)
+- Fix plan generator with severity grouping and item merging (plan-generator.js)
+- Terminal, Markdown, and JSONL report formats (reporter.js)
+- AI deep analysis via subagents (deep-analyzer.js)
+- Session log analysis (session-analyzer.js)
+- Auto-fix engine (fixer.js)
+- CI: shellcheck, syntax check, 14 tests, security scanning (gitleaks, trivy, semgrep)
+- Claude Code plugin format with `${CLAUDE_PLUGIN_ROOT}` paths
