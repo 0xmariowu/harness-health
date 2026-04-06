@@ -9,6 +9,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PLUGIN="$ROOT/.claude-plugin/plugin.json"
 MARKETPLACE="$ROOT/.claude-plugin/marketplace.json"
 PACKAGE="$ROOT/package.json"
+NPM_PACKAGE="$ROOT/npm/package.json"
 
 current=$(PLUGIN="$PLUGIN" python3 -c "import json, os; print(json.load(open(os.environ['PLUGIN']))['version'])")
 echo "Current version: $current"
@@ -24,11 +25,11 @@ fi
 echo "New version: $new"
 
 # Update all three files
-PLUGIN="$PLUGIN" PACKAGE="$PACKAGE" MARKETPLACE="$MARKETPLACE" NEW_VERSION="$new" python3 -c "
+PLUGIN="$PLUGIN" PACKAGE="$PACKAGE" NPM_PACKAGE="$NPM_PACKAGE" MARKETPLACE="$MARKETPLACE" NEW_VERSION="$new" python3 -c "
 import json, os
 
 nv = os.environ['NEW_VERSION']
-for p in [os.environ['PLUGIN'], os.environ['PACKAGE']]:
+for p in [os.environ['PLUGIN'], os.environ['PACKAGE'], os.environ['NPM_PACKAGE']]:
     with open(p) as f:
         data = json.load(f)
     data['version'] = nv
@@ -52,10 +53,11 @@ echo "Updated:"
 echo "  $PLUGIN → $new"
 echo "  $MARKETPLACE → $new"
 echo "  $PACKAGE → $new"
+echo "  $NPM_PACKAGE → $new"
 echo ""
 echo "Next steps:"
 echo "  1. Update CHANGELOG.md with release notes"
-echo "  2. git add .claude-plugin/plugin.json .claude-plugin/marketplace.json package.json CHANGELOG.md"
+echo "  2. git add .claude-plugin/plugin.json .claude-plugin/marketplace.json package.json npm/package.json CHANGELOG.md"
 echo "  3. git commit -m \"chore: bump version to $new\""
 echo "  4. git tag v$new"
 echo "  5. git push && git push --tags"

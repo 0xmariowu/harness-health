@@ -70,3 +70,20 @@ jobs:
           else
             gh release create "$TAG" --title "AgentLint ${VERSION}" --generate-notes
           fi
+
+      - name: Publish to npm
+        if: steps.check.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          cd npm
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '$VERSION';
+            require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+          npm publish --access public
+          rm -f .npmrc
+          echo "Published @0xmariowu/agent-lint@${VERSION} to npm"
