@@ -24,8 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Create sync branch
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          BRANCH="auto/sync-v${VERSION}"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
       - name: Decode and update docs content
         run: |
@@ -43,16 +51,33 @@ jobs:
 
           echo "Updated changelog, security, contributing for v${VERSION}"
 
-      - name: Commit and push
+      - name: Commit, push, and create PR
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ github.event.inputs.version }}"
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/content/
           if git diff --cached --quiet; then
             echo "No changes to commit"
-          else
-            git commit -m "docs: sync content from agent-lint v${VERSION}"
-            git push
-            echo "Pushed docs sync for v${VERSION}"
+            exit 0
+          fi
+          git commit -m "docs: sync content from agent-lint v${VERSION}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "docs: sync content from agent-lint v${VERSION}" \
+            --body "Automated sync from agent-lint release v${VERSION}." \
+            --base main \
+            --head "$BRANCH"
+          echo "Created PR for docs sync v${VERSION}"
+
+      - name: Auto-merge PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_URL=$(gh pr list --head "$BRANCH" --json url --jq '.[0].url')
+          if [ -n "$PR_URL" ]; then
+            gh pr merge "$PR_URL" --auto --squash --delete-branch
+            echo "Auto-merge enabled for $PR_URL"
           fi
