@@ -1,8 +1,20 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/0xmariowu/agent-lint/main/assets/logo.svg" alt="AgentLint" width="120">
+  <img src="https://raw.githubusercontent.com/0xmariowu/agent-lint/main/assets/logo.svg" alt="AgentLint" width="160">
 </p>
 
-# agent-lint
+<h1 align="center">AgentLint</h1>
+
+<p align="center">
+  <strong>Your AI agent is only as good as your repo.</strong><br>
+  33 checks. 5 dimensions. Evidence-backed.
+</p>
+
+<p align="center">
+  <a href="https://github.com/0xmariowu/agent-lint">GitHub</a> &middot;
+  <a href="https://docs.agentlint.app">Docs</a>
+</p>
+
+---
 
 Check how well your repo supports AI coding agents. A [Claude Code](https://claude.com/download) plugin.
 

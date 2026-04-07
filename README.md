@@ -1,15 +1,32 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="AgentLint" width="120">
+  <img src="assets/logo.svg" alt="AgentLint" width="160">
 </p>
 
-# AgentLint
+<h1 align="center">AgentLint</h1>
 
-[![CI](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/0xmariowu/agent-lint)](https://github.com/0xmariowu/agent-lint/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Checks](https://img.shields.io/badge/checks-33-00b48c)](https://github.com/0xmariowu/agent-lint#what-it-checks)
+<p align="center">
+  <strong>Your AI agent is only as good as your repo.</strong><br>
+  33 checks. 5 dimensions. Evidence-backed.
+</p>
 
-**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 33 checks, every one backed by data.
+<p align="center">
+  <a href="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml"><img src="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/0xmariowu/agent-lint/releases"><img src="https://img.shields.io/github/v/release/0xmariowu/agent-lint" alt="Release"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="#what-it-checks"><img src="https://img.shields.io/badge/checks-33-00b48c" alt="Checks"></a>
+</p>
+
+<p align="center">
+  <a href="https://docs.agentlint.app">Docs</a> &middot;
+  <a href="#what-it-checks">Checks</a> &middot;
+  <a href="#how-scoring-works">Scoring</a> &middot;
+  <a href="#evidence">Evidence</a> &middot;
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+---
+
+AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it.
 
 > We analyzed 265 versions of Anthropic's Claude Code system prompt, documented the hard limits, audited thousands of real repos, and reviewed the academic research. The result: a single command that tells you exactly what your AI agent is struggling with and why.
 
