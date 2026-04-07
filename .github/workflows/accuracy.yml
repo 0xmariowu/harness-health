@@ -27,16 +27,22 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Download corpus tarball
+        id: download
         run: |
-          gh release download corpus-v1 \
+          if gh release download corpus-v1 \
             --pattern 'corpus-full.tar.gz' \
             --dir /tmp \
-            --repo ${{ github.repository }} \
-            || { echo "::warning::Corpus tarball not found — skipping accuracy test"; exit 0; }
+            --repo ${{ github.repository }}; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Corpus tarball not found — skipping accuracy test"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Reconstruct repos
+        if: steps.download.outputs.found == 'true'
         run: |
           mkdir -p /tmp/corpus-raw /tmp/corpus-repos
           tar -xzf /tmp/corpus-full.tar.gz -C /tmp/corpus-raw
@@ -48,6 +54,7 @@ jobs:
           echo "Reconstructed $(ls /tmp/corpus-repos | wc -l) repos"
 
       - name: Run scanner on all repos
+        if: steps.download.outputs.found == 'true'
         run: |
           RESULTS=/tmp/scanner-results.jsonl
           > "$RESULTS"
@@ -61,6 +68,7 @@ jobs:
           echo "Scanner produced $lines result lines"
 
       - name: Compare with ground truth
+        if: steps.download.outputs.found == 'true'
         run: |
           node tests/accuracy/compare-results.js \
             /tmp/scanner-results.jsonl \
