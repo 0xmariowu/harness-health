@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="AgentLint" width="160">
+  <img src="assets/favicon.svg" alt="AgentLint" width="80">
 </p>
 
 <h1 align="center">AgentLint</h1>
