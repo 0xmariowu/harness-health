@@ -5,6 +5,21 @@ const fs = require('fs');
 const path = require('path');
 
 const evidencePath = path.join(__dirname, '..', 'standards', 'evidence.json');
+const logoPath = path.join(__dirname, '..', 'assets', 'logo.svg');
+const faviconPath = path.join(__dirname, '..', 'assets', 'favicon.svg');
+
+let faviconB64 = '';
+let logoInlineSvg = '';
+try {
+  const faviconRaw = fs.readFileSync(faviconPath, 'utf8');
+  faviconB64 = Buffer.from(faviconRaw).toString('base64');
+} catch (_) { /* favicon not found — skip */ }
+try {
+  const faviconSvg = fs.readFileSync(faviconPath, 'utf8');
+  logoInlineSvg = faviconSvg
+    .replace('<svg ', '<svg class="hero-logo" width="28" height="28" ')
+    .replace('fill="#000"', 'fill="#111827"');
+} catch (_) { /* logo not found — skip */ }
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -362,6 +377,7 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AgentLint Report \u2014 ${date}</title>
+${faviconB64 ? `<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${faviconB64}">` : ''}
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--font:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:'SF Mono',Menlo,Consolas,monospace}
@@ -370,6 +386,7 @@ body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;ma
 .hero{background:#f3f4f6;border-radius:16px;padding:28px 28px 26px;margin-bottom:14px}
 .hero-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .hero-brand{font-size:18px;font-weight:500;color:#111827}
+.hero-logo{width:28px;height:28px;margin-right:10px;flex-shrink:0;display:block}
 .hero-ver{font-size:11px;font-family:var(--mono);color:#9ca3af;background:#e5e7eb;padding:2px 8px;border-radius:8px;margin-left:10px}
 .hero-meta{font-size:12px;color:#9ca3af}
 .hero-gauge{position:relative;width:220px;height:148px;margin:0 auto}
@@ -442,7 +459,7 @@ body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;ma
   <div class="hero">
     <div class="hero-head">
       <div style="display:flex;align-items:center">
-        <span class="hero-brand">AgentLint</span>
+        ${logoInlineSvg}<span class="hero-brand">AgentLint</span>
         ${alVersion ? `<span class="hero-ver">v${esc(alVersion)}</span>` : ''}
       </div>
       <span class="hero-meta">${projectLabel}${date}</span>

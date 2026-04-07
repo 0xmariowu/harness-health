@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/0xmariowu/agent-lint/main/assets/logo.svg" alt="AgentLint" width="120">
+</p>
+
 # agent-lint
 
 Check how well your repo supports AI coding agents. A [Claude Code](https://claude.com/download) plugin.

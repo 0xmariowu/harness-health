@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="AgentLint" width="120">
+</p>
+
 # AgentLint
 
 [![CI](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml)
