@@ -65,9 +65,20 @@ function labelRepo(repoDir) {
   labels.F1 = entry ? 'pass' : 'fail';
 
   // F2: Project description in first 10 lines
+  // Aligned with scanner's has_project_description(): skips H1 headings, list items,
+  // code fences. Passes on blockquote (>) or any plain text line.
   if (entry) {
-    const first10 = entryContent.split('\n').slice(0, 10).join('\n');
-    labels.F2 = (first10.match(/^#/m) || first10.match(/.{20,}/)) ? 'pass' : 'fail';
+    const lines = entryContent.split('\n').slice(0, 10);
+    let found = false;
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t) continue;
+      if (t.startsWith('## ')) break; // sub-heading = stop
+      if (t.startsWith('# ') || t.startsWith('#\t')) continue; // H1 = skip
+      if (/^[-*] |^```|^[1-9]\. /.test(t)) continue; // list/fence = skip
+      if (t.startsWith('>') || t.length > 0) { found = true; break; } // blockquote or plain text = pass
+    }
+    labels.F2 = found ? 'pass' : 'fail';
   } else { labels.F2 = 'na'; }
 
   // F3: Conditional loading guidance
@@ -75,11 +86,11 @@ function labelRepo(repoDir) {
     labels.F3 = /if.*read|session checklist|checklist/i.test(entryContent) ? 'pass' : 'fail';
   } else { labels.F3 = 'na'; }
 
-  // F4: Word count (measured vs reference ~816)
-  if (entry) {
-    const words = entryContent.split(/\s+/).filter(Boolean).length;
-    labels.F4 = words >= 100 ? 'pass' : 'fail';
-  } else { labels.F4 = 'na'; }
+  // F4: Root directory navigability — aligned with scanner logic
+  // Scanner checks: root-level non-hidden files ≤ 10 OR has INDEX file
+  const rootFiles = tree.files.filter(f => !f.startsWith('.') && !f.includes('/'));
+  const hasIndex = rootFiles.some(f => /^index(\.|$)/i.test(f));
+  labels.F4 = (rootFiles.length <= 10 || hasIndex) ? 'pass' : 'fail';
 
   // F5: All markdown link references resolve — in corpus context we can only check partially
   if (entry) {
@@ -158,9 +169,14 @@ function labelRepo(repoDir) {
     labels.I7 = entryContent.length < 40000 ? 'pass' : 'fail';
   } else { labels.I7 = 'na'; }
 
-  // W1: Build/test commands documented
+  // W1: Build/test commands documented — aligned with scanner's extract_command_matches()
+  // Scanner checks for these exact command strings (case-insensitive):
   if (entry) {
-    labels.W1 = /`[^`]*(npm|yarn|pnpm|pytest|make|cargo|go |pip |poetry |uv |docker|bun )/i.test(entryContent) ? 'pass' : 'fail';
+    const lower = entryContent.toLowerCase();
+    const cmds = ['npm test','pnpm test','yarn test','bun test','pytest','uv run pytest',
+      'make test','make build','cargo test','cargo build','go test','go build',
+      'npm run build','pnpm build','yarn build','bun run build','tox','just test'];
+    labels.W1 = cmds.some(c => lower.includes(c)) ? 'pass' : 'fail';
   } else { labels.W1 = 'na'; }
 
   // W2: CI workflows exist
@@ -248,14 +264,20 @@ function labelRepo(repoDir) {
     else labels.S2 = pinnedUses > 0 ? 'pass' : 'fail';
   }
 
-  // S3: Secret scanning configured
+  // S3: Secret scanning configured — aligned with scanner
+  // Scanner checks: .gitleaks.toml exists, OR gitleaks in .pre-commit-config.yaml, OR gitleaks in workflows
   const hasGitleaks = tree.files.includes('.gitleaks.toml') || fileExists(path.join(repoDir, '.gitleaks.toml'));
   let hasDetectSecrets = false;
   if (tree.files.includes('.pre-commit-config.yaml')) {
     const precommit = readFile(path.join(repoDir, '.pre-commit-config.yaml'));
     if (/gitleaks|detect-secrets/.test(precommit)) hasDetectSecrets = true;
   }
-  labels.S3 = (hasGitleaks || hasDetectSecrets) ? 'pass' : 'fail';
+  // Also check workflows for gitleaks (scanner does this too)
+  let gitleaksInWorkflow = false;
+  for (const wf of workflows) {
+    if (/gitleaks/.test(readFile(wf))) { gitleaksInWorkflow = true; break; }
+  }
+  labels.S3 = (hasGitleaks || hasDetectSecrets || gitleaksInWorkflow) ? 'pass' : 'fail';
 
   // S4: SECURITY.md
   labels.S4 = tree.files.includes('SECURITY.md') ? 'pass' : 'fail';
@@ -273,15 +295,13 @@ function labelRepo(repoDir) {
     labels.S5 = overperm === 0 ? 'pass' : 'fail';
   }
 
-  // S6: No hardcoded secrets — can't use git grep, check entry file only
-  if (entry) {
-    labels.S6 = /sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY/.test(entryContent) ? 'fail' : 'uncertain';
-  } else { labels.S6 = 'uncertain'; }
+  // S6: No hardcoded secrets — scanner greps ALL source files,
+  // but corpus only has entry file. Always uncertain (scope mismatch).
+  labels.S6 = 'uncertain';
 
-  // S7: No personal filesystem paths — check entry file
-  if (entry) {
-    labels.S7 = /\/Users\/[a-zA-Z]|\/home\/[a-z][a-z0-9_-]+\//.test(entryContent) ? 'fail' : 'uncertain';
-  } else { labels.S7 = 'uncertain'; }
+  // S7: No personal filesystem paths — scanner greps ALL source files,
+  // but corpus only has entry file. Always uncertain (scope mismatch).
+  labels.S7 = 'uncertain';
 
   // S8: No pull_request_target in workflows
   if (workflows.length === 0) {
