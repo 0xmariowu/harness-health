@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.0 (2026-04-10)
+
+You can now measure scanner accuracy against 4,533 real repos.
+
+- New: Corpus-wide accuracy benchmark — 149,589 labeled data points (4,533 repos x 33 checks)
+- New: Deterministic + LLM labeling pipeline (auto-label-full.js + DashScope qwen-plus batch)
+- New: Cross-validation merge with conflict detection (merge-labels.js)
+- New: Per-check precision/recall/F1 comparison with regression detection (compare-results.js)
+- New: CI accuracy workflow — blocks PRs if scanner precision or recall drops >5%
+- New: accuracy-baseline.json — 93.9% overall accuracy snapshot
+- Fix: reconstruct-repo.sh now copies CHANGELOG.md, SECURITY.md, and other scanner-relevant files
+- Fix: reconstruct-repo.sh plants sentinel test files in test directories for accurate W3 detection
+- Fix: reconstruct-repo.sh no longer injects .gitignore content (was causing S1 false passes)
+- Fix: auto-label-full.js aligned with scanner logic for F2, F4, W1, S3
+
 ## v0.4.3 (2026-04-06)
 
 Release pipeline test. No functional changes.
