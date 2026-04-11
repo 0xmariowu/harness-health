@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.1 (2026-04-12)
+
+Release pipeline verification. No functional changes.
+
+- Chore: CI — allow `dependabot[bot]` in author name check (#55)
+- Chore: bump actions/setup-node 4.4.0 → 6.3.0 (#51)
+- Chore: bump actions/upload-artifact 4.6.2 → 7.0.0 (#52)
+- Chore: bump actions/checkout 4.2.2 → 6.0.2 (#53)
+- Chore: bump actions/labeler 5.0.0 → 6.0.1 (#54)
+- Chore: untrack HANDOFF.md as local dev notes (#56)
+
 ## v0.5.0 (2026-04-10)
 
 You can now measure scanner accuracy against 4,533 real repos.
