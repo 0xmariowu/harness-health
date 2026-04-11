@@ -6,6 +6,7 @@ docs/build/
 reports/
 .claude/
 experience/
+HANDOFF.md
 .env
 .env.*
 tests/docker-e2e/corpus-data.tar.gz
