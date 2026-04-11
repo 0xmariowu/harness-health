@@ -41,10 +41,10 @@ jobs:
               FAIL=1
             fi
 
-            # Check name: must be 0xmariowu or bot
+            # Check name: must be 0xmariowu or a known bot
             # Skip name check on push (squash merges use GitHub profile display name)
             if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "$NAME" ] && \
-               echo "$NAME" | grep -qvE '^0xmariowu$|^github-actions'; then
+               echo "$NAME" | grep -qvE '^0xmariowu$|^github-actions|^dependabot\[bot\]$'; then
               echo "::error::Commit ${SHA:0:7} has non-pseudonym author name: $NAME"
               FAIL=1
             fi
