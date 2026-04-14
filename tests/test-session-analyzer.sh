@@ -27,11 +27,16 @@ echo ""
 # 1. Help flag
 check "help flag exits 0" "node '$SESSION' --help >/dev/null 2>&1"
 
-# 2. Empty projects root
+# 2. Empty projects root. Output is JSONL (one record per finding); zero
+# findings = zero lines, which is legitimate empty output — not invalid JSON.
 empty_dir="$(mktemp -d)"
 output="$(node "$SESSION" --projects-root "$empty_dir" 2>/dev/null)"
 check "empty dir: exits without crash" "node '$SESSION' --projects-root '$empty_dir' >/dev/null 2>&1"
-check "empty dir: valid JSON output" "printf '%s' '$output' | jq -e . >/dev/null 2>&1"
+if [ -n "$output" ]; then
+  check "empty dir: each output line parses as JSON" "printf '%s\n' '$output' | while IFS= read -r line; do printf '%s' \"\$line\" | jq -e . >/dev/null || exit 1; done"
+else
+  check "empty dir: empty output (no sessions — expected)" "true"
+fi
 rm -rf "$empty_dir"
 
 # 3. Nonexistent directory
