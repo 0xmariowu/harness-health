@@ -761,9 +761,9 @@ EOF
     dont_total=0
     dont_with_because=0
     for ((i = 0; i < ${#lines[@]}; i++)); do
-      if printf '%s\n' "${lines[$i]}" | grep -Eq "^[[:space:]]*-[[:space:]]+Don't"; then
+      if printf '%s\n' "${lines[$i]}" | grep -Eiq "^[[:space:]]*-[[:space:]]+(Don't|Do not)"; then
         dont_total=$((dont_total + 1))
-        for ((j = i + 1; j <= i + 3 && j < ${#lines[@]}; j++)); do
+        for ((j = i + 1; j <= i + 5 && j < ${#lines[@]}; j++)); do
           if printf '%s\n' "${lines[$j]}" | grep -q 'Because:'; then
             dont_with_because=$((dont_with_because + 1))
             break
@@ -797,12 +797,12 @@ EOF
     while IFS= read -r heading || [ -n "$heading" ]; do
       heading_lower="$(lower_text "$heading")"
       case "$heading_lower" in
-        *workflow*|*session*|*rules*|*writing*|*debugging*|*how*)
+        *workflow*|*session*|*rules*|*writing*|*debugging*|*how*|*build*|*test*|*deploy*|*setup*|*install*|*config*|*run*|*development*|*contributing*|*commands*|*scripts*|*usage*|*prerequisites*|*getting*started*)
           action_count=$((action_count + 1))
           ;;
       esac
       case "$heading_lower" in
-        *personality*|*role*|*capabilities*|*who*)
+        *personality*|*role*|*capabilities*|*who*|*about*me*|*identity*|*persona*)
           identity_count=$((identity_count + 1))
           ;;
       esac
@@ -944,8 +944,6 @@ EOF
   # C2
   handoff_found=false
   if [ -f "${project_dir}/HANDOFF.md" ] || [ -f "${project_dir}/.handoff" ]; then
-    handoff_found=true
-  elif [ -n "$entry_abs" ] && grep -Eiq 'handoff|progress|status' "$entry_abs" 2>/dev/null; then
     handoff_found=true
   fi
   if [ "$handoff_found" = true ]; then
@@ -1208,13 +1206,13 @@ WF2
   local secret_examples=""
   if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     secret_hits="$(git -C "$project_dir" grep -lE \
-      'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
+      'sk-[a-zA-Z0-9]{48,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
       -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
       ':!*.env' ':!*.env.*' ':!*.lock' \
       2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build\|__pycache__')" || secret_hits=0
     if [ "${secret_hits:-0}" -gt 0 ]; then
       secret_examples="$(git -C "$project_dir" grep -lE \
-        'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
+        'sk-[a-zA-Z0-9]{48,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
         -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' \
         2>/dev/null | grep -v 'node_modules\|\.git\|vendor' | head -3 | tr '\n' ', ' | sed 's/, $//')"
     fi
@@ -1231,12 +1229,12 @@ WF2
   if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     path_hits="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
       -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
-      ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' \
+      ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!__tests__/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
       2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build' || true)" || path_hits=0
     if [ "${path_hits:-0}" -gt 0 ]; then
       path_examples="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
         -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
-        ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' \
+        ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!__tests__/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
         2>/dev/null | grep -v 'node_modules\|\.git\|vendor' | head -3 | tr '\n' ', ' | sed 's/, $//')"
     fi
   fi
