@@ -57,3 +57,18 @@
 | S6 | No hardcoded secrets | Scans source files for hardcoded API keys, tokens, and private key patterns. | `practical-audit` | Move secrets to environment variables or a secrets manager. |
 | S7 | No personal paths in source | Checks whether source files contain personal filesystem paths (`/Users/xxx/`, `/home/xxx/`). | `practical-audit`, `anthropic-265` | Replace personal paths with environment variables or relative paths. AI's Glob tool ignores .gitignore — personal paths are visible. |
 | S8 | No pull_request_target trigger | Checks whether workflows use `pull_request_target`, which runs with elevated permissions. | `practical-audit` | Use `pull_request` instead. Only use `pull_request_target` when secrets are explicitly needed. |
+
+## Harness
+
+Harness checks inspect `.claude/settings.json` for hook and permission configuration issues. These checks emit score=1 (pass) for projects without a `settings.json`, so they only affect repos that actually configured Claude Code hooks or permissions.
+
+Evidence for all Harness checks comes from `corpus-4533`: analysis of 4,533 real Claude Code repositories containing 739 hook configurations and 1,562 settings.json files.
+
+| ID | Name | What | Evidence | Fix |
+|---|---|---|---|---|
+| H1 | Hook event names valid | Checks whether hook event names in `.claude/settings.json` match Claude Code's documented events. | `corpus-4533` | Fix typos (e.g., `preCommit` → `PreToolUse`, `sessionStart` → `SessionStart`). |
+| H2 | PreToolUse hooks have matcher | Checks whether PreToolUse hooks have a `matcher` field to filter by tool name. | `corpus-4533` | Add a `matcher` to each PreToolUse hook so it only fires on relevant tools. |
+| H3 | Stop hook has circuit breaker | Checks whether Stop hook scripts include a loop-prevention guard. | `corpus-4533` | Guard Stop hooks with a variable like `STOP_HOOK_ACTIVE` to prevent infinite loops. |
+| H4 | No dangerous auto-approve | Checks whether `permissions.allow` contains dangerous rules like bare `Bash(*)`, `*`, or `mcp__*`. | `corpus-4533` | Replace broad rules with scoped ones, e.g., `Bash(git status:*)` instead of `Bash(*)`. |
+| H5 | Env deny coverage complete | Checks whether `.env` deny rules cover `.env.*` variants. | `corpus-4533` | Extend deny rules to cover `.env.local`, `.env.production`, etc. |
+| H6 | Hook scripts network access | Detects hook scripts that make external network calls (curl, wget, fetch, etc.). | `corpus-4533` | Review flagged hooks — external network calls may leak tool I/O to third parties. |

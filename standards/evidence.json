@@ -48,6 +48,11 @@
       "name": "Claude Code /insights Architecture",
       "description": "Session log analysis for repeated instructions, friction detection, CLAUDE.md suggestions",
       "type": "first-party-data"
+    },
+    "corpus-4533": {
+      "name": "Claude Code Repository Corpus Analysis",
+      "description": "4,533 repos, 739 hooks, 1,562 settings.json files analyzed for configuration patterns and anti-patterns",
+      "type": "first-party-data"
     }
   },
   "checks": {
