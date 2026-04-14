@@ -1008,6 +1008,632 @@ run_test "I8: below range (10 lines) → < 1.0" test_i8_small_below_range
 run_test "I8: within range (100 lines) → 1.0" test_i8_within_range
 run_test "I8: over budget (600 lines) → < 1.0" test_i8_over_budget
 
+# ─── S3: Gap-fill tests for untested checks ───────────────────────────────────
+# Covers: F2, F3, F4, F5, F6, I1, I2, I5, I6, I7, W1, W2, W3, W4, W5, W6
+#         C1, C3, C4, S1, S2, S3, S4, S5, S8
+# Strategy: one "well-configured" fixture covers many happy-path checks;
+#           a "minimal" fixture covers the failure cases.
+
+# ── Shared well-configured fixture ──────────────────────────────────────────
+
+WELL_DIR="${TEMP_ROOT}/well-configured"
+mkdir -p "${WELL_DIR}/.github/workflows" "${WELL_DIR}/tests" "${WELL_DIR}/docs/plans" "${WELL_DIR}/src"
+git -C "${WELL_DIR}" init --quiet 2>/dev/null || true
+
+# Entry file: has description (F2), Session Checklist (F3), IMPORTANT keywords (I1),
+#             commands (W1), no identity language (I5), ~80 lines (I6)
+cat > "${WELL_DIR}/CLAUDE.md" <<'ENTRY'
+# My Project — AI-friendly repo
+
+This project exists to demonstrate all AI-friendly checks passing.
+
+## Session Checklist
+
+1. If modifying checks → read standards/
+2. If adding tests → run test suite first
+
+## Build and Test Commands
+
+Run:
+- npm test
+- npm run lint
+- npm run build
+
+## Rules
+
+IMPORTANT: Never commit secrets to this repo.
+NEVER skip code review.
+MUST write tests for new features.
+
+- Don't commit .env files.
+  Because: secrets would be exposed.
+
+- Don't skip linting.
+  Because: quality enforcement matters.
+ENTRY
+# Pad to ~80 lines
+for i in $(seq 1 60); do echo "# detail line $i" >> "${WELL_DIR}/CLAUDE.md"; done
+
+echo "# README" > "${WELL_DIR}/README.md"
+echo "This project." >> "${WELL_DIR}/README.md"
+
+printf '## v1.0\n- Initial release\n' > "${WELL_DIR}/CHANGELOG.md"
+echo "## Security\nReport bugs via issues." > "${WELL_DIR}/SECURITY.md"
+printf '.env\n.DS_Store\nnode_modules/\n' > "${WELL_DIR}/.gitignore"
+echo "# Gitleaks config" > "${WELL_DIR}/.gitleaks.toml"
+printf '[extends]\npath = "gitleaks:git"\n' >> "${WELL_DIR}/.gitleaks.toml"
+
+# SHA-pinned workflow (S2 = 1), no pull_request_target (S8 = 1), no contents:write (S5 = 1)
+cat > "${WELL_DIR}/.github/workflows/ci.yml" <<'YML'
+name: ci
+on: [push]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: npm test
+YML
+
+echo "test('ok', () => {});" > "${WELL_DIR}/tests/sample.test.js"
+cat > "${WELL_DIR}/.eslintrc.json" <<'JSON'
+{"rules":{"no-unused-vars":"error"}}
+JSON
+
+WELL_OUT="${TEMP_ROOT}/well.jsonl"
+# Run scanner once; all tests below reuse this output
+bash "${SCANNER}" --project-dir "${WELL_DIR}" > "${WELL_OUT}" 2>/dev/null
+
+# F2: description in first 10 lines → 1
+test_f2_description_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "F2")" || { TEST_ERROR="F2 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="F2 should be 1 with description (got ${score})"; return 1; fi
+}
+
+# F3: Session Checklist present → 1
+test_f3_checklist_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "F3")" || { TEST_ERROR="F3 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="F3 should be 1 with checklist (got ${score})"; return 1; fi
+}
+
+# F6: README + entry + CHANGELOG all present → 1
+test_f6_standard_files_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "F6")" || { TEST_ERROR="F6 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="F6 should be 1 with README+entry+CHANGELOG (got ${score})"; return 1; fi
+}
+
+# I5: no identity language → 1
+test_i5_no_identity_language() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "I5")" || { TEST_ERROR="I5 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="I5 should be 1 with no identity language (got ${score})"; return 1; fi
+}
+
+# W1: commands in entry file → 1
+test_w1_commands_found() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "W1")" || { TEST_ERROR="W1 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="W1 should be 1 with npm test in entry (got ${score})"; return 1; fi
+}
+
+# W2: workflow files present → 1
+test_w2_workflows_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "W2")" || { TEST_ERROR="W2 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="W2 should be 1 with .github/workflows (got ${score})"; return 1; fi
+}
+
+# W3: test files present → 1
+test_w3_test_files_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "W3")" || { TEST_ERROR="W3 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="W3 should be 1 with tests/ dir (got ${score})"; return 1; fi
+}
+
+# W4: linter config present → 1
+test_w4_linter_config_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "W4")" || { TEST_ERROR="W4 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="W4 should be 1 with .eslintrc.json (got ${score})"; return 1; fi
+}
+
+# C3: CHANGELOG.md non-empty → 1
+test_c3_changelog_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "C3")" || { TEST_ERROR="C3 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="C3 should be 1 with non-empty CHANGELOG (got ${score})"; return 1; fi
+}
+
+# C4: docs/plans dir present → 1
+test_c4_plan_dir_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "C4")" || { TEST_ERROR="C4 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="C4 should be 1 with docs/plans dir (got ${score})"; return 1; fi
+}
+
+# S1: .env in .gitignore → 1
+test_s1_env_gitignored() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "S1")" || { TEST_ERROR="S1 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="S1 should be 1 with .env in .gitignore (got ${score})"; return 1; fi
+}
+
+# S2: all actions SHA-pinned → 1
+test_s2_sha_pinned() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "S2")" || { TEST_ERROR="S2 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="S2 should be 1 with SHA-pinned action (got ${score})"; return 1; fi
+}
+
+# S3: .gitleaks.toml present → 1
+test_s3_secret_scan_configured() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "S3")" || { TEST_ERROR="S3 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="S3 should be 1 with .gitleaks.toml (got ${score})"; return 1; fi
+}
+
+# S4: SECURITY.md non-empty → 1
+test_s4_security_md_present() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "S4")" || { TEST_ERROR="S4 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="S4 should be 1 with SECURITY.md (got ${score})"; return 1; fi
+}
+
+# S5: no contents:write at workflow level → 1
+test_s5_no_overpermission() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "S5")" || { TEST_ERROR="S5 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="S5 should be 1 with contents:read only (got ${score})"; return 1; fi
+}
+
+# S8: no pull_request_target → 1
+test_s8_no_prt() {
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "S8")" || { TEST_ERROR="S8 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="S8 should be 1 without pull_request_target (got ${score})"; return 1; fi
+}
+
+run_test "F2: description in first 10 lines → 1" test_f2_description_present
+run_test "F3: Session Checklist present → 1" test_f3_checklist_present
+run_test "F6: README + entry + CHANGELOG present → 1" test_f6_standard_files_present
+run_test "I5: no identity language → 1" test_i5_no_identity_language
+run_test "W1: build/test commands in entry → 1" test_w1_commands_found
+run_test "W2: workflow files present → 1" test_w2_workflows_present
+run_test "W3: test files present → 1" test_w3_test_files_present
+run_test "W4: linter config present → 1" test_w4_linter_config_present
+run_test "C3: non-empty CHANGELOG.md → 1" test_c3_changelog_present
+run_test "C4: docs/plans directory present → 1" test_c4_plan_dir_present
+run_test "S1: .env in .gitignore → 1" test_s1_env_gitignored
+run_test "S2: all actions SHA-pinned → 1" test_s2_sha_pinned
+run_test "S3: .gitleaks.toml present → 1" test_s3_secret_scan_configured
+run_test "S4: SECURITY.md present → 1" test_s4_security_md_present
+run_test "S5: no contents:write at workflow level → 1" test_s5_no_overpermission
+run_test "S8: no pull_request_target in workflows → 1" test_s8_no_prt
+
+# ── Minimal fixture (failure cases) ──────────────────────────────────────────
+
+MINIMAL_DIR="${TEMP_ROOT}/minimal"
+mkdir -p "${MINIMAL_DIR}/src"
+git -C "${MINIMAL_DIR}" init --quiet 2>/dev/null || true
+# Entry file with no description in first 10 lines (blank lines then description)
+printf '\n\n\n\n\n\n\n\n\n\n\nDescription is here on line 11\n' > "${MINIMAL_DIR}/CLAUDE.md"
+
+MINIMAL_OUT="${TEMP_ROOT}/minimal.jsonl"
+bash "${SCANNER}" --project-dir "${MINIMAL_DIR}" > "${MINIMAL_OUT}" 2>/dev/null
+
+# F2: description NOT in first 10 lines → 0
+test_f2_no_description() {
+  local score
+  score="$(extract_check_score "${MINIMAL_OUT}" "F2")" || { TEST_ERROR="F2 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="F2 should be 0 when description after line 10 (got ${score})"; return 1; fi
+}
+
+# F6: no README, no CHANGELOG → 0
+test_f6_missing_files() {
+  local score
+  score="$(extract_check_score "${MINIMAL_OUT}" "F6")" || { TEST_ERROR="F6 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="F6 should be 0 without README/CHANGELOG (got ${score})"; return 1; fi
+}
+
+# W2: no workflows → 0
+test_w2_no_workflows() {
+  local score
+  score="$(extract_check_score "${MINIMAL_OUT}" "W2")" || { TEST_ERROR="W2 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="W2 should be 0 without workflows (got ${score})"; return 1; fi
+}
+
+# W3: no test files → 0
+test_w3_no_tests() {
+  local score
+  score="$(extract_check_score "${MINIMAL_OUT}" "W3")" || { TEST_ERROR="W3 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="W3 should be 0 without test files (got ${score})"; return 1; fi
+}
+
+# C3: no CHANGELOG → 0
+test_c3_no_changelog() {
+  local score
+  score="$(extract_check_score "${MINIMAL_OUT}" "C3")" || { TEST_ERROR="C3 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="C3 should be 0 without CHANGELOG (got ${score})"; return 1; fi
+}
+
+# S1: no .gitignore → 0
+test_s1_no_gitignore() {
+  local score
+  score="$(extract_check_score "${MINIMAL_OUT}" "S1")" || { TEST_ERROR="S1 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="S1 should be 0 without .gitignore (got ${score})"; return 1; fi
+}
+
+# S4: no SECURITY.md → 0
+test_s4_no_security_md() {
+  local score
+  score="$(extract_check_score "${MINIMAL_OUT}" "S4")" || { TEST_ERROR="S4 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="S4 should be 0 without SECURITY.md (got ${score})"; return 1; fi
+}
+
+run_test "F2: no description in first 10 lines → 0" test_f2_no_description
+run_test "F6: missing README and CHANGELOG → 0" test_f6_missing_files
+run_test "W2: no workflows → 0" test_w2_no_workflows
+run_test "W3: no test files → 0" test_w3_no_tests
+run_test "C3: no CHANGELOG.md → 0" test_c3_no_changelog
+run_test "S1: no .gitignore → 0" test_s1_no_gitignore
+run_test "S4: no SECURITY.md → 0" test_s4_no_security_md
+
+# ── I5 failure: identity language present → 0 ─────────────────────────────
+
+I5_FAIL_DIR="${TEMP_ROOT}/i5-fail"
+mkdir -p "${I5_FAIL_DIR}"
+git -C "${I5_FAIL_DIR}" init --quiet 2>/dev/null || true
+cat > "${I5_FAIL_DIR}/CLAUDE.md" <<'FIXTURE'
+# Agent Rules
+You are a helpful developer assistant.
+As an AI you should follow these rules.
+FIXTURE
+
+test_i5_identity_language_detected() {
+  local out="${TEMP_ROOT}/i5-fail.jsonl"
+  bash "${SCANNER}" --project-dir "${I5_FAIL_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "I5")" || { TEST_ERROR="I5 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="I5 should be 0 with identity language (got ${score})"; return 1; fi
+}
+
+run_test "I5: identity language present → 0" test_i5_identity_language_detected
+
+# ── F5: broken references → 0 ─────────────────────────────────────────────
+
+F5_BROKEN_DIR="${TEMP_ROOT}/f5-broken"
+mkdir -p "${F5_BROKEN_DIR}"
+git -C "${F5_BROKEN_DIR}" init --quiet 2>/dev/null || true
+cat > "${F5_BROKEN_DIR}/CLAUDE.md" <<'FIXTURE'
+# Project
+See [docs](./docs/nonexistent.md) for details.
+Also read [standards](./standards/missing.md).
+FIXTURE
+
+test_f5_broken_references() {
+  local out="${TEMP_ROOT}/f5-broken.jsonl"
+  bash "${SCANNER}" --project-dir "${F5_BROKEN_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "F5")" || { TEST_ERROR="F5 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="F5 should be 0 with broken refs (got ${score})"; return 1; fi
+}
+
+# F5 pass: no references (all resolve trivially) → 1
+F5_CLEAN_DIR="${TEMP_ROOT}/f5-clean"
+mkdir -p "${F5_CLEAN_DIR}"
+git -C "${F5_CLEAN_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\nNo external references here.\n' > "${F5_CLEAN_DIR}/CLAUDE.md"
+
+test_f5_no_broken_references() {
+  local out="${TEMP_ROOT}/f5-clean.jsonl"
+  bash "${SCANNER}" --project-dir "${F5_CLEAN_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "F5")" || { TEST_ERROR="F5 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="F5 should be 1 with no broken refs (got ${score})"; return 1; fi
+}
+
+run_test "F5: broken markdown references → 0" test_f5_broken_references
+run_test "F5: no references → 1" test_f5_no_broken_references
+
+# ── F4: many files, no index → 0; few files → 1 ──────────────────────────
+
+F4_CROWDED_DIR="${TEMP_ROOT}/f4-crowded"
+mkdir -p "${F4_CROWDED_DIR}"
+git -C "${F4_CROWDED_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${F4_CROWDED_DIR}/CLAUDE.md"
+# Create 12 non-hidden files at root (threshold is 10)
+for n in $(seq 1 12); do
+  touch "${F4_CROWDED_DIR}/file${n}.txt"
+done
+
+test_f4_crowded_no_index() {
+  local out="${TEMP_ROOT}/f4-crowded.jsonl"
+  bash "${SCANNER}" --project-dir "${F4_CROWDED_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "F4")" || { TEST_ERROR="F4 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="F4 should be 0 with >10 files and no index (got ${score})"; return 1; fi
+}
+
+F4_FEW_DIR="${TEMP_ROOT}/f4-few"
+mkdir -p "${F4_FEW_DIR}"
+git -C "${F4_FEW_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${F4_FEW_DIR}/CLAUDE.md"
+touch "${F4_FEW_DIR}/README.md"
+
+test_f4_few_files() {
+  local out="${TEMP_ROOT}/f4-few.jsonl"
+  bash "${SCANNER}" --project-dir "${F4_FEW_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "F4")" || { TEST_ERROR="F4 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="F4 should be 1 with ≤10 files (got ${score})"; return 1; fi
+}
+
+run_test "F4: >10 root files, no index → 0" test_f4_crowded_no_index
+run_test "F4: ≤10 root files → 1" test_f4_few_files
+
+# ── W5: oversized source file → 0 ────────────────────────────────────────
+
+W5_BIG_DIR="${TEMP_ROOT}/w5-big"
+mkdir -p "${W5_BIG_DIR}/src"
+git -C "${W5_BIG_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${W5_BIG_DIR}/CLAUDE.md"
+# Create a >256KB .js file (262145 bytes)
+dd if=/dev/zero bs=1 count=262145 2>/dev/null | tr '\0' 'x' > "${W5_BIG_DIR}/src/big.js"
+
+test_w5_oversized_file() {
+  local out="${TEMP_ROOT}/w5-big.jsonl"
+  bash "${SCANNER}" --project-dir "${W5_BIG_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W5")" || { TEST_ERROR="W5 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="W5 should be 0 with >256KB source file (got ${score})"; return 1; fi
+}
+
+run_test "W5: source file >256KB → 0" test_w5_oversized_file
+
+# ── S2 failure: unpinned action (bare 'uses:' key format) → score < 1 ────
+# NOTE: Scanner grep pattern '^\s*uses:\s' matches only bare key format (not '- uses:' list items).
+# Bug P1: workflows using list-item '- uses:' syntax are not detected by S2.
+# This test uses bare key format to exercise the real scoring path.
+
+S2_UNPINNED_DIR="${TEMP_ROOT}/s2-unpinned"
+mkdir -p "${S2_UNPINNED_DIR}/.github/workflows"
+git -C "${S2_UNPINNED_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${S2_UNPINNED_DIR}/CLAUDE.md"
+# Use bare 'uses:' key (job-level 'uses:' for reusable workflows) — matches scanner pattern
+cat > "${S2_UNPINNED_DIR}/.github/workflows/ci.yml" <<'YML'
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    uses: org/repo/.github/workflows/reusable.yml@main
+YML
+
+test_s2_unpinned_action() {
+  local out="${TEMP_ROOT}/s2-unpinned.jsonl"
+  bash "${SCANNER}" --project-dir "${S2_UNPINNED_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "S2")" || { TEST_ERROR="S2 not found"; return 1; }
+  if node -e "process.exit(Number(process.argv[1]) < 1 ? 0 : 1)" "$score"; then
+    return 0
+  else
+    TEST_ERROR="S2 should be < 1 with unpinned reusable workflow ref (got ${score})"
+    return 1
+  fi
+}
+
+run_test "S2: unpinned reusable workflow @main → score < 1" test_s2_unpinned_action
+
+# ── S5 failure: contents:write at workflow level → 0 ─────────────────────
+
+S5_OVERPERM_DIR="${TEMP_ROOT}/s5-overperm"
+mkdir -p "${S5_OVERPERM_DIR}/.github/workflows"
+git -C "${S5_OVERPERM_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${S5_OVERPERM_DIR}/CLAUDE.md"
+cat > "${S5_OVERPERM_DIR}/.github/workflows/deploy.yml" <<'YML'
+name: deploy
+on: [push]
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo deploy
+YML
+
+test_s5_overpermissioned_workflow() {
+  local out="${TEMP_ROOT}/s5-overperm.jsonl"
+  bash "${SCANNER}" --project-dir "${S5_OVERPERM_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "S5")" || { TEST_ERROR="S5 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="S5 should be 0 with contents:write at workflow level (got ${score})"; return 1; fi
+}
+
+run_test "S5: contents:write at workflow level → 0" test_s5_overpermissioned_workflow
+
+# ── S8 failure: pull_request_target present → 0 ──────────────────────────
+
+S8_PRT_DIR="${TEMP_ROOT}/s8-prt"
+mkdir -p "${S8_PRT_DIR}/.github/workflows"
+git -C "${S8_PRT_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${S8_PRT_DIR}/CLAUDE.md"
+cat > "${S8_PRT_DIR}/.github/workflows/auto.yml" <<'YML'
+name: auto
+on:
+  pull_request_target:
+    types: [labeled]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo danger
+YML
+
+test_s8_prt_present() {
+  local out="${TEMP_ROOT}/s8-prt.jsonl"
+  bash "${SCANNER}" --project-dir "${S8_PRT_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "S8")" || { TEST_ERROR="S8 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="S8 should be 0 with pull_request_target (got ${score})"; return 1; fi
+}
+
+run_test "S8: pull_request_target present → 0" test_s8_prt_present
+
+# ── I7: entry file > 40000 chars → score < 1 ─────────────────────────────
+
+I7_BIG_DIR="${TEMP_ROOT}/i7-big"
+mkdir -p "${I7_BIG_DIR}"
+git -C "${I7_BIG_DIR}" init --quiet 2>/dev/null || true
+# Create a 41000-char CLAUDE.md
+dd if=/dev/zero bs=1 count=41000 2>/dev/null | tr '\0' 'x' > "${I7_BIG_DIR}/CLAUDE.md"
+
+test_i7_oversized_entry() {
+  local out="${TEMP_ROOT}/i7-big.jsonl"
+  bash "${SCANNER}" --project-dir "${I7_BIG_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "I7")" || { TEST_ERROR="I7 not found"; return 1; }
+  if node -e "process.exit(Number(process.argv[1]) < 1 ? 0 : 1)" "$score"; then
+    return 0
+  else
+    TEST_ERROR="I7 should be < 1 with >40000 char entry file (got ${score})"
+    return 1
+  fi
+}
+
+# I7 pass: normal-sized entry → 1
+test_i7_normal_entry() {
+  # Reuse the well-configured fixture (CLAUDE.md ~80 lines, well under 40000 chars)
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "I7")" || { TEST_ERROR="I7 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="I7 should be 1 with small entry file (got ${score})"; return 1; fi
+}
+
+run_test "I7: entry file >40000 chars → score < 1" test_i7_oversized_entry
+run_test "I7: normal-sized entry file → 1" test_i7_normal_entry
+
+# ── I6: entry file line count within [60,200] range → 1 ─────────────────
+
+test_i6_in_range() {
+  # WELL_DIR entry is ~80 lines — within reference range [60, 200]
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "I6")" || { TEST_ERROR="I6 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="I6 should be 1 for ~80 line entry (got ${score})"; return 1; fi
+}
+
+I6_TINY_DIR="${TEMP_ROOT}/i6-tiny"
+mkdir -p "${I6_TINY_DIR}"
+git -C "${I6_TINY_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\nJust one line of content.\n' > "${I6_TINY_DIR}/CLAUDE.md"
+
+test_i6_too_short() {
+  local out="${TEMP_ROOT}/i6-tiny.jsonl"
+  bash "${SCANNER}" --project-dir "${I6_TINY_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "I6")" || { TEST_ERROR="I6 not found"; return 1; }
+  if node -e "process.exit(Number(process.argv[1]) < 1 ? 0 : 1)" "$score"; then
+    return 0
+  else
+    TEST_ERROR="I6 should be < 1 for 2-line entry (got ${score})"
+    return 1
+  fi
+}
+
+run_test "I6: entry ~80 lines (within range) → 1" test_i6_in_range
+run_test "I6: entry 2 lines (too short) → score < 1" test_i6_too_short
+
+# ── W6: fast pre-commit hook → 1 (static analysis only, never executes) ──
+
+W6_HOOK_DIR="${TEMP_ROOT}/w6-hook"
+mkdir -p "${W6_HOOK_DIR}/.husky"
+git -C "${W6_HOOK_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${W6_HOOK_DIR}/CLAUDE.md"
+printf '#!/usr/bin/env bash\nnpx lint-staged\n' > "${W6_HOOK_DIR}/.husky/pre-commit"
+
+test_w6_hook_present() {
+  local out="${TEMP_ROOT}/w6-hook.jsonl"
+  bash "${SCANNER}" --project-dir "${W6_HOOK_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W6")" || { TEST_ERROR="W6 not found"; return 1; }
+  # W6 always returns 1 — hook speed is measured, not penalized yet
+  if [ "$score" != "1" ]; then TEST_ERROR="W6 should be 1 with pre-commit hook present (got ${score})"; return 1; fi
+}
+
+run_test "W6: pre-commit hook present (static analysis) → 1" test_w6_hook_present
+
+# ── C1: freshness — recent code change → score near 1 ─────────────────────
+
+C1_FRESH_DIR="${TEMP_ROOT}/c1-fresh"
+mkdir -p "${C1_FRESH_DIR}/src"
+git -C "${C1_FRESH_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n## Build\n- npm test\n' > "${C1_FRESH_DIR}/CLAUDE.md"
+echo 'console.log("hello")' > "${C1_FRESH_DIR}/src/index.js"
+git -C "${C1_FRESH_DIR}" add -A 2>/dev/null
+git -C "${C1_FRESH_DIR}" -c user.name=test -c user.email=test@test.com commit -m "init" --quiet 2>/dev/null || true
+
+test_c1_fresh_repo() {
+  local out="${TEMP_ROOT}/c1-fresh.jsonl"
+  bash "${SCANNER}" --project-dir "${C1_FRESH_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "C1")" || { TEST_ERROR="C1 not found"; return 1; }
+  # For a just-committed repo, code timestamp ≈ entry timestamp → score should be 1
+  if [ "$score" != "1" ]; then TEST_ERROR="C1 should be 1 for freshly committed repo (got ${score})"; return 1; fi
+}
+
+run_test "C1: freshly committed repo (entry ≈ code) → 1" test_c1_fresh_repo
+
+# ── I1: emphasis keyword density ─────────────────────────────────────────
+
+I1_DENSE_DIR="${TEMP_ROOT}/i1-dense"
+mkdir -p "${I1_DENSE_DIR}"
+git -C "${I1_DENSE_DIR}" init --quiet 2>/dev/null || true
+# Large entry file with many IMPORTANT/NEVER/MUST/CRITICAL keywords (above reference)
+{
+  echo "# Project"
+  for i in $(seq 1 20); do echo "IMPORTANT: rule $i"; done
+  for i in $(seq 1 20); do echo "NEVER do thing $i"; done
+  for i in $(seq 1 20); do echo "MUST follow rule $i"; done
+  for i in $(seq 1 20); do echo "CRITICAL: always $i"; done
+} > "${I1_DENSE_DIR}/CLAUDE.md"
+
+test_i1_high_emphasis() {
+  local out="${TEMP_ROOT}/i1-dense.jsonl"
+  bash "${SCANNER}" --project-dir "${I1_DENSE_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "I1")" || { TEST_ERROR="I1 not found"; return 1; }
+  # Excessive emphasis → score < 1 (penalized for overuse)
+  if node -e "process.exit(Number(process.argv[1]) < 1 ? 0 : 1)" "$score"; then
+    return 0
+  else
+    TEST_ERROR="I1 should be < 1 with excessive emphasis keywords (got ${score})"
+    return 1
+  fi
+}
+
+run_test "I1: excessive emphasis keywords → score < 1" test_i1_high_emphasis
+
+# ── I2: emphasis density ──────────────────────────────────────────────────
+
+test_i2_density_present() {
+  # WELL_DIR has some IMPORTANT/NEVER/MUST keywords — density check produces a score
+  local score
+  score="$(extract_check_score "${WELL_OUT}" "I2")" || { TEST_ERROR="I2 not found"; return 1; }
+  # Just verify it produces a valid numeric score (0 ≤ score ≤ 1)
+  if node -e "const s = Number(process.argv[1]); process.exit(s >= 0 && s <= 1 ? 0 : 1)" "$score"; then
+    return 0
+  else
+    TEST_ERROR="I2 should produce score between 0 and 1 (got ${score})"
+    return 1
+  fi
+}
+
+run_test "I2: emphasis density produces valid score [0,1]" test_i2_density_present
+
 printf '%s/%s tests passed\n' "${pass_count}" "${test_count}"
 
 if [ "${pass_count}" -eq "${test_count}" ]; then

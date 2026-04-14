@@ -1,0 +1,8 @@
+[
+  {
+    "item_id": "F1",
+    "check_id": "F1",
+    "fix_type": "append",
+    "description": "Traversal attempt via relative project-dir"
+  }
+]

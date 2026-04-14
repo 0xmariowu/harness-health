@@ -65,6 +65,14 @@ if [ -d "${CORPUS_REPO}/rules" ]; then
   done
 fi
 
+# 7b. Copy .claude/settings.json if present in corpus repo dir.
+# Currently a no-op: package-full-corpus.sh does not extract settings.json.
+# Once corpus is rebuilt with settings.json included, this step activates H1-H6 accuracy.
+if [ -f "${CORPUS_REPO}/settings.json" ]; then
+  mkdir -p "${OUTPUT_DIR}/.claude"
+  cp "${CORPUS_REPO}/settings.json" "${OUTPUT_DIR}/.claude/settings.json"
+fi
+
 # 8. Copy repo-level files that scanner checks for existence/content
 # These are NOT in corpus as extracted files — use root-tree to determine
 # if they existed in the original repo, then write placeholder content.

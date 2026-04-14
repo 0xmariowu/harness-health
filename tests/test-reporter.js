@@ -135,5 +135,134 @@ runTest('jsonl format writes valid JSON lines', () => {
   }
 });
 
+// ─── S4: Edge-case tests ───────────────────────────────────────────────────
+
+runTest('missing input file causes non-zero exit', () => {
+  const result = spawnSync(process.execPath, [reporterPath, '/nonexistent/path/scores.json'], {
+    encoding: 'utf8',
+  });
+  assert.notEqual(result.status, 0, 'missing file should cause non-zero exit');
+});
+
+runTest('unknown --format arg exits zero without producing output files (P1: no format validation)', () => {
+  // Bug P1: reporter.js silently accepts unknown --format without error.
+  // This test documents the current behavior; a validation fix should make this exit non-zero.
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-badformat-'));
+  try {
+    const scoresPath = writeFixtureScores(tempDir);
+    const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--format', 'invalid-format-xyz', '--output-dir', tempDir], {
+      encoding: 'utf8',
+    });
+    // Current behavior: exits 0, produces no output file (unknown format is silently ignored)
+    assert.equal(result.status, 0, 'current behavior: unknown format exits 0 (bug: should be non-zero)');
+    const filesAfter = fs.readdirSync(tempDir).filter((f) => f !== path.basename(scoresPath) && !f.endsWith('.json'));
+    assert.equal(filesAfter.length, 0, 'unknown format should produce no output files');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('terminal format with zero total_score does not crash', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-zero-'));
+  try {
+    const zeroScores = {
+      total_score: 0,
+      dimensions: {
+        findability: makeDimension(0, 0.25, []),
+        instructions: makeDimension(0, 0.35, []),
+        workability: makeDimension(0, 0.20, []),
+        continuity: makeDimension(0, 0.20, []),
+      },
+      by_project: {},
+    };
+    const scoresPath = path.join(tempDir, 'zero-scores.json');
+    fs.writeFileSync(scoresPath, JSON.stringify(zeroScores, null, 2));
+    const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--format', 'terminal'], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr || 'reporter crashed on zero scores');
+    assert.match(result.stdout, /Score: 0\/100/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('html format output contains project name escaped (XSS prevention)', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-xss-'));
+  try {
+    const xssScores = {
+      total_score: 50,
+      dimensions: {
+        findability: makeDimension(5, 0.25, []),
+        instructions: makeDimension(5, 0.35, []),
+        workability: makeDimension(5, 0.20, []),
+        continuity: makeDimension(5, 0.20, []),
+        harness: makeDimension(5, 0.0, []),
+      },
+      by_project: {
+        'xss-test': {
+          findability: makeDimension(5, 0.25, [
+            {
+              check_id: 'F1',
+              name: '<script>alert(1)</script>',
+              score: 0.3,
+              measured_value: 0,
+              detail: '"><svg onload=alert(1)>',
+            },
+          ]),
+          instructions: makeDimension(5, 0.35, []),
+          workability: makeDimension(5, 0.20, []),
+          continuity: makeDimension(5, 0.20, []),
+          harness: makeDimension(5, 0.0, []),
+        },
+      },
+    };
+    const scoresPath = path.join(tempDir, 'xss-scores.json');
+    fs.writeFileSync(scoresPath, JSON.stringify(xssScores, null, 2));
+    const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--format', 'html', '--output-dir', tempDir], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr || 'reporter crashed on XSS input');
+
+    const htmlFile = fs.readdirSync(tempDir).find((name) => name.endsWith('.html'));
+    assert.ok(htmlFile, 'expected an HTML report file');
+
+    const html = fs.readFileSync(path.join(tempDir, htmlFile), 'utf8');
+    // Raw script tag must not appear unescaped
+    assert.ok(!html.includes('<script>alert(1)</script>'), 'raw <script> tag should be escaped in HTML output');
+    // The escaped form should appear (or the content should not include raw svg event handlers)
+    assert.ok(!html.includes('"><svg onload=alert(1)>'), 'raw SVG injection should be escaped in HTML output');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('jsonl format output with empty by_project produces no lines', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-empty-'));
+  try {
+    const emptyScores = {
+      total_score: 0,
+      dimensions: {
+        findability: makeDimension(0, 0.25, []),
+      },
+      by_project: {},
+    };
+    const scoresPath = path.join(tempDir, 'empty-scores.json');
+    fs.writeFileSync(scoresPath, JSON.stringify(emptyScores, null, 2));
+    const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--format', 'jsonl', '--output-dir', tempDir], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr || 'reporter crashed on empty by_project');
+
+    const jsonlFile = fs.readdirSync(tempDir).find((name) => name.endsWith('.jsonl'));
+    assert.ok(jsonlFile, 'expected a jsonl file even with empty by_project');
+
+    const content = fs.readFileSync(path.join(tempDir, jsonlFile), 'utf8').trim();
+    assert.equal(content, '', 'empty by_project should produce no JSONL lines');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

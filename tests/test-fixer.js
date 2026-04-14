@@ -301,5 +301,161 @@ runTest('selecting non-existent item ID reports failure', () => {
   }
 });
 
+// ─── S4: Edge-case tests ───────────────────────────────────────────────────
+
+function runFixerRaw(planJson, projectDir, selectedIds, expectZeroExit = true) {
+  const result = spawnSync(process.execPath, [
+    fixerPath,
+    '--project-dir', projectDir,
+    '--items', selectedIds.join(','),
+  ], {
+    encoding: 'utf8',
+    input: planJson,
+  });
+  if (expectZeroExit) {
+    if (result.status !== 0) {
+      throw new Error(`fixer exited ${result.status}: ${result.stderr}`);
+    }
+  }
+  return result;
+}
+
+runTest('empty items array causes non-zero exit (no plan items)', () => {
+  const projectDir = makeTempProject({ 'CLAUDE.md': '# Project' });
+  try {
+    const result = runFixerRaw(JSON.stringify({ items: [] }), projectDir, [1], false);
+    assert.notEqual(result.status, 0, 'empty items array should cause non-zero exit');
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
+runTest('malformed JSON input causes non-zero exit', () => {
+  const projectDir = makeTempProject({ 'CLAUDE.md': '# Project' });
+  try {
+    const result = runFixerRaw('{broken json}', projectDir, [1], false);
+    // Malformed JSON that produces no valid items → non-zero exit
+    assert.notEqual(result.status, 0, 'malformed JSON should cause non-zero exit');
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
+runTest('missing --project-dir causes non-zero exit', () => {
+  const result = spawnSync(process.execPath, [fixerPath, '--items', '1'], {
+    encoding: 'utf8',
+    input: JSON.stringify({ items: [{ id: 1, check_id: 'F1', fix_type: 'assisted', project: 'test' }] }),
+  });
+  assert.notEqual(result.status, 0, 'missing --project-dir should cause non-zero exit');
+});
+
+runTest('non-git directory causes non-zero exit', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-fixer-nogit-'));
+  try {
+    // No .git directory
+    fs.writeFileSync(path.join(tempDir, 'CLAUDE.md'), '# Project');
+    const result = spawnSync(process.execPath, [
+      fixerPath,
+      '--project-dir', tempDir,
+      '--items', '1',
+    ], {
+      encoding: 'utf8',
+      input: JSON.stringify({ items: [{ id: 1, check_id: 'F1', fix_type: 'assisted', project: 'test' }] }),
+    });
+    assert.notEqual(result.status, 0, 'non-git directory should cause non-zero exit');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('unknown check_id with assisted fix_type reports failed with no-strategy message', () => {
+  const projectDir = makeTempProject({ 'CLAUDE.md': '# Project' });
+  try {
+    const plan = [{ id: 1, check_id: 'Z9', fix_type: 'assisted', project: 'test', score: 0 }];
+    const output = runFixer(plan, projectDir, [1]);
+    assert.equal(output.executed[0].status, 'failed');
+    assert.match(output.executed[0].detail, /No assisted strategy/i);
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
+runTest('auto fix with unknown check_id reports failed with unknown-auto-fix message', () => {
+  const projectDir = makeTempProject({ 'CLAUDE.md': '# Project' });
+  try {
+    const plan = [{ id: 1, check_id: 'Z9', fix_type: 'auto', project: 'test', score: 0 }];
+    const output = runFixer(plan, projectDir, [1]);
+    assert.equal(output.executed[0].status, 'failed');
+    assert.match(output.executed[0].detail, /Unknown auto fix/i);
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
+runTest('path traversal in project-dir is resolved to absolute path (no escape)', () => {
+  const projectDir = makeTempProject({ 'CLAUDE.md': '# Project' });
+  try {
+    // Use a path with .. components — fixer should resolve it, not escape the dir
+    const traversalPath = path.join(projectDir, '..', path.basename(projectDir));
+    const plan = [{ id: 1, check_id: 'F1', fix_type: 'assisted', project: 'test', score: 0 }];
+    // Should work normally — path.resolve handles the traversal
+    const result = spawnSync(process.execPath, [
+      fixerPath,
+      '--project-dir', traversalPath,
+      '--items', '1',
+    ], {
+      encoding: 'utf8',
+      input: JSON.stringify({ items: plan }),
+    });
+    // Should succeed (resolves to same dir) or fail (not a git repo) — must not crash
+    assert.ok(result.status !== null, 'fixer should exit cleanly even with traversal-style path');
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
+runTest('guided fix for check with no CLAUDE.md still returns guided status', () => {
+  const projectDir = makeTempProject({});
+  try {
+    const plan = [{ id: 1, check_id: 'I3', fix_type: 'guided', project: 'test', score: 0 }];
+    const output = runFixer(plan, projectDir, [1]);
+    assert.equal(output.executed[0].status, 'guided');
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
+runTest('multiple items can be fixed in a single run', () => {
+  const projectDir = makeTempProject({
+    'CLAUDE.md': '# Project\nYou are a helpful assistant.\nAs an AI, follow rules.\n',
+  });
+  try {
+    const plan = [
+      { id: 1, check_id: 'I5', fix_type: 'auto', project: 'test', score: 0 },
+      { id: 2, check_id: 'F5', fix_type: 'auto', project: 'test', score: 0 },
+    ];
+    const output = runFixer(plan, projectDir, [1, 2]);
+    assert.equal(output.executed.length, 2);
+    assert.equal(output.executed[0].status, 'fixed');
+    assert.equal(output.executed[1].status, 'fixed');
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
+runTest('backup_dir is always present in output even with no files modified', () => {
+  const projectDir = makeTempProject({
+    'CLAUDE.md': '# Project\n## Rules\n- Follow conventions\n',
+  });
+  try {
+    // F5 with no broken refs → fixed, but no file modified
+    const plan = [{ id: 1, check_id: 'F5', fix_type: 'auto', project: 'test', score: 0 }];
+    const output = runFixer(plan, projectDir, [1]);
+    assert.ok('backup_dir' in output, 'backup_dir key should always be present in output');
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  }
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

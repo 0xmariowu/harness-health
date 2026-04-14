@@ -16,11 +16,12 @@ const path = require('path');
 const LABELS_PATH = path.join(__dirname, 'labels-full.jsonl');
 
 const ALL_CHECKS = [
-  'F1','F2','F3','F4','F5','F6','F7',
-  'I1','I2','I3','I4','I5','I6','I7',
+  'F1','F2','F3','F4','F5','F6','F7','F8','F9',
+  'I1','I2','I3','I4','I5','I6','I7','I8',
   'W1','W2','W3','W4','W5','W6',
   'C1','C2','C3','C4','C5',
   'S1','S2','S3','S4','S5','S6','S7','S8',
+  'H1','H2','H3','H4','H5','H6',
 ];
 
 // Parse args
