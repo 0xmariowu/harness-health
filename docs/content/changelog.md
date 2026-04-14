@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.6.2 (2026-04-14)
+
+Scanner correctness fixes. Your repo score may change — it is now what scanner says it is.
+
+### Fixed — six silent-failure bugs in scanner
+
+All of these made scanner report higher scores than reality:
+
+- **S2 (SHA pinning)** now actually checks standard workflow syntax. The grep only matched bare `uses:` keys; the `- uses:` list-item form used by every normal workflow slipped through, so wf_total stayed at 0 and S2 always scored 1 regardless of pinning.
+- **W6 (pre-commit hook speed)** now emits score 0 when a slow command (tsc / eslint --fix / jest / pytest / etc.) is detected. Both branches previously returned 1.
+- **F5 (broken references)** no longer follows `../` paths out of the project. A CLAUDE.md that linked to `../../../etc/passwd` used to resolve against the real filesystem and score as "valid." The check also stopped resolving against the shell's CWD, which let bare references match wherever the user happened to run scanner from.
+- **emit_result** now validates jq output. Unknown check_ids used to emit the literal string `"null"` as dimension, poisoning scorer/plan-generator/reporter downstream. A broken jq returning exit 0 with empty stdout used to produce an empty JSONL line.
+- **F5 reference extraction** no longer crashes on markdown links. Helper functions reset `BASH_REMATCH`, and the tail of the while-loop then hit an unbound variable under `set -u` — F5 emitted 0 broken references regardless of content. Matches are now cached into locals before the helper call.
+
+### Fixed — accuracy benchmark
+
+Rebuilt against v0.6.2 scanner + all fixes. The tarball now also packages `.claude/settings.json` (1,574 of 4,533 corpus repos have it) so H1-H6 harness checks see real config:
+
+- Overall precision 95.2% → **97.8%** (+2.6)
+- Overall recall 94.3% → **95.9%** (+1.6)
+- Overall F1 94.7% → **96.8%** (+2.1)
+- Overall accuracy 93.9% → **96.4%** (+2.5)
+
+### Added
+
+- **`tests/robustness/malicious-fixtures.sh`** — 10-fixture robustness harness (paths with spaces/newlines, `../` traversal, symlink loops, files > 256 KB, non-UTF-8 CLAUDE.md, corrupt `.git/HEAD`, emoji filenames).
+- **`tests/fixer-safety/test-traversal.js`** — 7 path-traversal guard assertions against `fixer.js`.
+- **`tests/accuracy/run-full-baseline.sh`** — one-shot orchestrator for rebuilding accuracy baselines. Extract → reconstruct → parallel scan → compare.
+- +99 scanner / JS test assertions (94 → 193). Four previously-orphan test files now run in CI: `test-e2e.sh`, `test-install-script.sh`, `test-session-analyzer.sh`, `test-deep-analyzer.sh`.
+
+### Security
+
+- npm `postinstall.js` now fetches `install.sh` from the git tag matching the published package version, not `main`. Before, any commit to `main` silently changed install behavior for every prior version.
+- `.husky/pre-commit` moved private patterns out of the public repo. Load from `~/.agentlint-private-patterns` (opt-in per-user file), missing file means scan is skipped.
+- `release.yml` now declares top-level least-privilege `permissions: contents: read`. The release job still elevates locally for creating the GitHub Release.
+
+### Quality
+
+- `reporter.js` validates `--format` and exits non-zero on unknown values (previously silently exited 0 with no output).
+- `reporter.js` `esc()` now also escapes single quotes (defense-in-depth).
+- `scorer.js` warns to stderr when a JSONL line fails to parse (was silent skip).
+- Dead code removed across `reporter.js`, `scorer.js`, and `session-analyzer.js`.
+
 ## v0.6.1 (2026-04-14)
 
 Docs patch. No functional changes.
