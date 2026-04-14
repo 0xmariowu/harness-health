@@ -54,6 +54,7 @@ jobs:
       - name: Run tests
         run: |
           bash tests/test-scanner.sh
+          bash tests/test-action-smoke.sh
           node tests/test-scorer.js
           node tests/test-plan-generator.js
           node tests/test-reporter.js

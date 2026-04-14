@@ -1,0 +1,54 @@
+name: Action Self-Test
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'action.yml'
+      - 'src/**'
+      - '.github/workflows/action-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: '22'
+
+      - name: Run AgentLint against self
+        id: lint
+        uses: ./
+        with:
+          project-dir: '.'
+          fail-below: '0'
+          format: 'terminal'
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          echo "Score: ${{ steps.lint.outputs.score }}"
+          echo "Findability: ${{ steps.lint.outputs.findability }}"
+          echo "Instructions: ${{ steps.lint.outputs.instructions }}"
+          echo "Workability: ${{ steps.lint.outputs.workability }}"
+          echo "Continuity: ${{ steps.lint.outputs.continuity }}"
+          echo "Safety: ${{ steps.lint.outputs.safety }}"
+          echo "Harness: ${{ steps.lint.outputs.harness }}"
+          # All outputs should be numeric and non-empty
+          for val in "${{ steps.lint.outputs.score }}" "${{ steps.lint.outputs.findability }}" "${{ steps.lint.outputs.harness }}"; do
+            if [ -z "$val" ]; then
+              echo "::error::Empty output detected"
+              exit 1
+            fi
+            if ! [[ "$val" =~ ^[0-9]+$ ]]; then
+              echo "::error::Non-numeric output: $val"
+              exit 1
+            fi
+          done
+          echo "All outputs populated and numeric"
