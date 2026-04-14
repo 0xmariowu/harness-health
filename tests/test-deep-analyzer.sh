@@ -36,7 +36,7 @@ for repo_dir in "$small" "$medium" "$large"; do
   [ -z "$repo_dir" ] && continue
   name="$(basename "$repo_dir")"
   out_file="${TMP}/${name}.json"
-  printf '--- %s ---\n' "$name"
+  printf -- '--- %s ---\n' "$name"
 
   node "$DEEP" --project-dir "$repo_dir" > "$out_file" 2>/dev/null
   check "${name}: exit code 0" "node '$DEEP' --project-dir '$repo_dir' >/dev/null 2>&1"
