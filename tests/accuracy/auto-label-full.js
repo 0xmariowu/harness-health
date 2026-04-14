@@ -315,6 +315,139 @@ function labelRepo(repoDir) {
     labels.S8 = prtCount === 0 ? 'pass' : 'fail';
   }
 
+  // F8: Rule files use globs: frontmatter (not paths:)
+  // Reads rules/*.md from corpus repo, parses YAML frontmatter.
+  // pass  = no .claude/rules/ dir, OR no scoped files, OR all scoped files use globs:
+  // fail  = any scoped file uses paths: (deprecated) instead of globs:
+  // score = fraction of scoped files that use globs:
+  const rulesDir = path.join(repoDir, 'rules');
+  if (!dirExists(rulesDir)) {
+    labels.F8 = 'pass'; // N/A: no rules directory
+  } else {
+    let f8TotalScoped = 0;
+    let f8UsesGlobs = 0;
+    try {
+      const ruleFiles = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
+      for (const rf of ruleFiles) {
+        const rfContent = readFile(path.join(rulesDir, rf));
+        const rfLines = rfContent.split('\n');
+        let inFm = false;
+        let hasScope = false;
+        let hasGlobs = false;
+        for (const line of rfLines) {
+          if (line.trim() === '---') {
+            if (inFm) break;
+            inFm = true;
+            continue;
+          }
+          if (!inFm) continue;
+          if (line.startsWith('paths:')) hasScope = true;
+          else if (line.startsWith('globs:')) { hasScope = true; hasGlobs = true; }
+        }
+        if (hasScope) {
+          f8TotalScoped++;
+          if (hasGlobs) f8UsesGlobs++;
+        }
+      }
+    } catch { /* ignore read errors */ }
+    if (f8TotalScoped === 0) {
+      labels.F8 = 'pass'; // No scoped files — N/A
+    } else if (f8UsesGlobs === f8TotalScoped) {
+      labels.F8 = 'pass'; // All scoped files use globs:
+    } else if (f8UsesGlobs === 0) {
+      labels.F8 = 'fail'; // No scoped files use globs:
+    } else {
+      labels.F8 = 'uncertain'; // Mixed — partial score in scanner
+    }
+  }
+
+  // F9: No unfilled template placeholders in entry file
+  // Checks for [your X], <your X>, TODO:, FIXME:, Not configured patterns
+  // Aligned with scanner's F9 grep patterns.
+  if (entry) {
+    const bracketRe = /\[(你的|your |project |框架|版本|app |name)[^\]]*\](?!\()/i;
+    const angleRe = /<(your|project|app|framework)[^>]*>/i;
+    const markerRe = /^[ \t]*(Not configured|TODO:|FIXME:|XXX:)/im;
+    const hasPlaceholder = bracketRe.test(entryContent) || angleRe.test(entryContent) || markerRe.test(entryContent);
+    labels.F9 = hasPlaceholder ? 'fail' : 'pass';
+  } else {
+    labels.F9 = 'na'; // No entry file
+  }
+
+  // I8: Total injected content within budget
+  // Counts non-empty lines in entry file + AGENTS.md (if different) + rules/*.md
+  // Reference range: 60-200 non-empty lines (from standards/reference-thresholds.json)
+  // pass  = within reference range
+  // fail  = score 0 (extremely low or extremely high)
+  // Note: we only mark pass/fail for clear cases; intermediate scores use 'uncertain'
+  {
+    let i8Total = 0;
+    if (entry) {
+      const nonEmpty = entryContent.split('\n').filter(l => l.trim().length > 0).length;
+      i8Total += nonEmpty;
+    }
+    // Also count AGENTS.md if different from entry
+    if (entry !== 'AGENTS.md' && fileExists(path.join(repoDir, 'AGENTS.md'))) {
+      const agentsContent = readFile(path.join(repoDir, 'AGENTS.md'));
+      const nonEmpty = agentsContent.split('\n').filter(l => l.trim().length > 0).length;
+      i8Total += nonEmpty;
+    }
+    // Count rules/*.md
+    if (dirExists(rulesDir)) {
+      try {
+        const ruleFiles = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
+        for (const rf of ruleFiles) {
+          const rfContent = readFile(path.join(rulesDir, rf));
+          const nonEmpty = rfContent.split('\n').filter(l => l.trim().length > 0).length;
+          i8Total += nonEmpty;
+        }
+      } catch { /* ignore */ }
+    }
+    // Score against reference range [60, 200]
+    // Score function mirrors scanner's score_range: 1 at center, tapers at edges, 0 outside
+    if (i8Total === 0) {
+      labels.I8 = 'fail'; // No content at all
+    } else if (i8Total >= 60 && i8Total <= 200) {
+      labels.I8 = 'pass'; // Within reference range
+    } else if (i8Total < 60) {
+      // Very lean — score < 1 but > 0 depending on how far below
+      labels.I8 = i8Total < 20 ? 'fail' : 'uncertain';
+    } else {
+      // Over budget — score decreases above 200
+      labels.I8 = i8Total > 800 ? 'fail' : 'uncertain';
+    }
+  }
+
+  // H1-H6: Harness checks (require .claude/settings.json)
+  // The corpus does NOT extract settings.json (confirmed: 0 of 4,533 repos have it).
+  // We label based on _meta.json presence indicator:
+  //   settings == false → scanner safe-defaults to pass → label 'pass' (tests no-settings path)
+  //   settings == true  → actual settings.json content unknown → label 'uncertain' (skip in accuracy)
+  let metaSettings = false;
+  try {
+    const meta = JSON.parse(readFile(path.join(repoDir, '_meta.json')));
+    metaSettings = !!(meta && meta.files && meta.files.settings);
+  } catch { /* default false */ }
+
+  if (metaSettings) {
+    // Settings.json exists but not available — cannot label content-dependent checks
+    labels.H1 = 'uncertain';
+    labels.H2 = 'uncertain';
+    labels.H3 = 'uncertain';
+    labels.H4 = 'uncertain';
+    labels.H5 = 'uncertain';
+    labels.H6 = 'uncertain';
+  } else {
+    // No settings.json: scanner returns score=1 for all H checks ("No settings.json")
+    // These should all pass
+    labels.H1 = 'pass';
+    labels.H2 = 'pass';
+    labels.H3 = 'pass';
+    labels.H4 = 'pass';
+    labels.H5 = 'pass';
+    labels.H6 = 'pass';
+  }
+
   return labels;
 }
 
@@ -353,7 +486,7 @@ for (const repoName of reposDirs) {
 
 fs.closeSync(fd);
 
-const totalLabels = count * 33;
+const totalLabels = count * 42; // 42 checks total (F1-F9, I1-I8, W1-W6, C1-C5, S1-S8, H1-H6)
 const uncertainPct = ((stats.uncertain / totalLabels) * 100).toFixed(1);
 process.stderr.write(`\nDone: ${count} repos → ${OUT}\n`);
 process.stderr.write(`Labels: pass=${stats.pass} fail=${stats.fail} uncertain=${stats.uncertain} (${uncertainPct}%) na=${stats.na}\n`);
