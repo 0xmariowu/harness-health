@@ -43,6 +43,13 @@ for src in "${CORPUS}"/*/; do
     cp "${src}/rules/"* "${dest}/rules/" 2>/dev/null || true
   fi
 
+  # Copy .claude/settings.json if present (for H1-H6 harness checks).
+  # The upstream corpus extractor stores it as 'settings.json' at the repo
+  # root of each corpus dir; reconstruct-repo.sh remaps to .claude/settings.json.
+  if [ -f "${src}/settings.json" ]; then
+    cp "${src}/settings.json" "${dest}/settings.json"
+  fi
+
   count=$((count + 1))
   [ $((count % 500)) -eq 0 ] && echo "  Packed: ${count}..."
 done
