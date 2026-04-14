@@ -1325,6 +1325,102 @@ WF_PRT
   else
     emit_result "$project_name" "S8" "$prt_count" "null" "0" "${prt_count} workflow(s) use pull_request_target: ${prt_files}"
   fi
+
+  # ─── Harness dimension (v0.6.0) ───
+  local settings_path="${project_dir}/.claude/settings.json"
+
+  # H1 — Hook event names valid
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H1" '{"total":0,"valid":0,"invalid":[]}' "null" "1" "No settings.json — nothing to validate"
+  else
+    local valid_events_list
+    valid_events_list="$(jq -r '.H1_valid_events[]' "$THRESHOLDS_FILE" 2>/dev/null)"
+    local configured_events
+    configured_events="$(jq -r '(.hooks // {}) | keys[]?' "$settings_path" 2>/dev/null)" || configured_events=""
+    local h1_total=0
+    local h1_valid=0
+    local h1_invalid=""
+    while IFS= read -r evt; do
+      [ -z "$evt" ] && continue
+      h1_total=$((h1_total + 1))
+      if printf '%s\n' "$valid_events_list" | grep -qxF "$evt"; then
+        h1_valid=$((h1_valid + 1))
+      else
+        h1_invalid="${h1_invalid:+$h1_invalid, }$evt"
+      fi
+    done <<EOF_H1
+$configured_events
+EOF_H1
+    if [ "$h1_total" -eq 0 ]; then
+      emit_result "$project_name" "H1" '{"total":0,"valid":0,"invalid":[]}' "null" "1" "No hooks configured"
+    else
+      local h1_measured
+      h1_measured="$(jq -cn --argjson total "$h1_total" --argjson valid "$h1_valid" --arg invalid "$h1_invalid" \
+        '{total: $total, valid: $valid, invalid: ($invalid | split(", ") | map(select(length > 0)))}')"
+      local h1_score
+      h1_score="$(awk -v v="$h1_valid" -v t="$h1_total" 'BEGIN { if (t <= 0) print 1; else print v/t }')"
+      local h1_detail="Valid hook events: ${h1_valid}/${h1_total}"
+      [ -n "$h1_invalid" ] && h1_detail="${h1_detail}. Invalid: ${h1_invalid}"
+      emit_result "$project_name" "H1" "$h1_measured" "null" "$h1_score" "$h1_detail"
+    fi
+  fi
+
+  # H2 — PreToolUse hooks have matcher
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H2" '{"total":0,"with_matcher":0}' "null" "1" "No settings.json"
+  else
+    local h2_total
+    h2_total="$(jq '[.hooks.PreToolUse[]?] | length' "$settings_path" 2>/dev/null)" || h2_total=0
+    local h2_no_matcher
+    h2_no_matcher="$(jq '[.hooks.PreToolUse[]? | select((.matcher // "") == "")] | length' "$settings_path" 2>/dev/null)" || h2_no_matcher=0
+    if [ "${h2_total:-0}" -eq 0 ]; then
+      emit_result "$project_name" "H2" '{"total":0,"with_matcher":0}' "null" "1" "No PreToolUse hooks"
+    else
+      local h2_with_matcher=$((h2_total - h2_no_matcher))
+      local h2_score
+      h2_score="$(awk -v w="$h2_with_matcher" -v t="$h2_total" 'BEGIN { print w/t }')"
+      local h2_measured
+      h2_measured="$(jq -cn --argjson total "$h2_total" --argjson with_matcher "$h2_with_matcher" '{total: $total, with_matcher: $with_matcher}')"
+      emit_result "$project_name" "H2" "$h2_measured" "null" "$h2_score" "PreToolUse hooks with matcher: ${h2_with_matcher}/${h2_total}"
+    fi
+  fi
+
+  # H4 — No dangerous auto-approve
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H4" '{"dangerous_rules":[],"total_allow":0}' "null" "1" "No settings.json"
+  else
+    local h4_patterns
+    h4_patterns="$(jq -r '.H4_dangerous_patterns[]' "$THRESHOLDS_FILE" 2>/dev/null)"
+    local h4_rules
+    h4_rules="$(jq -r '.permissions.allow[]?' "$settings_path" 2>/dev/null)" || h4_rules=""
+    local h4_total_allow=0
+    local h4_dangerous=""
+    while IFS= read -r rule; do
+      [ -z "$rule" ] && continue
+      h4_total_allow=$((h4_total_allow + 1))
+      while IFS= read -r pat; do
+        [ -z "$pat" ] && continue
+        if printf '%s\n' "$rule" | grep -Eq "$pat"; then
+          h4_dangerous="${h4_dangerous:+$h4_dangerous, }$rule"
+          break
+        fi
+      done <<EOF_H4P
+$h4_patterns
+EOF_H4P
+    done <<EOF_H4R
+$h4_rules
+EOF_H4R
+    if [ -z "$h4_dangerous" ]; then
+      local h4_measured
+      h4_measured="$(jq -cn --argjson total "$h4_total_allow" '{dangerous_rules: [], total_allow: $total}')"
+      emit_result "$project_name" "H4" "$h4_measured" "null" "1" "No dangerous auto-approve rules (checked ${h4_total_allow})"
+    else
+      local h4_measured
+      h4_measured="$(jq -cn --argjson total "$h4_total_allow" --arg d "$h4_dangerous" \
+        '{dangerous_rules: ($d | split(", ") | map(select(length > 0))), total_allow: $total}')"
+      emit_result "$project_name" "H4" "$h4_measured" "null" "0" "Dangerous auto-approve rule(s) found: ${h4_dangerous}"
+    fi
+  fi
 }
 
 discover_projects() {

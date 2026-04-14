@@ -33,6 +33,9 @@ const CHECK_FIX_ACTIONS = {
   S4: 'Create SECURITY.md with vulnerability reporting instructions',
   S5: 'Move workflow permissions from workflow level to job level',
   S6: 'Remove hardcoded secrets and use environment variables',
+  H1: 'Fix invalid hook event names. Valid events: PreToolUse, PostToolUse, Stop, SessionStart, SessionEnd, Notification, PreCompact, UserPromptSubmit, SubagentStop, SubagentStart, PostToolUseFailure, PermissionRequest',
+  H2: 'Add matcher field to PreToolUse hooks to avoid firing on every tool call',
+  H4: 'Replace dangerous auto-approve rules with scoped permissions (e.g., Bash(git status:*) instead of Bash(*))',
 };
 
 const ASSISTED_FIXES = new Set(['F1', 'C2']);
