@@ -178,13 +178,31 @@ function inferFixType(checkId) {
 }
 
 function resolveEntryFile(projectDir) {
-  const entryCandidates = ['CLAUDE.md', 'AGENTS.md', '.cursorrules'];
+  const entryCandidates = [
+    'CLAUDE.md',
+    'AGENTS.md',
+    '.cursorrules',
+    path.join('.github', 'copilot-instructions.md'),
+    'GEMINI.md',
+    '.windsurfrules',
+    '.clinerules',
+  ];
   for (const name of entryCandidates) {
     const abs = path.join(projectDir, name); // nosemgrep: path-join-resolve-traversal
     if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
       return abs;
     }
   }
+  // Fallback: .cursor/rules/*.mdc (first match)
+  const cursorRulesDir = path.join(projectDir, '.cursor', 'rules'); // nosemgrep: path-join-resolve-traversal
+  try {
+    if (fs.existsSync(cursorRulesDir) && fs.statSync(cursorRulesDir).isDirectory()) {
+      const entries = fs.readdirSync(cursorRulesDir).filter((n) => n.endsWith('.mdc')).sort();
+      if (entries.length > 0) {
+        return path.join(cursorRulesDir, entries[0]);
+      }
+    }
+  } catch (_) { /* ignore */ }
   return null;
 }
 

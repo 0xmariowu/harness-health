@@ -20,7 +20,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const ENTRY_FILES = ['CLAUDE.md', 'AGENTS.md', '.cursorrules'];
+const ENTRY_FILES = [
+  'CLAUDE.md',
+  'AGENTS.md',
+  '.cursorrules',
+  '.github/copilot-instructions.md',
+  'GEMINI.md',
+  '.windsurfrules',
+  '.clinerules',
+];
 
 const PROMPTS = {
   D1: {
@@ -82,6 +90,17 @@ function findEntryFile(projectDir) {
       return { name, path: fullPath };
     }
   }
+  // Fallback: .cursor/rules/*.mdc
+  const cursorRulesDir = path.join(projectDir, '.cursor', 'rules'); // nosemgrep: path-join-resolve-traversal
+  try {
+    if (fs.existsSync(cursorRulesDir) && fs.statSync(cursorRulesDir).isDirectory()) {
+      const entries = fs.readdirSync(cursorRulesDir).filter((n) => n.endsWith('.mdc')).sort();
+      if (entries.length > 0) {
+        const name = `.cursor/rules/${entries[0]}`;
+        return { name, path: path.join(cursorRulesDir, entries[0]) };
+      }
+    }
+  } catch (_) { /* ignore */ }
   return null;
 }
 

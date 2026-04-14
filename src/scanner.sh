@@ -125,8 +125,54 @@ entry_file_rel() {
     printf '%s\n' "AGENTS.md"
   elif [ -f "${project_dir}/.cursorrules" ]; then
     printf '%s\n' ".cursorrules"
+  elif [ -f "${project_dir}/.github/copilot-instructions.md" ]; then
+    printf '%s\n' ".github/copilot-instructions.md"
+  elif [ -f "${project_dir}/GEMINI.md" ]; then
+    printf '%s\n' "GEMINI.md"
+  elif [ -f "${project_dir}/.windsurfrules" ]; then
+    printf '%s\n' ".windsurfrules"
+  elif [ -f "${project_dir}/.clinerules" ]; then
+    printf '%s\n' ".clinerules"
+  elif ls "${project_dir}/.cursor/rules/"*.mdc >/dev/null 2>&1; then
+    local mdc_file
+    # shellcheck disable=SC2012
+    mdc_file="$(ls "${project_dir}/.cursor/rules/"*.mdc 2>/dev/null | head -1)"
+    printf '%s\n' ".cursor/rules/$(basename "$mdc_file")"
   else
     printf '\n'
+  fi
+}
+
+entry_platform() {
+  local entry_rel="$1"
+  case "$entry_rel" in
+    CLAUDE.md)                       printf 'claude\n' ;;
+    AGENTS.md)                       printf 'openai\n' ;;
+    .cursorrules)                    printf 'cursor\n' ;;
+    .github/copilot-instructions.md) printf 'copilot\n' ;;
+    GEMINI.md)                       printf 'gemini\n' ;;
+    .windsurfrules)                  printf 'windsurf\n' ;;
+    .clinerules)                     printf 'cline\n' ;;
+    .cursor/rules/*)                 printf 'cursor-mdc\n' ;;
+    *)                               printf 'unknown\n' ;;
+  esac
+}
+
+detect_all_platform_files() {
+  local project_dir="$1"
+  local files=()
+  [ -f "${project_dir}/CLAUDE.md" ] && files+=("CLAUDE.md")
+  [ -f "${project_dir}/AGENTS.md" ] && files+=("AGENTS.md")
+  [ -f "${project_dir}/.cursorrules" ] && files+=(".cursorrules")
+  [ -f "${project_dir}/.github/copilot-instructions.md" ] && files+=(".github/copilot-instructions.md")
+  [ -f "${project_dir}/GEMINI.md" ] && files+=("GEMINI.md")
+  [ -f "${project_dir}/.windsurfrules" ] && files+=(".windsurfrules")
+  [ -f "${project_dir}/.clinerules" ] && files+=(".clinerules")
+  ls "${project_dir}/.cursor/rules/"*.mdc >/dev/null 2>&1 && files+=(".cursor/rules/*.mdc")
+  if [ "${#files[@]}" -gt 0 ]; then
+    json_array "${files[@]}"
+  else
+    printf '[]\n'
   fi
 }
 
@@ -602,11 +648,19 @@ scan_project() {
     entry_abs=""
   fi
 
-  # F1
+  local platform
+  platform="$(entry_platform "$entry_rel")"
+  local all_platform_files
+  all_platform_files="$(detect_all_platform_files "$project_dir")"
+
+  # F1 — entry file exists (multi-platform)
   if [ -n "$entry_rel" ]; then
-    emit_result "$project_name" "F1" "true" "null" "1" "Entry file found: ${entry_rel}"
+    local f1_measured
+    f1_measured="$(jq -cn --arg entry "$entry_rel" --arg platform "$platform" --argjson all "$all_platform_files" \
+      '{entry_file: $entry, platform: $platform, all_files: $all}')"
+    emit_result "$project_name" "F1" "$f1_measured" "null" "1" "Entry file: ${entry_rel} (${platform})"
   else
-    emit_result "$project_name" "F1" "false" "null" "0" "No CLAUDE.md, AGENTS.md, or .cursorrules found"
+    emit_result "$project_name" "F1" '{"entry_file":null,"platform":null,"all_files":[]}' "null" "0" "No entry file found (checked CLAUDE.md, AGENTS.md, .cursorrules, .github/copilot-instructions.md, GEMINI.md, .windsurfrules, .clinerules, .cursor/rules/*.mdc)"
   fi
 
   # F2
@@ -984,15 +1038,19 @@ EOF
   fi
   emit_result "$project_name" "C4" "$plans_json" "null" "$score" "$detail"
 
-  # C5 — CLAUDE.local.md not tracked in git
-  if [ -f "${project_dir}/CLAUDE.local.md" ]; then
-    if git -C "$project_dir" ls-files --error-unmatch "CLAUDE.local.md" >/dev/null 2>&1; then
-      emit_result "$project_name" "C5" "true" "null" "0" "CLAUDE.local.md is tracked in git — should be in .gitignore"
+  # C5 — CLAUDE.local.md not tracked in git (Claude Code only)
+  if [ "$platform" = "claude" ]; then
+    if [ -f "${project_dir}/CLAUDE.local.md" ]; then
+      if git -C "$project_dir" ls-files --error-unmatch "CLAUDE.local.md" >/dev/null 2>&1; then
+        emit_result "$project_name" "C5" "true" "null" "0" "CLAUDE.local.md is tracked in git — should be in .gitignore"
+      else
+        emit_result "$project_name" "C5" "false" "null" "1" "CLAUDE.local.md exists and is not tracked (good)"
+      fi
     else
-      emit_result "$project_name" "C5" "false" "null" "1" "CLAUDE.local.md exists and is not tracked (good)"
+      emit_result "$project_name" "C5" "null" "null" "1" "No CLAUDE.local.md (OK)"
     fi
   else
-    emit_result "$project_name" "C5" "null" "null" "1" "No CLAUDE.local.md (OK)"
+    emit_result "$project_name" "C5" "null" "null" "1" "Skipped: CLAUDE.local.md is Claude Code specific"
   fi
 
   # I7 — Entry file size within 40,000 character limit
@@ -1011,44 +1069,48 @@ EOF
     emit_result "$project_name" "I7" "0" "40000" "0" "Skipped because no entry file exists"
   fi
 
-  # F7 — @include directives resolve
-  if [ -n "$entry_abs" ]; then
-    local include_total=0
-    local include_broken=0
-    local include_target=""
-    while IFS= read -r line || [ -n "$line" ]; do
-      # Match @./path, @path, @~/path patterns (not inside code blocks)
-      # shellcheck disable=SC2016
-      if printf '%s\n' "$line" | grep -Eq '^[^`]*@\.?\.?/[^ ]+|^[^`]*@[a-zA-Z][^ ]*\.[a-zA-Z]'; then
-        include_target="$(printf '%s\n' "$line" | grep -Eo '@[^ ]+' | head -1 | sed 's/^@//')"
-        [ -z "$include_target" ] && continue
-        include_total=$((include_total + 1))
-        # Resolve relative to project dir
-        case "$include_target" in
-          ./*|../*)
-            [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
-            ;;
-          ~/*)
-            [ ! -f "${HOME}/${include_target#\~/}" ] && include_broken=$((include_broken + 1))
-            ;;
-          /*)
-            [ ! -f "$include_target" ] && include_broken=$((include_broken + 1))
-            ;;
-          *)
-            [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
-            ;;
-        esac
+  # F7 — @include directives resolve (Claude Code / Cursor MDC only)
+  if [ "$platform" = "claude" ] || [ "$platform" = "cursor-mdc" ]; then
+    if [ -n "$entry_abs" ]; then
+      local include_total=0
+      local include_broken=0
+      local include_target=""
+      while IFS= read -r line || [ -n "$line" ]; do
+        # Match @./path, @path, @~/path patterns (not inside code blocks)
+        # shellcheck disable=SC2016
+        if printf '%s\n' "$line" | grep -Eq '^[^`]*@\.?\.?/[^ ]+|^[^`]*@[a-zA-Z][^ ]*\.[a-zA-Z]'; then
+          include_target="$(printf '%s\n' "$line" | grep -Eo '@[^ ]+' | head -1 | sed 's/^@//')"
+          [ -z "$include_target" ] && continue
+          include_total=$((include_total + 1))
+          # Resolve relative to project dir
+          case "$include_target" in
+            ./*|../*)
+              [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
+              ;;
+            ~/*)
+              [ ! -f "${HOME}/${include_target#\~/}" ] && include_broken=$((include_broken + 1))
+              ;;
+            /*)
+              [ ! -f "$include_target" ] && include_broken=$((include_broken + 1))
+              ;;
+            *)
+              [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
+              ;;
+          esac
+        fi
+      done < "$entry_abs"
+      if [ "$include_total" -eq 0 ]; then
+        emit_result "$project_name" "F7" "0" "0" "1" "No @include directives found"
+      elif [ "$include_broken" -eq 0 ]; then
+        emit_result "$project_name" "F7" "0" "0" "1" "All ${include_total} @include directives resolve"
+      else
+        emit_result "$project_name" "F7" "$include_broken" "0" "0" "${include_broken}/${include_total} @include directives point to missing files"
       fi
-    done < "$entry_abs"
-    if [ "$include_total" -eq 0 ]; then
-      emit_result "$project_name" "F7" "0" "0" "1" "No @include directives found"
-    elif [ "$include_broken" -eq 0 ]; then
-      emit_result "$project_name" "F7" "0" "0" "1" "All ${include_total} @include directives resolve"
     else
-      emit_result "$project_name" "F7" "$include_broken" "0" "0" "${include_broken}/${include_total} @include directives point to missing files"
+      emit_result "$project_name" "F7" "0" "0" "0" "Skipped because no entry file exists"
     fi
   else
-    emit_result "$project_name" "F7" "0" "0" "0" "Skipped because no entry file exists"
+    emit_result "$project_name" "F7" "null" "null" "1" "Skipped: @include is Claude Code syntax"
   fi
 
   # W5 — No oversized source files (> 256 KB)
