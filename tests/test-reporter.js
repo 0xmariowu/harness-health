@@ -41,7 +41,7 @@ function writeFixtureScores(dir) {
     by_project: {
       alpha: {
         findability: makeDimension(8, 0.25, [
-          { check_id: 'F1', name: 'Entry file exists', score: 1, measured_value: true, detail: 'CLAUDE.md found' },
+          { check_id: 'F1', name: 'Entry file exists', score: 1, measured_value: { entry_file: 'CLAUDE.md', platform: 'claude', all_files: ['CLAUDE.md'] }, detail: 'CLAUDE.md found' },
         ]),
         instructions: makeDimension(7, 0.35, []),
         workability: makeDimension(6, 0.20, [

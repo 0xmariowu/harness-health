@@ -353,6 +353,177 @@ test_s7_excludes_test_fixtures() {
 
 run_test "S7: test fixture paths excluded" test_s7_excludes_test_fixtures
 
+# ─── Multi-platform tests (v0.6.0 PR 2) ───
+
+# Helper: extract F1 measured_value.platform field
+extract_f1_platform() {
+  local file_path="$1"
+  node - "${file_path}" <<'NODE'
+const fs = require('node:fs');
+const raw = fs.readFileSync(process.argv[2], 'utf8').trim();
+for (const line of raw.split('\n')) {
+  const p = JSON.parse(line);
+  if (p.check_id === 'F1') {
+    const mv = typeof p.measured_value === 'string' ? JSON.parse(p.measured_value) : p.measured_value;
+    process.stdout.write(String(mv && mv.platform ? mv.platform : ''));
+    process.exit(0);
+  }
+}
+process.exit(1);
+NODE
+}
+
+# Helper: extract a check's detail field
+extract_check_detail() {
+  local file_path="$1"
+  local check_id="$2"
+  node - "${file_path}" "${check_id}" <<'NODE'
+const fs = require('node:fs');
+const [,, fpath, cid] = process.argv;
+const raw = fs.readFileSync(fpath, 'utf8').trim();
+for (const line of raw.split('\n')) {
+  const p = JSON.parse(line);
+  if (p.check_id === cid) { process.stdout.write(String(p.detail || '')); process.exit(0); }
+}
+process.exit(1);
+NODE
+}
+
+# ── Copilot project: F1 detected, F7/C5 skipped ──
+
+COPILOT_PROJECT="${TEMP_ROOT}/copilot-proj"
+mkdir -p "${COPILOT_PROJECT}/.github"
+git -C "${COPILOT_PROJECT}" init --quiet 2>/dev/null || true
+cat > "${COPILOT_PROJECT}/.github/copilot-instructions.md" <<'FIXTURE'
+# Project
+This is a copilot-instructions project.
+## Rules
+- Follow conventions
+FIXTURE
+COPILOT_OUT="${TEMP_ROOT}/copilot.jsonl"
+
+test_copilot_detected_and_claude_checks_skipped() {
+  run_scanner "${COPILOT_PROJECT}" "${COPILOT_OUT}" "${TEMP_ROOT}/copilot.stderr" || return 1
+  local f1_score platform f7_score c5_score f7_detail c5_detail
+  f1_score="$(extract_check_score "${COPILOT_OUT}" "F1")" || { TEST_ERROR="F1 not found"; return 1; }
+  platform="$(extract_f1_platform "${COPILOT_OUT}")" || { TEST_ERROR="platform not found"; return 1; }
+  f7_score="$(extract_check_score "${COPILOT_OUT}" "F7")" || { TEST_ERROR="F7 not found"; return 1; }
+  c5_score="$(extract_check_score "${COPILOT_OUT}" "C5")" || { TEST_ERROR="C5 not found"; return 1; }
+  f7_detail="$(extract_check_detail "${COPILOT_OUT}" "F7")" || { TEST_ERROR="F7 detail not found"; return 1; }
+  c5_detail="$(extract_check_detail "${COPILOT_OUT}" "C5")" || { TEST_ERROR="C5 detail not found"; return 1; }
+  if [ "$f1_score" != "1" ]; then TEST_ERROR="F1 should be 1 for copilot (got ${f1_score})"; return 1; fi
+  if [ "$platform" != "copilot" ]; then TEST_ERROR="platform should be copilot (got ${platform})"; return 1; fi
+  if [ "$f7_score" != "1" ]; then TEST_ERROR="F7 should be 1 (skipped) for copilot (got ${f7_score})"; return 1; fi
+  if [ "$c5_score" != "1" ]; then TEST_ERROR="C5 should be 1 (skipped) for copilot (got ${c5_score})"; return 1; fi
+  case "$f7_detail" in *[Ss]kipped*) ;; *) TEST_ERROR="F7 detail should indicate skipped (got: ${f7_detail})"; return 1 ;; esac
+  case "$c5_detail" in *[Ss]kipped*) ;; *) TEST_ERROR="C5 detail should indicate skipped (got: ${c5_detail})"; return 1 ;; esac
+}
+
+run_test "Multi-platform: copilot-instructions.md detected, F7/C5 skipped" test_copilot_detected_and_claude_checks_skipped
+
+# ── Gemini project ──
+
+GEMINI_PROJECT="${TEMP_ROOT}/gemini-proj"
+mkdir -p "${GEMINI_PROJECT}"
+git -C "${GEMINI_PROJECT}" init --quiet 2>/dev/null || true
+cat > "${GEMINI_PROJECT}/GEMINI.md" <<'FIXTURE'
+# Gemini project
+This is a Gemini CLI project.
+FIXTURE
+GEMINI_OUT="${TEMP_ROOT}/gemini.jsonl"
+
+test_gemini_detected() {
+  run_scanner "${GEMINI_PROJECT}" "${GEMINI_OUT}" "${TEMP_ROOT}/gemini.stderr" || return 1
+  local f1_score platform
+  f1_score="$(extract_check_score "${GEMINI_OUT}" "F1")" || { TEST_ERROR="F1 not found"; return 1; }
+  platform="$(extract_f1_platform "${GEMINI_OUT}")" || { TEST_ERROR="platform not found"; return 1; }
+  if [ "$f1_score" != "1" ]; then TEST_ERROR="F1 should be 1 for GEMINI.md (got ${f1_score})"; return 1; fi
+  if [ "$platform" != "gemini" ]; then TEST_ERROR="platform should be gemini (got ${platform})"; return 1; fi
+}
+
+run_test "Multi-platform: GEMINI.md detected" test_gemini_detected
+
+# ── Windsurf project ──
+
+WINDSURF_PROJECT="${TEMP_ROOT}/windsurf-proj"
+mkdir -p "${WINDSURF_PROJECT}"
+git -C "${WINDSURF_PROJECT}" init --quiet 2>/dev/null || true
+cat > "${WINDSURF_PROJECT}/.windsurfrules" <<'FIXTURE'
+# Windsurf rules
+Follow these conventions.
+FIXTURE
+WINDSURF_OUT="${TEMP_ROOT}/windsurf.jsonl"
+
+test_windsurf_detected() {
+  run_scanner "${WINDSURF_PROJECT}" "${WINDSURF_OUT}" "${TEMP_ROOT}/windsurf.stderr" || return 1
+  local platform
+  platform="$(extract_f1_platform "${WINDSURF_OUT}")" || { TEST_ERROR="platform not found"; return 1; }
+  if [ "$platform" != "windsurf" ]; then TEST_ERROR="platform should be windsurf (got ${platform})"; return 1; fi
+}
+
+run_test "Multi-platform: .windsurfrules detected" test_windsurf_detected
+
+# ── Cursor MDC project ──
+
+CURSOR_MDC_PROJECT="${TEMP_ROOT}/cursor-mdc-proj"
+mkdir -p "${CURSOR_MDC_PROJECT}/.cursor/rules"
+git -C "${CURSOR_MDC_PROJECT}" init --quiet 2>/dev/null || true
+cat > "${CURSOR_MDC_PROJECT}/.cursor/rules/main.mdc" <<'FIXTURE'
+---
+description: Main rules
+globs: **/*.ts
+---
+# Rules
+Follow conventions.
+FIXTURE
+CURSOR_MDC_OUT="${TEMP_ROOT}/cursor-mdc.jsonl"
+
+test_cursor_mdc_detected() {
+  run_scanner "${CURSOR_MDC_PROJECT}" "${CURSOR_MDC_OUT}" "${TEMP_ROOT}/cursor-mdc.stderr" || return 1
+  local platform f7_detail
+  platform="$(extract_f1_platform "${CURSOR_MDC_OUT}")" || { TEST_ERROR="platform not found"; return 1; }
+  if [ "$platform" != "cursor-mdc" ]; then TEST_ERROR="platform should be cursor-mdc (got ${platform})"; return 1; fi
+  # F7 should NOT be skipped for cursor-mdc (they also support @include-like refs)
+  f7_detail="$(extract_check_detail "${CURSOR_MDC_OUT}" "F7")" || { TEST_ERROR="F7 detail not found"; return 1; }
+  case "$f7_detail" in *"Claude Code syntax"*) TEST_ERROR="F7 should not be platform-gated for cursor-mdc"; return 1 ;; *) ;; esac
+}
+
+run_test "Multi-platform: .cursor/rules/*.mdc detected" test_cursor_mdc_detected
+
+# ── Multi-platform project: CLAUDE.md takes priority ──
+
+MULTI_PROJECT="${TEMP_ROOT}/multi-plat"
+mkdir -p "${MULTI_PROJECT}"
+git -C "${MULTI_PROJECT}" init --quiet 2>/dev/null || true
+echo "# Claude" > "${MULTI_PROJECT}/CLAUDE.md"
+echo "# Cursor" > "${MULTI_PROJECT}/.cursorrules"
+MULTI_OUT="${TEMP_ROOT}/multi.jsonl"
+
+test_claude_takes_priority() {
+  run_scanner "${MULTI_PROJECT}" "${MULTI_OUT}" "${TEMP_ROOT}/multi.stderr" || return 1
+  local platform f1_detail
+  platform="$(extract_f1_platform "${MULTI_OUT}")" || { TEST_ERROR="platform not found"; return 1; }
+  if [ "$platform" != "claude" ]; then TEST_ERROR="CLAUDE.md should win over .cursorrules (got ${platform})"; return 1; fi
+  # all_files should include both
+  f1_detail="$(node - "${MULTI_OUT}" <<'NODE'
+const fs = require('node:fs');
+const raw = fs.readFileSync(process.argv[2], 'utf8').trim();
+for (const line of raw.split('\n')) {
+  const p = JSON.parse(line);
+  if (p.check_id === 'F1') {
+    const mv = typeof p.measured_value === 'string' ? JSON.parse(p.measured_value) : p.measured_value;
+    process.stdout.write(JSON.stringify(mv.all_files || []));
+    process.exit(0);
+  }
+}
+process.exit(1);
+NODE
+)" || { TEST_ERROR="F1 measured not found"; return 1; }
+  case "$f1_detail" in *CLAUDE.md*.cursorrules*) ;; *) TEST_ERROR="all_files should list both (got: ${f1_detail})"; return 1 ;; esac
+}
+
+run_test "Multi-platform: CLAUDE.md wins, all_files lists both" test_claude_takes_priority
+
 printf '%s/%s tests passed\n' "${pass_count}" "${test_count}"
 
 if [ "${pass_count}" -eq "${test_count}" ]; then
