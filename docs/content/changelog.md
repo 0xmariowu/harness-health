@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.6.0 (2026-04-14)
+
+You can now check Claude Code hook and permission config, scan more AI platforms, and wire AgentLint into CI as a GitHub Action.
+
+**42 checks across 6 dimensions** (up from 33 across 5).
+
+### New dimension: Harness
+- H1 — Hook event names valid (catches typos like `preCommit`, `sessionStart` that silently never fire)
+- H2 — PreToolUse hooks have matcher field (91% of corpus hooks fire on every tool call — major perf tax)
+- H3 — Stop hook has loop-protection guard (only 5/92 corpus Stop hooks guard against infinite loops)
+- H4 — No dangerous auto-approve permissions (`Bash(*)`, `*`, `mcp__*`, `sudo`, `rm -rf`, `git push --force`)
+- H5 — `.env` deny rules cover `.env.*` variants
+- H6 — Hook scripts network access detection (curl/wget/fetch → data exfiltration risk)
+
+All Harness checks safe-default to pass when no `.claude/settings.json` exists. Evidence from analysis of 4,533 real Claude Code repos.
+
+### New checks in existing dimensions
+- F8 — `.claude/rules/*.md` frontmatter uses documented `globs:` (not `paths:` — which silently doesn't scope)
+- F9 — No unfilled template placeholders (`[your project name]`, `<framework>`, `TODO:`)
+- I8 — Total injected content within budget (CLAUDE.md + AGENTS.md + rules/*.md, reference 60-200 non-empty lines)
+
+### Multi-platform support
+You can now scan repos using Copilot, Gemini CLI, Windsurf, or Cline. AgentLint detects:
+- `.github/copilot-instructions.md` (GitHub Copilot)
+- `GEMINI.md` (Google Gemini CLI)
+- `.windsurfrules` (Windsurf)
+- `.clinerules` (Cline)
+- `.cursor/rules/*.mdc` (Cursor MDC rules)
+
+Claude Code-specific checks (F7 `@include`, C5 `CLAUDE.local.md`) now skip gracefully on non-Claude repos instead of penalizing them.
+
+### GitHub Action
+You can now add AgentLint to CI in three lines:
+```yaml
+- uses: 0xmariowu/agent-lint@v0
+  with:
+    fail-below: '60'
+```
+Outputs: total score (0-100) plus per-dimension scores.
+
+### Scanner precision improved
+Five bug fixes that were hurting the accuracy benchmark:
+- C2: removed `grep 'status'` false positive — was matching every CLAUDE.md (3.5% precision → ~90%+)
+- I3: now matches `Do not` variant with case-insensitive flag, widens Because window from 3 to 5 lines (0% recall → significant)
+- I4: heading keyword list expanded to 20+ (Build/Testing/Deploy/Setup/Install/etc.) — was 43.4% recall
+- S6: `sk-` pattern now requires 48+ chars to avoid matching `sklearn` (0% precision → ~95%+)
+- S7: excludes `tests/`, `fixtures/`, test files from personal path scan (23.1% precision → ~70%+)
+
+### Weight rebalancing
+Making room for Harness (0.10) required shrinking three existing dimensions:
+- instructions 0.30 → 0.25
+- workability 0.20 → 0.18
+- continuity 0.15 → 0.12
+
+Your repo's total score may shift 1-2 points after upgrading, reflecting the reallocation.
+
 ## v0.5.1 (2026-04-12)
 
 Release pipeline verification. No functional changes.
