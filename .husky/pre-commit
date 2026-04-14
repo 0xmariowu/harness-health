@@ -15,20 +15,29 @@ if [ "$AUTHOR_NAME" != "0xmariowu" ]; then
   exit 1
 fi
 
-# Content scan on staged files — codenames, personal paths, hostnames
 SCAN_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v -E '(\.gitleaks\.toml$|\.husky/|^CLAUDE\.md$|\.github/workflows/)' || true)
-if [ -n "$SCAN_FILES" ]; then
-  # Internal project codenames
-  CN_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '\b(Armory|AIMD|atoms|kalami2?|alaya[_-]os)\b' "$f" 2>/dev/null; done || true)
-  if [ -n "$CN_MATCHES" ]; then
-    echo "error: internal project codenames in staged files:"
-    echo "$CN_MATCHES"
-    exit 1
+
+# Private-pattern scan — patterns live outside this public repo.
+# Create ~/.agentlint-private-patterns (one regex per line, blank/# ignored) to enable.
+# Typical contents: internal codenames, private hostnames, or any string you never want to ship.
+PRIVATE_PATTERNS_FILE="${AGENTLINT_PRIVATE_PATTERNS_FILE:-${HOME}/.agentlint-private-patterns}"
+if [ -n "$SCAN_FILES" ] && [ -f "$PRIVATE_PATTERNS_FILE" ]; then
+  PRIVATE_REGEX=$(grep -vE '^(#|\s*$)' "$PRIVATE_PATTERNS_FILE" | paste -sd '|' -)
+  if [ -n "$PRIVATE_REGEX" ]; then
+    PRIV_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH "$PRIVATE_REGEX" "$f" 2>/dev/null; done || true)
+    if [ -n "$PRIV_MATCHES" ]; then
+      echo "error: private patterns (${PRIVATE_PATTERNS_FILE}) matched in staged files:"
+      echo "$PRIV_MATCHES"
+      exit 1
+    fi
   fi
-  # Personal paths and hostnames
-  PII_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '/Users/[a-zA-Z]|/home/[a-z]|\.ts\.net|tailcca|vimalamac' "$f" 2>/dev/null; done | grep -v '/Users/xxx\|/home/xxx\|/home/testuser' || true)
+fi
+
+# Generic PII scan — personal paths (applies to everyone, no repo-specific knowledge)
+if [ -n "$SCAN_FILES" ]; then
+  PII_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '/Users/[a-zA-Z]|/home/[a-z]' "$f" 2>/dev/null; done | grep -v '/Users/xxx\|/home/xxx\|/home/testuser' || true)
   if [ -n "$PII_MATCHES" ]; then
-    echo "error: personal paths or hostnames in staged files:"
+    echo "error: personal paths in staged files:"
     echo "$PII_MATCHES"
     exit 1
   fi
