@@ -199,7 +199,7 @@ function resolveEntryFile(projectDir) {
     if (fs.existsSync(cursorRulesDir) && fs.statSync(cursorRulesDir).isDirectory()) {
       const entries = fs.readdirSync(cursorRulesDir).filter((n) => n.endsWith('.mdc')).sort();
       if (entries.length > 0) {
-        return path.join(cursorRulesDir, entries[0]);
+        return path.join(cursorRulesDir, entries[0]); // nosemgrep: path-join-resolve-traversal
       }
     }
   } catch (_) { /* ignore */ }

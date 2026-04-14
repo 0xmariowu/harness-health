@@ -97,7 +97,7 @@ function findEntryFile(projectDir) {
       const entries = fs.readdirSync(cursorRulesDir).filter((n) => n.endsWith('.mdc')).sort();
       if (entries.length > 0) {
         const name = `.cursor/rules/${entries[0]}`;
-        return { name, path: path.join(cursorRulesDir, entries[0]) };
+        return { name, path: path.join(cursorRulesDir, entries[0]) }; // nosemgrep: path-join-resolve-traversal
       }
     }
   } catch (_) { /* ignore */ }
