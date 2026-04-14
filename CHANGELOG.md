@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.1 (2026-04-14)
+
+Docs patch. No functional changes.
+
+The npm listing for v0.6.0 carried the pre-release README which still said "33 checks / 5 dimensions" and only mentioned Claude Code. This publishes the updated README that documents all 42 checks, 6 dimensions, and multi-platform support (Claude Code, Cursor, Copilot, Gemini, Windsurf, Cline).
+
 ## v0.6.0 (2026-04-14)
 
 You can now check Claude Code hook and permission config, scan more AI platforms, and wire AgentLint into CI as a GitHub Action.
