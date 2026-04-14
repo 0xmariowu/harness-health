@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Your AI agent is only as good as your repo.</strong><br>
-  33 checks. 5 dimensions. Evidence-backed.
+  42 checks. 6 dimensions. Works across Claude Code, Cursor, Copilot, Gemini, Windsurf, Cline.
 </p>
 
 <p align="center">
@@ -43,6 +43,22 @@ Then start a new Claude Code session:
 ```
 
 That's it. AgentLint scans your projects, scores them, shows what's wrong, and fixes what it can.
+
+## Supported AI coding agents
+
+AgentLint auto-detects the entry file for major AI coding agents. Claude-specific checks skip gracefully for other platforms so they aren't penalized unfairly.
+
+| Agent | Entry file | Notes |
+|-------|-----------|-------|
+| Claude Code | `CLAUDE.md` | Full check coverage including F7 @include and C5 CLAUDE.local.md |
+| OpenAI Codex / Agents | `AGENTS.md` | Core checks apply |
+| Cursor | `.cursorrules` or `.cursor/rules/*.mdc` | Core checks apply |
+| GitHub Copilot | `.github/copilot-instructions.md` | Core checks apply |
+| Google Gemini CLI | `GEMINI.md` | Core checks apply |
+| Windsurf | `.windsurfrules` | Core checks apply |
+| Cline | `.clinerules` | Core checks apply |
+
+If multiple entry files exist, priority order is CLAUDE.md → AGENTS.md → .cursorrules → copilot-instructions.md → GEMINI.md → .windsurfrules → .clinerules → .cursor/rules/*.mdc. The winning file is reported in F1's measured_value along with all detected files.
 
 ## GitHub Action
 
@@ -89,6 +105,7 @@ Instructions     ████████████████░░░░  8
 Workability      ████████████░░░░░░░░  6/10
 Safety           ██████████░░░░░░░░░░  5/10
 Continuity       ██████████████░░░░░░  7/10
+Harness          ██████████████████░░  9/10
 
 Fix Plan (7 items):
   [guided]   Pin 8 GitHub Actions to SHA (supply chain risk)
@@ -114,6 +131,7 @@ AgentLint is built on data most developers never see:
 - **265 versions** of Anthropic's Claude Code system prompt — every word added, deleted, and rewritten
 - **Claude Code internals** — hard limits (40K char max, 256KB file read limit, pre-commit hook behavior) that silently break your setup
 - **Production security audits** across open-source codebases — the gaps AI agents walk into
+- **4,533-repo corpus analysis** — hook/permission anti-patterns across 739 hooks and 1,562 settings.json files
 - **6 academic papers** on instruction-following, context files, and documentation decay
 
 ## What it checks
@@ -122,13 +140,15 @@ AgentLint is built on data most developers never see:
 
 | Check | What | Why |
 |-------|------|-----|
-| F1 | Entry file exists | No CLAUDE.md = AI starts blind |
+| F1 | Entry file exists | No entry file (CLAUDE.md / AGENTS.md / .cursorrules / copilot-instructions.md / etc.) = AI starts blind |
 | F2 | Project description in first 10 lines | AI needs context before rules |
 | F3 | Conditional loading guidance | "If working on X, read Y" prevents context bloat |
 | F4 | Large directories have INDEX | >10 files without index = AI reads everything |
 | F5 | All references resolve | Broken links waste tokens on dead-end reads |
 | F6 | Standard file naming | README.md, CLAUDE.md are auto-discovered |
-| F7 | @include directives resolve | Missing targets are silently ignored — you think it's loaded, it isn't |
+| F7 | @include directives resolve | Missing targets are silently ignored — skipped for non-Claude repos |
+| F8 | Rule files use `globs:` frontmatter | `.claude/rules/*.md` should use `globs:`, not `paths:` — paths silently skips the rule |
+| F9 | No unfilled template placeholders | `[your project name]`, `<framework>`, `TODO:` mean the CLAUDE.md was never finished |
 
 ### Instructions — are your rules well-written?
 
@@ -141,6 +161,7 @@ AgentLint is built on data most developers never see:
 | I5 | No identity language | "Follow conventions" removed — model already does this |
 | I6 | Entry file length | 60-120 lines is the sweet spot. Longer dilutes priority |
 | I7 | Under 40,000 characters | Claude Code hard limit. Above this, your file is truncated |
+| I8 | Total injected content within budget | CLAUDE.md + AGENTS.md + rules/*.md together, 60-200 non-empty lines is the sweet spot |
 
 ### Workability — can AI build and test?
 
@@ -176,6 +197,19 @@ AgentLint is built on data most developers never see:
 | S7 | No personal paths | `/Users/xxx/` in source = AI copies and spreads the leak |
 | S8 | No pull_request_target | AI pushes trigger CI. Elevated permissions = attack vector |
 
+### Harness — are your Claude Code hooks and permissions correct?
+
+These checks run against `.claude/settings.json`. Repos without that file score 1.0 on all H checks (no config = no issues), so Harness only affects repos that actively configured hooks or permissions. Evidence from analysis of 4,533 real Claude Code repos.
+
+| Check | What | Why |
+|-------|------|-----|
+| H1 | Hook event names valid | Typos like `preCommit`, `sessionStart`, `postEditHook` silently never fire — users think they have protection but don't |
+| H2 | PreToolUse hooks have `matcher` | 91% of corpus hooks lack matcher, firing on every Read/Grep/Glob — massive perf tax |
+| H3 | Stop hook has circuit breaker | Stop hook exit non-zero → Claude continues → triggers Stop again → infinite loop. Only 5/92 corpus Stop hooks guard against this |
+| H4 | No dangerous auto-approve | Bare `Bash(*)`, `*`, `mcp__*`, `sudo`, `rm -rf`, `git push --force` in `permissions.allow` = giving the agent root shell |
+| H5 | `.env` deny covers variants | Denying `.env` without `.env.local`, `.env.production` etc. leaves the most sensitive variants readable |
+| H6 | Hook scripts network access | Detects `curl`/`wget`/`fetch` in hook scripts — tool I/O could be exfiltrated to external servers |
+
 ### Optional: AI Deep Analysis
 
 Spawns AI subagents to find what mechanical checks can't:
@@ -196,11 +230,12 @@ Each check produces a 0-1 score, weighted by dimension, scaled to 100.
 
 | Dimension | Weight | Why? |
 |-----------|--------|------|
-| Instructions | 30% | Unique value. No other tool checks CLAUDE.md quality |
+| Instructions | 25% | Unique value. No other tool checks CLAUDE.md quality |
 | Findability | 20% | AI can't follow rules it can't find |
-| Workability | 20% | Can AI actually run your code? |
+| Workability | 18% | Can AI actually run your code? |
 | Safety | 15% | Is AI working without exposing secrets or triggering vulnerabilities? |
-| Continuity | 15% | Does knowledge survive across sessions? |
+| Continuity | 12% | Does knowledge survive across sessions? |
+| Harness | 10% | Are your Claude Code hooks/permissions actually configured correctly? |
 
 Scores are measurements, not judgments. Reference values come from Anthropic's own data. You decide what to fix.
 
@@ -217,6 +252,7 @@ Every check cites its source. Full citations in [`standards/evidence.json`](stan
 | Source | Type |
 |--------|------|
 | [Anthropic 265 versions](https://cchistory.mariozechner.at) | Primary dataset |
+| [corpus-4533](standards/evidence.json) analysis of 4,533 Claude Code repos | First-party data |
 | Claude Code internals | Hard limits and observed behavior |
 | [IFScale](https://arxiv.org/abs/2507.11538) (NeurIPS) | Instruction compliance at scale |
 | [ETH Zurich](https://arxiv.org/abs/2602.11988) | Do context files help coding agents? |

@@ -11,6 +11,8 @@
 | F5 | All references resolve | Checks whether file references in the entry file point to files that actually exist. | `practical-audit`, `codified-context` | Fix or remove broken file references in the entry file and indexes. |
 | F6 | Predictable file naming | Checks whether standard discovery files such as `README.md`, an entry file, and `CHANGELOG.md` are present. | `openai-agents`, `harness-engineering` | Use standard root filenames so tools and agents can find them without extra instructions. |
 | F7 | Include directives resolve | Checks whether `@include` paths in the entry file point to files that exist. | `anthropic-265` | Fix or remove broken `@include` paths — missing targets are silently ignored. |
+| F8 | Rule file frontmatter uses globs | Checks whether `.claude/rules/*.md` frontmatter uses `globs:` (not `paths:`). `paths:` silently does not scope the rule. | `corpus-4533` | Change `paths:` to `globs:` in rule file frontmatter. |
+| F9 | No unfilled template placeholders | Checks the entry file for unreplaced `[your project name]`, `<framework>`, or `TODO:` markers. | `corpus-4533` | Replace placeholders with actual project values. |
 
 ## Instructions
 
@@ -23,6 +25,7 @@
 | I5 | No identity language | Checks whether the entry file avoids identity phrases such as "You are a ..." or "As an AI ...". | `anthropic-265` | Delete identity framing and keep only operational instructions. |
 | I6 | Entry file length | Measures whether the entry file length stays in a concise, usable reference range. | `anthropic-265`, `codified-context`, `ifscale` | Trim the entry file or split detail into linked docs if it is too long. |
 | I7 | Entry file size within limit | Checks whether the entry file is under 40,000 characters (Claude Code hard limit). | `anthropic-265` | Split the entry file into smaller files with `@include` directives. |
+| I8 | Total injected content within budget | Counts non-empty lines across the entry file, `AGENTS.md`, and `.claude/rules/*.md`. | `corpus-4533`, `ifscale` | Consolidate rules or split into conditional includes if total injected content is too large. |
 
 ## Workability
 
