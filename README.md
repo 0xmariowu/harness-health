@@ -13,7 +13,7 @@
   <a href="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml"><img src="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/0xmariowu/agent-lint/releases"><img src="https://img.shields.io/github/v/release/0xmariowu/agent-lint" alt="Release"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="#what-it-checks"><img src="https://img.shields.io/badge/checks-33-00b48c" alt="Checks"></a>
+  <a href="#what-it-checks"><img src="https://img.shields.io/badge/checks-42-00b48c" alt="Checks"></a>
 </p>
 
 <p align="center">
