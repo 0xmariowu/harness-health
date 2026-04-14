@@ -374,9 +374,16 @@ resolve_reference_exists() {
     return 1
   fi
 
-  if [ -e "$ref" ]; then
-    return 0
-  elif [ -e "${project_dir}/${ref#./}" ]; then
+  # Reject parent-dir traversal. "/${ref}/" wraps the ref so leading,
+  # trailing, and middle "../" segments all match the same check.
+  case "/${ref}/" in
+    *"/../"*) return 1 ;;
+  esac
+
+  # Check only within project_dir. Do NOT probe the shell's CWD or
+  # absolute paths — that would let ../../../etc/passwd resolve if
+  # the check were run from /.
+  if [ -e "${project_dir}/${ref#./}" ]; then
     return 0
   fi
 
