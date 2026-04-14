@@ -4,6 +4,7 @@ docs/build/
 .DS_Store
 *.log
 reports/
+coverage/
 .claude/
 experience/
 HANDOFF.md
