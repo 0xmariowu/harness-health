@@ -566,11 +566,17 @@ emit_result() {
   local detail="$6"
   local dimension=""
   local check_name=""
+  local line=""
 
-  dimension="$(jq -r --arg id "$check_id" '.checks[$id].dimension' "$EVIDENCE_FILE")"
-  check_name="$(jq -r --arg id "$check_id" '.checks[$id].name' "$EVIDENCE_FILE")"
+  dimension="$(jq -r --arg id "$check_id" '.checks[$id].dimension // empty' "$EVIDENCE_FILE")"
+  check_name="$(jq -r --arg id "$check_id" '.checks[$id].name // empty' "$EVIDENCE_FILE")"
 
-  jq -cn \
+  if [ -z "$dimension" ] || [ -z "$check_name" ]; then
+    printf 'scanner error: unknown check_id "%s" — not in evidence.json\n' "$check_id" >&2
+    return 1
+  fi
+
+  line="$(jq -cn \
     --arg project "$project_name" \
     --arg dimension "$dimension" \
     --arg check_id "$check_id" \
@@ -590,7 +596,17 @@ emit_result() {
       score: $score,
       detail: $detail,
       evidence_id: $evidence_id
-    }'
+    }')" || {
+    printf 'scanner error: jq failed emitting %s for %s\n' "$check_id" "$project_name" >&2
+    return 1
+  }
+
+  if [ -z "$line" ]; then
+    printf 'scanner error: jq produced empty output for %s\n' "$check_id" >&2
+    return 1
+  fi
+
+  printf '%s\n' "$line"
 }
 
 # Static-only: extracts a script file path from a shell command string.
