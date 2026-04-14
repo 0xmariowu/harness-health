@@ -524,6 +524,160 @@ NODE
 
 run_test "Multi-platform: CLAUDE.md wins, all_files lists both" test_claude_takes_priority
 
+# ─── Harness dimension tests batch 1: H1, H2, H4 (v0.6.0 PR 4) ───
+
+# Helper: create a project with specific settings.json content
+make_harness_project() {
+  local name="$1"
+  local settings_content="$2"
+  local dir="${TEMP_ROOT}/${name}"
+  mkdir -p "${dir}/.claude"
+  git -C "${dir}" init --quiet 2>/dev/null || true
+  echo "# Project" > "${dir}/CLAUDE.md"
+  printf '%s' "$settings_content" > "${dir}/.claude/settings.json"
+  printf '%s' "$dir"
+}
+
+# ── H1: valid event names ──
+
+H1_ALL_VALID_DIR="$(make_harness_project h1-all-valid '{"hooks":{"PreToolUse":[],"Stop":[]}}')"
+H1_SOME_INVALID_DIR="$(make_harness_project h1-some-invalid '{"hooks":{"PreToolUse":[],"preCommit":[],"sessionStart":[]}}')"
+H1_NO_SETTINGS_DIR="${TEMP_ROOT}/h1-no-settings"
+mkdir -p "${H1_NO_SETTINGS_DIR}"
+git -C "${H1_NO_SETTINGS_DIR}" init --quiet 2>/dev/null || true
+echo "# P" > "${H1_NO_SETTINGS_DIR}/CLAUDE.md"
+
+test_h1_all_valid() {
+  local out="${TEMP_ROOT}/h1-all-valid.jsonl"
+  run_scanner "${H1_ALL_VALID_DIR}" "$out" "${TEMP_ROOT}/h1av.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H1")" || { TEST_ERROR="H1 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="H1 all-valid should be 1 (got ${score})"; return 1; fi
+}
+
+test_h1_invalid_events() {
+  local out="${TEMP_ROOT}/h1-some-invalid.jsonl"
+  run_scanner "${H1_SOME_INVALID_DIR}" "$out" "${TEMP_ROOT}/h1si.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H1")" || { TEST_ERROR="H1 not found"; return 1; }
+  if node -e "process.exit(Number(process.argv[1]) < 0.5 ? 0 : 1)" "$score"; then
+    return 0
+  else
+    TEST_ERROR="H1 with 2 invalid out of 3 should be < 0.5 (got ${score})"
+    return 1
+  fi
+}
+
+test_h1_no_settings() {
+  local out="${TEMP_ROOT}/h1-no-settings.jsonl"
+  run_scanner "${H1_NO_SETTINGS_DIR}" "$out" "${TEMP_ROOT}/h1ns.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H1")" || { TEST_ERROR="H1 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="H1 with no settings should be 1 (got ${score})"; return 1; fi
+}
+
+run_test "H1: all valid event names → 1.0" test_h1_all_valid
+run_test "H1: some invalid event names → < 0.5" test_h1_invalid_events
+run_test "H1: no settings.json → 1.0" test_h1_no_settings
+
+# ── H2: PreToolUse matcher ──
+
+H2_ALL_MATCHER_DIR="$(make_harness_project h2-all-matcher '{"hooks":{"PreToolUse":[{"matcher":"Edit","hooks":[{"type":"command","command":"echo ok"}]},{"matcher":"Bash","hooks":[{"type":"command","command":"echo bash"}]}]}}')"
+H2_NO_MATCHER_DIR="$(make_harness_project h2-no-matcher '{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"echo ok"}]}]}}')"
+H2_NO_HOOKS_DIR="$(make_harness_project h2-no-hooks '{"permissions":{"allow":["Read(*)"]}}')"
+
+test_h2_all_have_matcher() {
+  local out="${TEMP_ROOT}/h2-all-matcher.jsonl"
+  run_scanner "${H2_ALL_MATCHER_DIR}" "$out" "${TEMP_ROOT}/h2am.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H2")" || { TEST_ERROR="H2 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="H2 all with matcher should be 1 (got ${score})"; return 1; fi
+}
+
+test_h2_no_matcher() {
+  local out="${TEMP_ROOT}/h2-no-matcher.jsonl"
+  run_scanner "${H2_NO_MATCHER_DIR}" "$out" "${TEMP_ROOT}/h2nm.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H2")" || { TEST_ERROR="H2 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="H2 no matcher should be 0 (got ${score})"; return 1; fi
+}
+
+test_h2_no_pretooluse() {
+  local out="${TEMP_ROOT}/h2-no-hooks.jsonl"
+  run_scanner "${H2_NO_HOOKS_DIR}" "$out" "${TEMP_ROOT}/h2nh.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H2")" || { TEST_ERROR="H2 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="H2 no PreToolUse should be 1 (got ${score})"; return 1; fi
+}
+
+run_test "H2: all PreToolUse hooks have matcher → 1.0" test_h2_all_have_matcher
+run_test "H2: PreToolUse without matcher → 0" test_h2_no_matcher
+run_test "H2: no PreToolUse hooks → 1.0" test_h2_no_pretooluse
+
+# ── H4: dangerous auto-approve ──
+
+H4_SAFE_DIR="$(make_harness_project h4-safe '{"permissions":{"allow":["Bash(git status:*)","Read(*)","mcp__context7__query-docs"]}}')"
+H4_BARE_BASH_DIR="$(make_harness_project h4-bare-bash '{"permissions":{"allow":["Bash(*)","Read(*)"]}}')"
+H4_STAR_DIR="$(make_harness_project h4-star '{"permissions":{"allow":["*"]}}')"
+H4_MCP_WILDCARD_DIR="$(make_harness_project h4-mcp '{"permissions":{"allow":["mcp__*"]}}')"
+H4_SUDO_DIR="$(make_harness_project h4-sudo '{"permissions":{"allow":["Bash(sudo:*)"]}}')"
+H4_NO_PERMS_DIR="$(make_harness_project h4-no-perms '{"hooks":{}}')"
+
+test_h4_safe_permissions() {
+  local out="${TEMP_ROOT}/h4-safe.jsonl"
+  run_scanner "${H4_SAFE_DIR}" "$out" "${TEMP_ROOT}/h4s.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H4")" || { TEST_ERROR="H4 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="H4 safe perms should be 1 (got ${score})"; return 1; fi
+}
+
+test_h4_bare_bash() {
+  local out="${TEMP_ROOT}/h4-bare-bash.jsonl"
+  run_scanner "${H4_BARE_BASH_DIR}" "$out" "${TEMP_ROOT}/h4bb.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H4")" || { TEST_ERROR="H4 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="H4 Bash(*) should be 0 (got ${score})"; return 1; fi
+}
+
+test_h4_star() {
+  local out="${TEMP_ROOT}/h4-star.jsonl"
+  run_scanner "${H4_STAR_DIR}" "$out" "${TEMP_ROOT}/h4star.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H4")" || { TEST_ERROR="H4 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="H4 * should be 0 (got ${score})"; return 1; fi
+}
+
+test_h4_mcp_wildcard() {
+  local out="${TEMP_ROOT}/h4-mcp.jsonl"
+  run_scanner "${H4_MCP_WILDCARD_DIR}" "$out" "${TEMP_ROOT}/h4mcp.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H4")" || { TEST_ERROR="H4 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="H4 mcp__* should be 0 (got ${score})"; return 1; fi
+}
+
+test_h4_sudo() {
+  local out="${TEMP_ROOT}/h4-sudo.jsonl"
+  run_scanner "${H4_SUDO_DIR}" "$out" "${TEMP_ROOT}/h4sudo.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H4")" || { TEST_ERROR="H4 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="H4 Bash(sudo:*) should be 0 (got ${score})"; return 1; fi
+}
+
+test_h4_no_perms() {
+  local out="${TEMP_ROOT}/h4-no-perms.jsonl"
+  run_scanner "${H4_NO_PERMS_DIR}" "$out" "${TEMP_ROOT}/h4np.stderr" || return 1
+  local score
+  score="$(extract_check_score "$out" "H4")" || { TEST_ERROR="H4 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="H4 no permissions block should be 1 (got ${score})"; return 1; fi
+}
+
+run_test "H4: safe scoped permissions → 1.0" test_h4_safe_permissions
+run_test "H4: Bash(*) bare → 0" test_h4_bare_bash
+run_test "H4: * everything → 0" test_h4_star
+run_test "H4: mcp__* wildcard → 0" test_h4_mcp_wildcard
+run_test "H4: Bash(sudo:*) dangerous cmd → 0" test_h4_sudo
+run_test "H4: no permissions block → 1.0" test_h4_no_perms
+
 printf '%s/%s tests passed\n' "${pass_count}" "${test_count}"
 
 if [ "${pass_count}" -eq "${test_count}" ]; then
