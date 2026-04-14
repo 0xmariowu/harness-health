@@ -1574,6 +1574,108 @@ EOF_H6
       emit_result "$project_name" "H6" "$h6_measured" "null" "0" "${h6_network_count}/${h6_total} hook script(s) make external network calls — review for legitimacy"
     fi
   fi
+
+  # F8 — Rule file frontmatter uses globs not paths
+  local rules_dir="${project_dir}/.claude/rules"
+  if [ ! -d "$rules_dir" ]; then
+    emit_result "$project_name" "F8" '{"total_scoped":0}' "null" "1" "No .claude/rules directory"
+  else
+    local f8_total_scoped=0
+    local f8_uses_globs=0
+    while IFS= read -r rule_file; do
+      [ -z "$rule_file" ] && continue
+      # Parse YAML frontmatter (between first two --- markers)
+      local in_fm=false
+      local has_scope=false
+      local has_globs=false
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [ "$line" = "---" ]; then
+          if [ "$in_fm" = true ]; then
+            break
+          fi
+          in_fm=true
+          continue
+        fi
+        [ "$in_fm" = true ] || continue
+        case "$line" in
+          paths:*) has_scope=true ;;
+          globs:*) has_scope=true; has_globs=true ;;
+        esac
+      done < "$rule_file"
+      if [ "$has_scope" = true ]; then
+        f8_total_scoped=$((f8_total_scoped + 1))
+        [ "$has_globs" = true ] && f8_uses_globs=$((f8_uses_globs + 1))
+      fi
+    done <<EOF_F8
+$(find "$rules_dir" -maxdepth 1 -name '*.md' 2>/dev/null)
+EOF_F8
+    if [ "$f8_total_scoped" -eq 0 ]; then
+      emit_result "$project_name" "F8" '{"total_scoped":0,"uses_globs":0}' "null" "1" "No scoped rule files"
+    else
+      local f8_score
+      f8_score="$(awk -v g="$f8_uses_globs" -v t="$f8_total_scoped" 'BEGIN { print g/t }')"
+      local f8_measured
+      f8_measured="$(jq -cn --argjson t "$f8_total_scoped" --argjson g "$f8_uses_globs" '{total_scoped: $t, uses_globs: $g}')"
+      emit_result "$project_name" "F8" "$f8_measured" "null" "$f8_score" "Rule files using globs: ${f8_uses_globs}/${f8_total_scoped}"
+    fi
+  fi
+
+  # F9 — No unfilled template placeholders (uses grep -E only for macOS compat, no -P)
+  if [ -n "$entry_abs" ]; then
+    local f9_hits=0
+    # Pattern 1: [your X], [project X], [框架 X] — bracketed placeholders
+    local f9_bracket_all
+    f9_bracket_all="$(grep -Eic '\[(你的|your |project |框架|版本|app |name)[^]]*\]' "$entry_abs" 2>/dev/null)" || f9_bracket_all=0
+    local f9_bracket_links
+    f9_bracket_links="$(grep -Eic '\[(你的|your |project |框架|版本|app |name)[^]]*\]\(' "$entry_abs" 2>/dev/null)" || f9_bracket_links=0
+    f9_hits=$((f9_hits + f9_bracket_all - f9_bracket_links))
+    # Pattern 2: <your X>, <project X>, etc
+    local f9_angle
+    f9_angle="$(grep -Eic '<(your|project|app|framework)[^>]*>' "$entry_abs" 2>/dev/null)" || f9_angle=0
+    f9_hits=$((f9_hits + f9_angle))
+    # Pattern 3: TODO:/FIXME:/XXX:/Not configured
+    local f9_marker
+    f9_marker="$(grep -Eic '^[[:space:]]*(Not configured|TODO:|FIXME:|XXX:)' "$entry_abs" 2>/dev/null)" || f9_marker=0
+    f9_hits=$((f9_hits + f9_marker))
+    if [ "$f9_hits" -le 0 ]; then
+      emit_result "$project_name" "F9" "0" "0" "1" "No template placeholders found"
+    else
+      emit_result "$project_name" "F9" "$f9_hits" "0" "0" "Found ${f9_hits} unfilled template placeholder(s)"
+    fi
+  else
+    emit_result "$project_name" "F9" "null" "null" "0" "Skipped because no entry file exists"
+  fi
+
+  # I8 — Total injected content within budget
+  local total_injected=0
+  if [ -n "$entry_abs" ]; then
+    local entry_lines
+    entry_lines="$(grep -cv '^[[:space:]]*$' "$entry_abs" 2>/dev/null)" || entry_lines=0
+    total_injected=$((total_injected + entry_lines))
+  fi
+  # Also include AGENTS.md if different from entry file
+  if [ -f "${project_dir}/AGENTS.md" ] && [ "$entry_rel" != "AGENTS.md" ]; then
+    local agents_lines
+    agents_lines="$(grep -cv '^[[:space:]]*$' "${project_dir}/AGENTS.md" 2>/dev/null)" || agents_lines=0
+    total_injected=$((total_injected + agents_lines))
+  fi
+  # Include .claude/rules/*.md
+  if [ -d "${project_dir}/.claude/rules" ]; then
+    while IFS= read -r rf; do
+      [ -z "$rf" ] && continue
+      local rf_lines
+      rf_lines="$(grep -cv '^[[:space:]]*$' "$rf" 2>/dev/null)" || rf_lines=0
+      total_injected=$((total_injected + rf_lines))
+    done <<EOF_I8
+$(find "${project_dir}/.claude/rules" -maxdepth 1 -name '*.md' 2>/dev/null)
+EOF_I8
+  fi
+  local i8_low i8_high
+  i8_low="$(jq -r '.I8_total_lines.reference_lines[0]' "$THRESHOLDS_FILE" 2>/dev/null)"
+  i8_high="$(jq -r '.I8_total_lines.reference_lines[1]' "$THRESHOLDS_FILE" 2>/dev/null)"
+  local i8_score
+  i8_score="$(score_range "$total_injected" "$i8_low" "$i8_high")"
+  emit_result "$project_name" "I8" "$total_injected" "[${i8_low},${i8_high}]" "$i8_score" "Total injected content: ${total_injected} non-empty lines (reference: ${i8_low}-${i8_high})"
 }
 
 discover_projects() {

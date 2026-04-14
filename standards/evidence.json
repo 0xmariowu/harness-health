@@ -347,6 +347,24 @@
       "name": "Hook scripts network access",
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 5 repos have hooks that POST tool call input/output to external servers via curl/wget/fetch. This is a data exfiltration vector — tool calls may contain source code, credentials, or user data."
+    },
+    "F8": {
+      "dimension": "findability",
+      "name": "Rule file frontmatter uses globs",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 26.8% of .claude/rules/*.md files use paths: frontmatter instead of globs:. Claude Code's documented field is globs: — paths: may silently not apply the rule to intended files."
+    },
+    "F9": {
+      "dimension": "findability",
+      "name": "No unfilled template placeholders",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 13% of CLAUDE.md files (419/3225) contain unreplaced template placeholders such as [your project name], <framework>, or TODO: markers. These waste context tokens and may confuse the agent about the project's actual identity."
+    },
+    "I8": {
+      "dimension": "instructions",
+      "name": "Total injected content within budget",
+      "evidence_sources": ["corpus-4533", "ifscale"],
+      "evidence_text": "Corpus analysis: total injected content (CLAUDE.md + AGENTS.md + rules/*.md) median is 116 non-empty lines, outliers reach 1000+. IFScale research shows instruction compliance degrades beyond ~150 instructions. The right metric is total injected content across all files, not just entry file length."
     }
   }
 }
