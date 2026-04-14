@@ -1264,7 +1264,7 @@ EOF
           wf_pinned=$((wf_pinned + 1))
         fi
       done <<USES
-$(grep -E '^\s*uses:\s' "$wf_file" 2>/dev/null | grep -v '#.*uses:' || true)
+$(grep -E '^\s*(-\s+)?uses:\s' "$wf_file" 2>/dev/null | grep -v '#.*uses:' || true)
 USES
     done <<WF
 $(find "$wf_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null)
