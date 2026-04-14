@@ -1,0 +1,110 @@
+name: 'AgentLint'
+description: 'Check how well your repo supports AI coding agents. Runs 42 evidence-backed checks across 6 dimensions.'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  project-dir:
+    description: 'Directory to scan (default: repo root)'
+    required: false
+    default: '.'
+  fail-below:
+    description: 'Fail the build if total score is below this threshold (0-100). Default 0 = never fail.'
+    required: false
+    default: '0'
+  format:
+    description: 'Report format: terminal, md, jsonl, html, all'
+    required: false
+    default: 'terminal'
+  output-dir:
+    description: 'Directory to write reports. Only used when format != terminal.'
+    required: false
+    default: ''
+
+outputs:
+  score:
+    description: 'Total AgentLint score (0-100)'
+    value: ${{ steps.score.outputs.score }}
+  findability:
+    description: 'Findability dimension score (0-10)'
+    value: ${{ steps.score.outputs.findability }}
+  instructions:
+    description: 'Instructions dimension score (0-10)'
+    value: ${{ steps.score.outputs.instructions }}
+  workability:
+    description: 'Workability dimension score (0-10)'
+    value: ${{ steps.score.outputs.workability }}
+  continuity:
+    description: 'Continuity dimension score (0-10)'
+    value: ${{ steps.score.outputs.continuity }}
+  safety:
+    description: 'Safety dimension score (0-10)'
+    value: ${{ steps.score.outputs.safety }}
+  harness:
+    description: 'Harness dimension score (0-10)'
+    value: ${{ steps.score.outputs.harness }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check dependencies
+      shell: bash
+      run: |
+        command -v jq >/dev/null 2>&1 || { echo "::error::jq is required but not installed"; exit 1; }
+        node --version >/dev/null 2>&1 || { echo "::error::Node.js is required but not installed"; exit 1; }
+
+    - name: Scan
+      shell: bash
+      env:
+        AL_ACTION_PATH: ${{ github.action_path }}
+        AL_PROJECT_DIR: ${{ inputs.project-dir }}
+      run: |
+        bash "${AL_ACTION_PATH}/src/scanner.sh" --project-dir "${AL_PROJECT_DIR}" > "${RUNNER_TEMP}/al-scan.jsonl"
+
+    - name: Score
+      id: score
+      shell: bash
+      env:
+        AL_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        node "${AL_ACTION_PATH}/src/scorer.js" "${RUNNER_TEMP}/al-scan.jsonl" > "${RUNNER_TEMP}/al-scores.json"
+        SCORE=$(node -e "const s=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); process.stdout.write(String(s.total_score ?? 0))" "${RUNNER_TEMP}/al-scores.json")
+        echo "score=${SCORE}" >> "${GITHUB_OUTPUT}"
+        for dim in findability instructions workability continuity safety harness; do
+          DIM_SCORE=$(node -e "const s=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); const d=s.dimensions?.[process.argv[2]]; process.stdout.write(String(d?.score ?? 0))" "${RUNNER_TEMP}/al-scores.json" "${dim}")
+          echo "${dim}=${DIM_SCORE}" >> "${GITHUB_OUTPUT}"
+        done
+
+    - name: Generate plan
+      shell: bash
+      env:
+        AL_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        node "${AL_ACTION_PATH}/src/plan-generator.js" "${RUNNER_TEMP}/al-scores.json" > "${RUNNER_TEMP}/al-plan.json" 2>/dev/null || echo '{"items":[]}' > "${RUNNER_TEMP}/al-plan.json"
+
+    - name: Report
+      shell: bash
+      env:
+        AL_ACTION_PATH: ${{ github.action_path }}
+        AL_FORMAT: ${{ inputs.format }}
+        AL_OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: |
+        REPORTER_ARGS=(--plan "${RUNNER_TEMP}/al-plan.json" --format "${AL_FORMAT}")
+        if [ -n "${AL_OUTPUT_DIR}" ]; then
+          mkdir -p "${AL_OUTPUT_DIR}"
+          REPORTER_ARGS+=(--output-dir "${AL_OUTPUT_DIR}")
+        fi
+        node "${AL_ACTION_PATH}/src/reporter.js" "${RUNNER_TEMP}/al-scores.json" "${REPORTER_ARGS[@]}"
+
+    - name: Threshold check
+      shell: bash
+      env:
+        AL_SCORE: ${{ steps.score.outputs.score }}
+        AL_FAIL_BELOW: ${{ inputs.fail-below }}
+      run: |
+        if [ "${AL_FAIL_BELOW}" -gt 0 ] && [ "${AL_SCORE}" -lt "${AL_FAIL_BELOW}" ]; then
+          echo "::error::AgentLint score ${AL_SCORE}/100 is below minimum ${AL_FAIL_BELOW}"
+          exit 1
+        fi
+        echo "::notice::AgentLint score: ${AL_SCORE}/100"

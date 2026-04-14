@@ -14,6 +14,7 @@ const DIMENSION_BY_PREFIX = {
   W: 'workability',
   C: 'continuity',
   S: 'safety',
+  H: 'harness',
 };
 
 function readJsonFile(filePath) {

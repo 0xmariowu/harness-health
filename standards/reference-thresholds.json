@@ -30,5 +30,31 @@
     "reference": 10,
     "unit": "content files before INDEX recommended",
     "source": "AI-Friendly Standard"
+  },
+  "H1_valid_events": [
+    "PreToolUse",
+    "PostToolUse",
+    "Stop",
+    "SessionStart",
+    "SessionEnd",
+    "Notification",
+    "PreCompact",
+    "UserPromptSubmit",
+    "SubagentStop",
+    "SubagentStart",
+    "PostToolUseFailure",
+    "PermissionRequest"
+  ],
+  "H4_dangerous_patterns": [
+    "^\\*$",
+    "^Bash(\\(\\*\\))?$",
+    "^mcp__\\*",
+    "Bash\\((rm -rf|rm|sudo|dd|mkfs|shutdown|reboot)[ :]",
+    "Bash\\(git (push --force|reset --hard)[ :]"
+  ],
+  "I8_total_lines": {
+    "reference_lines": [60, 200],
+    "label": ["lean", "comprehensive"],
+    "source": "corpus-4533 analysis: median=116 lines; outliers exceed 600. IFScale: compliance degrades beyond ~150 instructions."
   }
 }

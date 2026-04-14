@@ -15,10 +15,13 @@ const CHECK_FIX_ACTIONS = {
   F4: 'Add INDEX file for navigation',
   F5: 'Remove broken references',
   F6: 'Add missing standard files (README.md, CHANGELOG.md)',
+  F8: 'Change paths: to globs: in .claude/rules/*.md frontmatter — Claude Code uses globs: syntax',
+  F9: 'Replace template placeholders with actual project values',
   I1: 'Review IMPORTANT/NEVER usage. Anthropic reduced from N to M.',
   I3: "Rewrite vague rules using Don't/Instead/Because formula",
   I5: 'Remove identity language lines',
   I6: 'Review entry file length',
+  I8: 'Reduce total injected content by consolidating rules or splitting into conditional @include files',
   W1: 'Add build/test commands to entry file',
   W2: 'Add CI workflows',
   W3: 'Add test files',
@@ -33,11 +36,17 @@ const CHECK_FIX_ACTIONS = {
   S4: 'Create SECURITY.md with vulnerability reporting instructions',
   S5: 'Move workflow permissions from workflow level to job level',
   S6: 'Remove hardcoded secrets and use environment variables',
+  H1: 'Fix invalid hook event names. Valid events: PreToolUse, PostToolUse, Stop, SessionStart, SessionEnd, Notification, PreCompact, UserPromptSubmit, SubagentStop, SubagentStart, PostToolUseFailure, PermissionRequest',
+  H2: 'Add matcher field to PreToolUse hooks to avoid firing on every tool call',
+  H3: 'Add circuit breaker guard to Stop hook scripts (e.g., STOP_HOOK_ACTIVE variable checked at entry)',
+  H4: 'Replace dangerous auto-approve rules with scoped permissions (e.g., Bash(git status:*) instead of Bash(*))',
+  H5: 'Extend .env deny rules to cover variants: Read(./.env.*) or Read(./.env*)',
+  H6: 'Review hook scripts making network calls — ensure external requests are intentional, not data exfiltration',
 };
 
 const ASSISTED_FIXES = new Set(['F1', 'C2']);
 const AUTO_FIXES = new Set(['I5']);
-const GUIDED_FIXES = new Set(['I3', 'W3', 'C1']);
+const GUIDED_FIXES = new Set(['I3', 'W3', 'C1', 'H3', 'H6']);
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);

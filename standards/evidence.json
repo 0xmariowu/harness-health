@@ -48,6 +48,11 @@
       "name": "Claude Code /insights Architecture",
       "description": "Session log analysis for repeated instructions, friction detection, CLAUDE.md suggestions",
       "type": "first-party-data"
+    },
+    "corpus-4533": {
+      "name": "Claude Code Repository Corpus Analysis",
+      "description": "4,533 repos, 739 hooks, 1,562 settings.json files analyzed for configuration patterns and anti-patterns",
+      "type": "first-party-data"
     }
   },
   "checks": {
@@ -306,6 +311,60 @@
       "name": "Missing rule suggestions",
       "evidence_sources": ["claude-insights"],
       "evidence_text": "Claude Code /insights claude_md_additions: 'A specific line or block to add to CLAUDE.md based on workflow patterns.' Derived from user corrections and repeated instructions."
+    },
+    "H1": {
+      "dimension": "harness",
+      "name": "Hook event names valid",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 35+ unique invalid event names across ~50 repos. Common: preCommit (git hook name, not Claude hook), sessionStart (wrong casing), postEditHook (invented). Invalid hooks silently never fire — users believe they have protection but don't."
+    },
+    "H2": {
+      "dimension": "harness",
+      "name": "PreToolUse hooks have matcher",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 248/273 (91%) PreToolUse hooks lack tool_name filtering (no matcher field). Every Read, Glob, Grep call triggers the hook — massive performance tax on routine operations."
+    },
+    "H4": {
+      "dimension": "harness",
+      "name": "No dangerous auto-approve",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 85 repos auto-approve bare Bash (any command), 7 repos approve * (everything), 50 repos auto-approve financial MCP tools, 13 repos use mcp__* wildcard. Bare Bash auto-approve is equivalent to giving the agent root shell access."
+    },
+    "H3": {
+      "dimension": "harness",
+      "name": "Stop hook has circuit breaker",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: only 5/92 Stop hooks have loop protection. Stop hook exit non-zero → Claude continues → triggers Stop again → infinite loop. Circuit breaker pattern: guard variable (STOP_HOOK_ACTIVE) checked at script entry."
+    },
+    "H5": {
+      "dimension": "harness",
+      "name": "Env deny coverage complete",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 88 repos deny Read(./.env), but only 78 cover .env.* variants (.env.local, .env.production). Partial deny creates false sense of security — the most sensitive env file variants remain readable."
+    },
+    "H6": {
+      "dimension": "harness",
+      "name": "Hook scripts network access",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 5 repos have hooks that POST tool call input/output to external servers via curl/wget/fetch. This is a data exfiltration vector — tool calls may contain source code, credentials, or user data."
+    },
+    "F8": {
+      "dimension": "findability",
+      "name": "Rule file frontmatter uses globs",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 26.8% of .claude/rules/*.md files use paths: frontmatter instead of globs:. Claude Code's documented field is globs: — paths: may silently not apply the rule to intended files."
+    },
+    "F9": {
+      "dimension": "findability",
+      "name": "No unfilled template placeholders",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Corpus analysis: 13% of CLAUDE.md files (419/3225) contain unreplaced template placeholders such as [your project name], <framework>, or TODO: markers. These waste context tokens and may confuse the agent about the project's actual identity."
+    },
+    "I8": {
+      "dimension": "instructions",
+      "name": "Total injected content within budget",
+      "evidence_sources": ["corpus-4533", "ifscale"],
+      "evidence_text": "Corpus analysis: total injected content (CLAUDE.md + AGENTS.md + rules/*.md) median is 116 non-empty lines, outliers reach 1000+. IFScale research shows instruction compliance degrades beyond ~150 instructions. The right metric is total injected content across all files, not just entry file length."
     }
   }
 }

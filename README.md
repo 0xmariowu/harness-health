@@ -13,7 +13,7 @@
   <a href="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml"><img src="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/0xmariowu/agent-lint/releases"><img src="https://img.shields.io/github/v/release/0xmariowu/agent-lint" alt="Release"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="#what-it-checks"><img src="https://img.shields.io/badge/checks-33-00b48c" alt="Checks"></a>
+  <a href="#what-it-checks"><img src="https://img.shields.io/badge/checks-42-00b48c" alt="Checks"></a>
 </p>
 
 <p align="center">
@@ -43,6 +43,39 @@ Then start a new Claude Code session:
 ```
 
 That's it. AgentLint scans your projects, scores them, shows what's wrong, and fixes what it can.
+
+## GitHub Action
+
+Add AgentLint to your CI in three lines:
+
+```yaml
+- uses: 0xmariowu/agent-lint@v0
+  with:
+    fail-below: '60'  # optional: fail the build if score drops below 60
+```
+
+**Inputs:**
+- `project-dir` — directory to scan (default: repo root)
+- `fail-below` — minimum score 0-100 (default: 0 = never fail)
+- `format` — `terminal`, `md`, `jsonl`, `html`, or `all` (default: `terminal`)
+- `output-dir` — where to write reports (required for non-terminal formats)
+
+**Outputs:** `score` (0-100), plus per-dimension scores (`findability`, `instructions`, `workability`, `continuity`, `safety`, `harness`), each 0-10.
+
+**Example: block PRs that regress AI-friendliness**
+
+```yaml
+name: AI-friendliness check
+on: [pull_request]
+jobs:
+  agentlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: 0xmariowu/agent-lint@v0
+        with:
+          fail-below: '50'
+```
 
 ## What you get
 

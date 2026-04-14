@@ -125,8 +125,54 @@ entry_file_rel() {
     printf '%s\n' "AGENTS.md"
   elif [ -f "${project_dir}/.cursorrules" ]; then
     printf '%s\n' ".cursorrules"
+  elif [ -f "${project_dir}/.github/copilot-instructions.md" ]; then
+    printf '%s\n' ".github/copilot-instructions.md"
+  elif [ -f "${project_dir}/GEMINI.md" ]; then
+    printf '%s\n' "GEMINI.md"
+  elif [ -f "${project_dir}/.windsurfrules" ]; then
+    printf '%s\n' ".windsurfrules"
+  elif [ -f "${project_dir}/.clinerules" ]; then
+    printf '%s\n' ".clinerules"
+  elif ls "${project_dir}/.cursor/rules/"*.mdc >/dev/null 2>&1; then
+    local mdc_file
+    # shellcheck disable=SC2012
+    mdc_file="$(ls "${project_dir}/.cursor/rules/"*.mdc 2>/dev/null | head -1)"
+    printf '%s\n' ".cursor/rules/$(basename "$mdc_file")"
   else
     printf '\n'
+  fi
+}
+
+entry_platform() {
+  local entry_rel="$1"
+  case "$entry_rel" in
+    CLAUDE.md)                       printf 'claude\n' ;;
+    AGENTS.md)                       printf 'openai\n' ;;
+    .cursorrules)                    printf 'cursor\n' ;;
+    .github/copilot-instructions.md) printf 'copilot\n' ;;
+    GEMINI.md)                       printf 'gemini\n' ;;
+    .windsurfrules)                  printf 'windsurf\n' ;;
+    .clinerules)                     printf 'cline\n' ;;
+    .cursor/rules/*)                 printf 'cursor-mdc\n' ;;
+    *)                               printf 'unknown\n' ;;
+  esac
+}
+
+detect_all_platform_files() {
+  local project_dir="$1"
+  local files=()
+  [ -f "${project_dir}/CLAUDE.md" ] && files+=("CLAUDE.md")
+  [ -f "${project_dir}/AGENTS.md" ] && files+=("AGENTS.md")
+  [ -f "${project_dir}/.cursorrules" ] && files+=(".cursorrules")
+  [ -f "${project_dir}/.github/copilot-instructions.md" ] && files+=(".github/copilot-instructions.md")
+  [ -f "${project_dir}/GEMINI.md" ] && files+=("GEMINI.md")
+  [ -f "${project_dir}/.windsurfrules" ] && files+=(".windsurfrules")
+  [ -f "${project_dir}/.clinerules" ] && files+=(".clinerules")
+  ls "${project_dir}/.cursor/rules/"*.mdc >/dev/null 2>&1 && files+=(".cursor/rules/*.mdc")
+  if [ "${#files[@]}" -gt 0 ]; then
+    json_array "${files[@]}"
+  else
+    printf '[]\n'
   fi
 }
 
@@ -547,6 +593,48 @@ emit_result() {
     }'
 }
 
+# Static-only: extracts a script file path from a shell command string.
+# NEVER executes the script. Returns 'INLINE' for inline commands, empty
+# for inline flags only, or the resolved absolute path for file refs.
+extract_script_path() {
+  local command_str="$1"
+  local project_dir="$2"
+  # Detect inline shell commands
+  case "$command_str" in
+    "bash -c "*|"sh -c "*|"python3 -c "*|"python -c "*|"node -e "*|"node --eval "*)
+      printf 'INLINE\n'
+      return
+      ;;
+  esac
+  # Extract first non-flag, non-interpreter token as script path
+  local script_path=""
+  local token
+  local restore_glob=0
+  case $- in
+    *f*) restore_glob=1 ;;
+  esac
+  set -f
+  # shellcheck disable=SC2086
+  for token in $command_str; do
+    case "$token" in
+      -*) continue ;;
+      bash|sh|python|python3|node|zsh) continue ;;
+      *)
+        script_path="$token"
+        break
+        ;;
+    esac
+  done
+  [ "$restore_glob" -eq 1 ] || set +f
+  [ -z "$script_path" ] && return
+  # Resolve relative paths against project_dir
+  case "$script_path" in
+    ./*) script_path="${project_dir}/${script_path#./}" ;;
+    ../*) script_path="${project_dir}/${script_path}" ;;
+  esac
+  printf '%s\n' "$script_path"
+}
+
 scan_project() {
   local project_dir="$1"
   local project_name=""
@@ -602,11 +690,19 @@ scan_project() {
     entry_abs=""
   fi
 
-  # F1
+  local platform
+  platform="$(entry_platform "$entry_rel")"
+  local all_platform_files
+  all_platform_files="$(detect_all_platform_files "$project_dir")"
+
+  # F1 — entry file exists (multi-platform)
   if [ -n "$entry_rel" ]; then
-    emit_result "$project_name" "F1" "true" "null" "1" "Entry file found: ${entry_rel}"
+    local f1_measured
+    f1_measured="$(jq -cn --arg entry "$entry_rel" --arg platform "$platform" --argjson all "$all_platform_files" \
+      '{entry_file: $entry, platform: $platform, all_files: $all}')"
+    emit_result "$project_name" "F1" "$f1_measured" "null" "1" "Entry file: ${entry_rel} (${platform})"
   else
-    emit_result "$project_name" "F1" "false" "null" "0" "No CLAUDE.md, AGENTS.md, or .cursorrules found"
+    emit_result "$project_name" "F1" '{"entry_file":null,"platform":null,"all_files":[]}' "null" "0" "No entry file found (checked CLAUDE.md, AGENTS.md, .cursorrules, .github/copilot-instructions.md, GEMINI.md, .windsurfrules, .clinerules, .cursor/rules/*.mdc)"
   fi
 
   # F2
@@ -761,9 +857,9 @@ EOF
     dont_total=0
     dont_with_because=0
     for ((i = 0; i < ${#lines[@]}; i++)); do
-      if printf '%s\n' "${lines[$i]}" | grep -Eq "^[[:space:]]*-[[:space:]]+Don't"; then
+      if printf '%s\n' "${lines[$i]}" | grep -Eiq "^[[:space:]]*-[[:space:]]+(Don't|Do not)"; then
         dont_total=$((dont_total + 1))
-        for ((j = i + 1; j <= i + 3 && j < ${#lines[@]}; j++)); do
+        for ((j = i + 1; j <= i + 5 && j < ${#lines[@]}; j++)); do
           if printf '%s\n' "${lines[$j]}" | grep -q 'Because:'; then
             dont_with_because=$((dont_with_because + 1))
             break
@@ -797,12 +893,12 @@ EOF
     while IFS= read -r heading || [ -n "$heading" ]; do
       heading_lower="$(lower_text "$heading")"
       case "$heading_lower" in
-        *workflow*|*session*|*rules*|*writing*|*debugging*|*how*)
+        *workflow*|*session*|*rules*|*writing*|*debugging*|*how*|*build*|*test*|*deploy*|*setup*|*install*|*config*|*run*|*development*|*contributing*|*commands*|*scripts*|*usage*|*prerequisites*|*getting*started*)
           action_count=$((action_count + 1))
           ;;
       esac
       case "$heading_lower" in
-        *personality*|*role*|*capabilities*|*who*)
+        *personality*|*role*|*capabilities*|*who*|*about*me*|*identity*|*persona*)
           identity_count=$((identity_count + 1))
           ;;
       esac
@@ -945,8 +1041,6 @@ EOF
   handoff_found=false
   if [ -f "${project_dir}/HANDOFF.md" ] || [ -f "${project_dir}/.handoff" ]; then
     handoff_found=true
-  elif [ -n "$entry_abs" ] && grep -Eiq 'handoff|progress|status' "$entry_abs" 2>/dev/null; then
-    handoff_found=true
   fi
   if [ "$handoff_found" = true ]; then
     emit_result "$project_name" "C2" "true" "null" "1" "Found handoff or progress information"
@@ -986,15 +1080,19 @@ EOF
   fi
   emit_result "$project_name" "C4" "$plans_json" "null" "$score" "$detail"
 
-  # C5 — CLAUDE.local.md not tracked in git
-  if [ -f "${project_dir}/CLAUDE.local.md" ]; then
-    if git -C "$project_dir" ls-files --error-unmatch "CLAUDE.local.md" >/dev/null 2>&1; then
-      emit_result "$project_name" "C5" "true" "null" "0" "CLAUDE.local.md is tracked in git — should be in .gitignore"
+  # C5 — CLAUDE.local.md not tracked in git (Claude Code only)
+  if [ "$platform" = "claude" ]; then
+    if [ -f "${project_dir}/CLAUDE.local.md" ]; then
+      if git -C "$project_dir" ls-files --error-unmatch "CLAUDE.local.md" >/dev/null 2>&1; then
+        emit_result "$project_name" "C5" "true" "null" "0" "CLAUDE.local.md is tracked in git — should be in .gitignore"
+      else
+        emit_result "$project_name" "C5" "false" "null" "1" "CLAUDE.local.md exists and is not tracked (good)"
+      fi
     else
-      emit_result "$project_name" "C5" "false" "null" "1" "CLAUDE.local.md exists and is not tracked (good)"
+      emit_result "$project_name" "C5" "null" "null" "1" "No CLAUDE.local.md (OK)"
     fi
   else
-    emit_result "$project_name" "C5" "null" "null" "1" "No CLAUDE.local.md (OK)"
+    emit_result "$project_name" "C5" "null" "null" "1" "Skipped: CLAUDE.local.md is Claude Code specific"
   fi
 
   # I7 — Entry file size within 40,000 character limit
@@ -1013,44 +1111,48 @@ EOF
     emit_result "$project_name" "I7" "0" "40000" "0" "Skipped because no entry file exists"
   fi
 
-  # F7 — @include directives resolve
-  if [ -n "$entry_abs" ]; then
-    local include_total=0
-    local include_broken=0
-    local include_target=""
-    while IFS= read -r line || [ -n "$line" ]; do
-      # Match @./path, @path, @~/path patterns (not inside code blocks)
-      # shellcheck disable=SC2016
-      if printf '%s\n' "$line" | grep -Eq '^[^`]*@\.?\.?/[^ ]+|^[^`]*@[a-zA-Z][^ ]*\.[a-zA-Z]'; then
-        include_target="$(printf '%s\n' "$line" | grep -Eo '@[^ ]+' | head -1 | sed 's/^@//')"
-        [ -z "$include_target" ] && continue
-        include_total=$((include_total + 1))
-        # Resolve relative to project dir
-        case "$include_target" in
-          ./*|../*)
-            [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
-            ;;
-          ~/*)
-            [ ! -f "${HOME}/${include_target#\~/}" ] && include_broken=$((include_broken + 1))
-            ;;
-          /*)
-            [ ! -f "$include_target" ] && include_broken=$((include_broken + 1))
-            ;;
-          *)
-            [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
-            ;;
-        esac
+  # F7 — @include directives resolve (Claude Code / Cursor MDC only)
+  if [ "$platform" = "claude" ] || [ "$platform" = "cursor-mdc" ]; then
+    if [ -n "$entry_abs" ]; then
+      local include_total=0
+      local include_broken=0
+      local include_target=""
+      while IFS= read -r line || [ -n "$line" ]; do
+        # Match @./path, @path, @~/path patterns (not inside code blocks)
+        # shellcheck disable=SC2016
+        if printf '%s\n' "$line" | grep -Eq '^[^`]*@\.?\.?/[^ ]+|^[^`]*@[a-zA-Z][^ ]*\.[a-zA-Z]'; then
+          include_target="$(printf '%s\n' "$line" | grep -Eo '@[^ ]+' | head -1 | sed 's/^@//')"
+          [ -z "$include_target" ] && continue
+          include_total=$((include_total + 1))
+          # Resolve relative to project dir
+          case "$include_target" in
+            ./*|../*)
+              [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
+              ;;
+            ~/*)
+              [ ! -f "${HOME}/${include_target#\~/}" ] && include_broken=$((include_broken + 1))
+              ;;
+            /*)
+              [ ! -f "$include_target" ] && include_broken=$((include_broken + 1))
+              ;;
+            *)
+              [ ! -f "${project_dir}/${include_target}" ] && include_broken=$((include_broken + 1))
+              ;;
+          esac
+        fi
+      done < "$entry_abs"
+      if [ "$include_total" -eq 0 ]; then
+        emit_result "$project_name" "F7" "0" "0" "1" "No @include directives found"
+      elif [ "$include_broken" -eq 0 ]; then
+        emit_result "$project_name" "F7" "0" "0" "1" "All ${include_total} @include directives resolve"
+      else
+        emit_result "$project_name" "F7" "$include_broken" "0" "0" "${include_broken}/${include_total} @include directives point to missing files"
       fi
-    done < "$entry_abs"
-    if [ "$include_total" -eq 0 ]; then
-      emit_result "$project_name" "F7" "0" "0" "1" "No @include directives found"
-    elif [ "$include_broken" -eq 0 ]; then
-      emit_result "$project_name" "F7" "0" "0" "1" "All ${include_total} @include directives resolve"
     else
-      emit_result "$project_name" "F7" "$include_broken" "0" "0" "${include_broken}/${include_total} @include directives point to missing files"
+      emit_result "$project_name" "F7" "0" "0" "0" "Skipped because no entry file exists"
     fi
   else
-    emit_result "$project_name" "F7" "0" "0" "0" "Skipped because no entry file exists"
+    emit_result "$project_name" "F7" "null" "null" "1" "Skipped: @include is Claude Code syntax"
   fi
 
   # W5 — No oversized source files (> 256 KB)
@@ -1208,13 +1310,13 @@ WF2
   local secret_examples=""
   if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     secret_hits="$(git -C "$project_dir" grep -lE \
-      'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
+      'sk-[a-zA-Z0-9]{48,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
       -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
       ':!*.env' ':!*.env.*' ':!*.lock' \
       2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build\|__pycache__')" || secret_hits=0
     if [ "${secret_hits:-0}" -gt 0 ]; then
       secret_examples="$(git -C "$project_dir" grep -lE \
-        'sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
+        'sk-[a-zA-Z0-9]{48,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
         -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' \
         2>/dev/null | grep -v 'node_modules\|\.git\|vendor' | head -3 | tr '\n' ', ' | sed 's/, $//')"
     fi
@@ -1231,12 +1333,12 @@ WF2
   if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     path_hits="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
       -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
-      ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' \
+      ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!__tests__/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
       2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build' || true)" || path_hits=0
     if [ "${path_hits:-0}" -gt 0 ]; then
       path_examples="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
         -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
-        ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' \
+        ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!__tests__/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
         2>/dev/null | grep -v 'node_modules\|\.git\|vendor' | head -3 | tr '\n' ', ' | sed 's/, $//')"
     fi
   fi
@@ -1265,6 +1367,315 @@ WF_PRT
   else
     emit_result "$project_name" "S8" "$prt_count" "null" "0" "${prt_count} workflow(s) use pull_request_target: ${prt_files}"
   fi
+
+  # ─── Harness dimension (v0.6.0) ───
+  local settings_path="${project_dir}/.claude/settings.json"
+
+  # H1 — Hook event names valid
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H1" '{"total":0,"valid":0,"invalid":[]}' "null" "1" "No settings.json — nothing to validate"
+  else
+    local valid_events_list
+    valid_events_list="$(jq -r '.H1_valid_events[]' "$THRESHOLDS_FILE" 2>/dev/null)"
+    local configured_events
+    configured_events="$(jq -r '(.hooks // {}) | keys[]?' "$settings_path" 2>/dev/null)" || configured_events=""
+    local h1_total=0
+    local h1_valid=0
+    local h1_invalid=""
+    while IFS= read -r evt; do
+      [ -z "$evt" ] && continue
+      h1_total=$((h1_total + 1))
+      if printf '%s\n' "$valid_events_list" | grep -qxF "$evt"; then
+        h1_valid=$((h1_valid + 1))
+      else
+        h1_invalid="${h1_invalid:+$h1_invalid, }$evt"
+      fi
+    done <<EOF_H1
+$configured_events
+EOF_H1
+    if [ "$h1_total" -eq 0 ]; then
+      emit_result "$project_name" "H1" '{"total":0,"valid":0,"invalid":[]}' "null" "1" "No hooks configured"
+    else
+      local h1_measured
+      h1_measured="$(jq -cn --argjson total "$h1_total" --argjson valid "$h1_valid" --arg invalid "$h1_invalid" \
+        '{total: $total, valid: $valid, invalid: ($invalid | split(", ") | map(select(length > 0)))}')"
+      local h1_score
+      h1_score="$(awk -v v="$h1_valid" -v t="$h1_total" 'BEGIN { if (t <= 0) print 1; else print v/t }')"
+      local h1_detail="Valid hook events: ${h1_valid}/${h1_total}"
+      [ -n "$h1_invalid" ] && h1_detail="${h1_detail}. Invalid: ${h1_invalid}"
+      emit_result "$project_name" "H1" "$h1_measured" "null" "$h1_score" "$h1_detail"
+    fi
+  fi
+
+  # H2 — PreToolUse hooks have matcher
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H2" '{"total":0,"with_matcher":0}' "null" "1" "No settings.json"
+  else
+    local h2_total
+    h2_total="$(jq '[.hooks.PreToolUse[]?] | length' "$settings_path" 2>/dev/null)" || h2_total=0
+    local h2_no_matcher
+    h2_no_matcher="$(jq '[.hooks.PreToolUse[]? | select((.matcher // "") == "")] | length' "$settings_path" 2>/dev/null)" || h2_no_matcher=0
+    if [ "${h2_total:-0}" -eq 0 ]; then
+      emit_result "$project_name" "H2" '{"total":0,"with_matcher":0}' "null" "1" "No PreToolUse hooks"
+    else
+      local h2_with_matcher=$((h2_total - h2_no_matcher))
+      local h2_score
+      h2_score="$(awk -v w="$h2_with_matcher" -v t="$h2_total" 'BEGIN { print w/t }')"
+      local h2_measured
+      h2_measured="$(jq -cn --argjson total "$h2_total" --argjson with_matcher "$h2_with_matcher" '{total: $total, with_matcher: $with_matcher}')"
+      emit_result "$project_name" "H2" "$h2_measured" "null" "$h2_score" "PreToolUse hooks with matcher: ${h2_with_matcher}/${h2_total}"
+    fi
+  fi
+
+  # H4 — No dangerous auto-approve
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H4" '{"dangerous_rules":[],"total_allow":0}' "null" "1" "No settings.json"
+  else
+    local h4_patterns
+    h4_patterns="$(jq -r '.H4_dangerous_patterns[]' "$THRESHOLDS_FILE" 2>/dev/null)"
+    local h4_rules
+    h4_rules="$(jq -r '.permissions.allow[]?' "$settings_path" 2>/dev/null)" || h4_rules=""
+    local h4_total_allow=0
+    local h4_dangerous=""
+    while IFS= read -r rule; do
+      [ -z "$rule" ] && continue
+      h4_total_allow=$((h4_total_allow + 1))
+      while IFS= read -r pat; do
+        [ -z "$pat" ] && continue
+        if printf '%s\n' "$rule" | grep -Eq "$pat"; then
+          h4_dangerous="${h4_dangerous:+$h4_dangerous, }$rule"
+          break
+        fi
+      done <<EOF_H4P
+$h4_patterns
+EOF_H4P
+    done <<EOF_H4R
+$h4_rules
+EOF_H4R
+    if [ -z "$h4_dangerous" ]; then
+      local h4_measured
+      h4_measured="$(jq -cn --argjson total "$h4_total_allow" '{dangerous_rules: [], total_allow: $total}')"
+      emit_result "$project_name" "H4" "$h4_measured" "null" "1" "No dangerous auto-approve rules (checked ${h4_total_allow})"
+    else
+      local h4_measured
+      h4_measured="$(jq -cn --argjson total "$h4_total_allow" --arg d "$h4_dangerous" \
+        '{dangerous_rules: ($d | split(", ") | map(select(length > 0))), total_allow: $total}')"
+      emit_result "$project_name" "H4" "$h4_measured" "null" "0" "Dangerous auto-approve rule(s) found: ${h4_dangerous}"
+    fi
+  fi
+
+  # H3 — Stop hook has circuit breaker (static analysis, never executes scripts)
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H3" '{"stop_hooks":0,"guarded":0}' "null" "1" "No settings.json"
+  else
+    local stop_total
+    stop_total="$(jq '[.hooks.Stop[]?.hooks[]?.command // empty] | length' "$settings_path" 2>/dev/null)" || stop_total=0
+    if [ "${stop_total:-0}" -eq 0 ]; then
+      emit_result "$project_name" "H3" '{"stop_hooks":0,"guarded":0}' "null" "1" "No Stop hooks configured"
+    else
+      local stop_commands
+      stop_commands="$(jq -r '.hooks.Stop[]?.hooks[]?.command // empty' "$settings_path" 2>/dev/null)" || stop_commands=""
+      local h3_guarded=0
+      local h3_unresolvable=0
+      while IFS= read -r cmd; do
+        [ -z "$cmd" ] && continue
+        local script_path
+        script_path="$(extract_script_path "$cmd" "$project_dir")"
+        if [ "$script_path" = "INLINE" ]; then
+          # Check inline command text itself for guard
+          if printf '%s\n' "$cmd" | grep -Eq 'stop_hook_active|STOP_HOOK_ACTIVE|CLAUDE_STOP_HOOK|STOP_HOOK_GUARD|exit 0.*#.*loop|anti.?loop'; then
+            h3_guarded=$((h3_guarded + 1))
+          fi
+        elif [ -z "$script_path" ] || [ ! -f "$script_path" ]; then
+          h3_unresolvable=$((h3_unresolvable + 1))
+        else
+          if grep -Eq 'stop_hook_active|STOP_HOOK_ACTIVE|CLAUDE_STOP_HOOK|STOP_HOOK_GUARD|exit 0.*#.*loop|anti.?loop' "$script_path" 2>/dev/null; then
+            h3_guarded=$((h3_guarded + 1))
+          fi
+        fi
+      done <<EOF_H3
+$stop_commands
+EOF_H3
+      local h3_measured
+      h3_measured="$(jq -cn --argjson total "$stop_total" --argjson guarded "$h3_guarded" --argjson unres "$h3_unresolvable" \
+        '{stop_hooks: $total, guarded: $guarded, unresolvable: $unres}')"
+      if [ "$h3_guarded" -eq "$stop_total" ]; then
+        emit_result "$project_name" "H3" "$h3_measured" "null" "1" "All ${stop_total} Stop hook(s) have loop protection"
+      elif [ "$h3_unresolvable" -gt 0 ] && [ "$((h3_guarded + h3_unresolvable))" -eq "$stop_total" ]; then
+        # Some unresolvable; give partial credit
+        emit_result "$project_name" "H3" "$h3_measured" "null" "0.5" "${h3_guarded}/${stop_total} guarded, ${h3_unresolvable} unresolvable script path(s)"
+      else
+        emit_result "$project_name" "H3" "$h3_measured" "null" "0" "${h3_guarded}/${stop_total} Stop hook(s) have circuit breaker — risk of infinite loop"
+      fi
+    fi
+  fi
+
+  # H5 — Env deny coverage complete
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H5" "null" "null" "1" "No settings.json"
+  else
+    local deny_has_env=false
+    local deny_has_variant=false
+    local deny_rules
+    deny_rules="$(jq -r '.permissions.deny[]?' "$settings_path" 2>/dev/null)" || deny_rules=""
+    while IFS= read -r rule; do
+      [ -z "$rule" ] && continue
+      # Matches Read(./.env), Read(.env), Read(.env.local), Read(./.env.*), etc
+      case "$rule" in
+        *".env."*|*".env*"*) deny_has_variant=true; deny_has_env=true ;;
+        *".env"*) deny_has_env=true ;;
+      esac
+    done <<EOF_H5
+$deny_rules
+EOF_H5
+    if [ "$deny_has_env" = false ]; then
+      emit_result "$project_name" "H5" '{"deny_env":false,"deny_variants":false}' "null" "1" "No .env deny rules (N/A)"
+    elif [ "$deny_has_variant" = true ]; then
+      emit_result "$project_name" "H5" '{"deny_env":true,"deny_variants":true}' "null" "1" ".env + variants covered"
+    else
+      emit_result "$project_name" "H5" '{"deny_env":true,"deny_variants":false}' "null" "0.5" ".env denied but .env.* variants (e.g. .env.local, .env.production) are not"
+    fi
+  fi
+
+  # H6 — Hook scripts network access (static analysis, never executes scripts)
+  if [ ! -f "$settings_path" ]; then
+    emit_result "$project_name" "H6" '{"hooks_with_network":0}' "null" "1" "No settings.json"
+  else
+    local all_hook_commands
+    all_hook_commands="$(jq -r '.hooks // {} | to_entries[]? | .value[]? | .hooks[]? | .command // empty' "$settings_path" 2>/dev/null)" || all_hook_commands=""
+    local h6_network_count=0
+    local h6_total=0
+    while IFS= read -r cmd; do
+      [ -z "$cmd" ] && continue
+      h6_total=$((h6_total + 1))
+      local script_path
+      script_path="$(extract_script_path "$cmd" "$project_dir")"
+      if [ "$script_path" = "INLINE" ]; then
+        if printf '%s\n' "$cmd" | grep -Eq 'curl |wget |urllib\.request|requests\.(post|get|put)|fetch\(|axios\.|http\.request|https?://hooks\.|webhook'; then
+          h6_network_count=$((h6_network_count + 1))
+        fi
+      elif [ -n "$script_path" ] && [ -f "$script_path" ]; then
+        if grep -Eq 'curl |wget |urllib\.request|requests\.(post|get|put)|fetch\(|axios\.|http\.request|https?://hooks\.|webhook' "$script_path" 2>/dev/null; then
+          h6_network_count=$((h6_network_count + 1))
+        fi
+      fi
+    done <<EOF_H6
+$all_hook_commands
+EOF_H6
+    if [ "$h6_total" -eq 0 ]; then
+      emit_result "$project_name" "H6" '{"hooks_with_network":0,"total_hooks":0}' "null" "1" "No hooks configured"
+    elif [ "$h6_network_count" -eq 0 ]; then
+      local h6_measured
+      h6_measured="$(jq -cn --argjson total "$h6_total" '{hooks_with_network: 0, total_hooks: $total}')"
+      emit_result "$project_name" "H6" "$h6_measured" "null" "1" "No hook scripts detected making network calls"
+    else
+      local h6_measured
+      h6_measured="$(jq -cn --argjson count "$h6_network_count" --argjson total "$h6_total" '{hooks_with_network: $count, total_hooks: $total}')"
+      emit_result "$project_name" "H6" "$h6_measured" "null" "0" "${h6_network_count}/${h6_total} hook script(s) make external network calls — review for legitimacy"
+    fi
+  fi
+
+  # F8 — Rule file frontmatter uses globs not paths
+  local rules_dir="${project_dir}/.claude/rules"
+  if [ ! -d "$rules_dir" ]; then
+    emit_result "$project_name" "F8" '{"total_scoped":0}' "null" "1" "No .claude/rules directory"
+  else
+    local f8_total_scoped=0
+    local f8_uses_globs=0
+    while IFS= read -r rule_file; do
+      [ -z "$rule_file" ] && continue
+      # Parse YAML frontmatter (between first two --- markers)
+      local in_fm=false
+      local has_scope=false
+      local has_globs=false
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [ "$line" = "---" ]; then
+          if [ "$in_fm" = true ]; then
+            break
+          fi
+          in_fm=true
+          continue
+        fi
+        [ "$in_fm" = true ] || continue
+        case "$line" in
+          paths:*) has_scope=true ;;
+          globs:*) has_scope=true; has_globs=true ;;
+        esac
+      done < "$rule_file"
+      if [ "$has_scope" = true ]; then
+        f8_total_scoped=$((f8_total_scoped + 1))
+        [ "$has_globs" = true ] && f8_uses_globs=$((f8_uses_globs + 1))
+      fi
+    done <<EOF_F8
+$(find "$rules_dir" -maxdepth 1 -name '*.md' 2>/dev/null)
+EOF_F8
+    if [ "$f8_total_scoped" -eq 0 ]; then
+      emit_result "$project_name" "F8" '{"total_scoped":0,"uses_globs":0}' "null" "1" "No scoped rule files"
+    else
+      local f8_score
+      f8_score="$(awk -v g="$f8_uses_globs" -v t="$f8_total_scoped" 'BEGIN { print g/t }')"
+      local f8_measured
+      f8_measured="$(jq -cn --argjson t "$f8_total_scoped" --argjson g "$f8_uses_globs" '{total_scoped: $t, uses_globs: $g}')"
+      emit_result "$project_name" "F8" "$f8_measured" "null" "$f8_score" "Rule files using globs: ${f8_uses_globs}/${f8_total_scoped}"
+    fi
+  fi
+
+  # F9 — No unfilled template placeholders (uses grep -E only for macOS compat, no -P)
+  if [ -n "$entry_abs" ]; then
+    local f9_hits=0
+    # Pattern 1: [your X], [project X], [框架 X] — bracketed placeholders
+    local f9_bracket_all
+    f9_bracket_all="$(grep -Eic '\[(你的|your |project |框架|版本|app |name)[^]]*\]' "$entry_abs" 2>/dev/null)" || f9_bracket_all=0
+    local f9_bracket_links
+    f9_bracket_links="$(grep -Eic '\[(你的|your |project |框架|版本|app |name)[^]]*\]\(' "$entry_abs" 2>/dev/null)" || f9_bracket_links=0
+    f9_hits=$((f9_hits + f9_bracket_all - f9_bracket_links))
+    # Pattern 2: <your X>, <project X>, etc
+    local f9_angle
+    f9_angle="$(grep -Eic '<(your|project|app|framework)[^>]*>' "$entry_abs" 2>/dev/null)" || f9_angle=0
+    f9_hits=$((f9_hits + f9_angle))
+    # Pattern 3: TODO:/FIXME:/XXX:/Not configured
+    local f9_marker
+    f9_marker="$(grep -Eic '^[[:space:]]*(Not configured|TODO:|FIXME:|XXX:)' "$entry_abs" 2>/dev/null)" || f9_marker=0
+    f9_hits=$((f9_hits + f9_marker))
+    if [ "$f9_hits" -le 0 ]; then
+      emit_result "$project_name" "F9" "0" "0" "1" "No template placeholders found"
+    else
+      emit_result "$project_name" "F9" "$f9_hits" "0" "0" "Found ${f9_hits} unfilled template placeholder(s)"
+    fi
+  else
+    emit_result "$project_name" "F9" "null" "null" "0" "Skipped because no entry file exists"
+  fi
+
+  # I8 — Total injected content within budget
+  local total_injected=0
+  if [ -n "$entry_abs" ]; then
+    local entry_lines
+    entry_lines="$(grep -cv '^[[:space:]]*$' "$entry_abs" 2>/dev/null)" || entry_lines=0
+    total_injected=$((total_injected + entry_lines))
+  fi
+  # Also include AGENTS.md if different from entry file
+  if [ -f "${project_dir}/AGENTS.md" ] && [ "$entry_rel" != "AGENTS.md" ]; then
+    local agents_lines
+    agents_lines="$(grep -cv '^[[:space:]]*$' "${project_dir}/AGENTS.md" 2>/dev/null)" || agents_lines=0
+    total_injected=$((total_injected + agents_lines))
+  fi
+  # Include .claude/rules/*.md
+  if [ -d "${project_dir}/.claude/rules" ]; then
+    while IFS= read -r rf; do
+      [ -z "$rf" ] && continue
+      local rf_lines
+      rf_lines="$(grep -cv '^[[:space:]]*$' "$rf" 2>/dev/null)" || rf_lines=0
+      total_injected=$((total_injected + rf_lines))
+    done <<EOF_I8
+$(find "${project_dir}/.claude/rules" -maxdepth 1 -name '*.md' 2>/dev/null)
+EOF_I8
+  fi
+  local i8_low i8_high
+  i8_low="$(jq -r '.I8_total_lines.reference_lines[0]' "$THRESHOLDS_FILE" 2>/dev/null)"
+  i8_high="$(jq -r '.I8_total_lines.reference_lines[1]' "$THRESHOLDS_FILE" 2>/dev/null)"
+  local i8_score
+  i8_score="$(score_range "$total_injected" "$i8_low" "$i8_high")"
+  emit_result "$project_name" "I8" "$total_injected" "[${i8_low},${i8_high}]" "$i8_score" "Total injected content: ${total_injected} non-empty lines (reference: ${i8_low}-${i8_high})"
 }
 
 discover_projects() {

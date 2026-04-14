@@ -45,7 +45,7 @@ runTest('dimension scores use weighted averages and total score is out of 100', 
 
   assert.equal(output.dimensions.findability.score, 8);
   assert.equal(output.dimensions.workability.score, 3);
-  assert.equal(output.total_score, 22);
+  assert.equal(output.total_score, 21);
 });
 
 runTest('per-project breakdown exists and retains project checks', () => {
@@ -85,6 +85,18 @@ runTest('unknown check prefixes are ignored without crashing', () => {
   assert.equal(output.total_score, 20);
   assert.equal(output.by_project.ignored.findability.checks.length, 1);
   assert.equal(output.by_project.ignored.findability.checks[0].check_id, 'F1');
+});
+
+runTest('H prefix check is routed to harness dimension', () => {
+  const output = runScorer([
+    { check_id: 'H1', project: 'hp', score: 1, name: 'Hook event names', measured_value: { total: 2, valid: 2 } },
+    { check_id: 'F1', project: 'hp', score: 1, name: 'Entry file', measured_value: 1 },
+  ]);
+
+  assert.ok(output.dimensions.harness, 'harness dimension should exist in output');
+  assert.equal(output.dimensions.harness.checks.length, 1);
+  assert.equal(output.dimensions.harness.checks[0].check_id, 'H1');
+  assert.ok(output.by_project.hp.harness, 'per-project harness should exist');
 });
 
 process.stdout.write(`${passed}/${total} tests passed\n`);
