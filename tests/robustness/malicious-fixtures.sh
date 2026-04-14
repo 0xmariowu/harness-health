@@ -223,7 +223,7 @@ check_traversal_safe() {
   # be treated as broken. Expect broken_count >= 2.
   local f5_broken
   f5_broken="$(grep '"check_id":"F5"' "${out}" 2>/dev/null | head -1 | \
-    jq -r 'if .detail then (.detail | capture("(?<n>[0-9]+) broken") | .n) else "0" end' 2>/dev/null || true)"
+    jq -r 'if .detail then (.detail | capture("Broken references: (?<n>[0-9]+)") | .n) else "0" end' 2>/dev/null || true)"
   if [ -z "${f5_broken}" ] || [ "${f5_broken}" = "null" ]; then
     f5_broken="0"
   fi
