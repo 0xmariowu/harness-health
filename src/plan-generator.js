@@ -44,7 +44,7 @@ const CHECK_FIX_ACTIONS = {
   H6: 'Review hook scripts making network calls — ensure external requests are intentional, not data exfiltration',
 };
 
-const ASSISTED_FIXES = new Set(['F1', 'C2']);
+const ASSISTED_FIXES = new Set(['F1', 'F5', 'C2']);
 const AUTO_FIXES = new Set(['I5']);
 const GUIDED_FIXES = new Set(['I3', 'W3', 'C1', 'H3', 'H6']);
 
