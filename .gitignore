@@ -17,3 +17,6 @@ tests/accuracy/batch-output/
 tests/accuracy/batch-state.json
 tests/accuracy/deterministic-labels.jsonl
 tests/accuracy/conflicts.jsonl
+__pycache__/
+*.pyc
+state/
