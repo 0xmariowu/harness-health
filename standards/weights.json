@@ -19,5 +19,5 @@
     "S1": 2, "S2": 2, "S3": 1, "S4": 1, "S5": 1, "S6": 3, "S7": 1, "S8": 1,
     "H1": 2, "H2": 1, "H4": 3, "H3": 2, "H5": 1, "H6": 1
   },
-  "note": "Instructions heaviest (0.25) — unique value. Safety (0.15) — AI agent security posture. Harness (0.10) — runtime config correctness (hooks/permissions). Deep/session dimensions are each 0.05 to surface analyzer findings without materially shifting existing scores. S6 (hardcoded secrets) weighted highest — most dangerous."
+  "note": "Instructions heaviest (0.25) — unique value. Safety (0.15) — AI agent security posture. Harness (0.10) — runtime config correctness (hooks/permissions). Deep/session dimensions are each 0.05; their addition makes the dimension weights sum to 1.10, so existing dimensions now contribute ~9% less of the total. This is intentional: D1-D3/SS1-SS4 were previously emitted by deep-/session-analyzer but silently dropped because no dimension owned them, so the post-fix total finally reflects those checks. S6 (hardcoded secrets) weighted highest — most dangerous."
 }
