@@ -10,6 +10,7 @@ const referencePath = path.join(__dirname, '..', 'standards', 'reference-thresho
 
 const DIMENSION_BY_PREFIX = {
   F: 'findability',
+  D: 'deep',
   I: 'instructions',
   W: 'workability',
   C: 'continuity',
@@ -36,6 +37,7 @@ function resolveDimension(checkId, dimensionHint) {
   }
 
   if (typeof checkId !== 'string' || checkId.length === 0) return null;
+  if (checkId.toUpperCase().startsWith('SS')) return 'session';
 
   const prefix = checkId[0]?.toUpperCase();
   return DIMENSION_BY_PREFIX[prefix] || null;
@@ -194,6 +196,12 @@ async function run() {
 
   const inputArg = process.argv[2];
   const input = inputArg ? fs.createReadStream(inputArg, 'utf8') : process.stdin;
+  if (inputArg) {
+    input.on('error', (err) => {
+      process.stderr.write(`scorer: cannot read input '${inputArg}': ${err.message}\n`);
+      process.exit(1);
+    });
+  }
   const rl = readline.createInterface({ input });
 
   const globalState = initDimensionState(dimensionsConfig);
