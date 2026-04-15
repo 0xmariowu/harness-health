@@ -1749,6 +1749,102 @@ test_f5_traversal_refs_broken() {
 
 run_test "F5 regression: traversal refs ('../') counted as broken" test_f5_traversal_refs_broken
 
+# PR #72 regressions: multi-link isolation + emit_result defensive failures
+
+F5_MULTI_LINK_DIR="${TEMP_ROOT}/f5-multi-link"
+mkdir -p "${F5_MULTI_LINK_DIR}"
+git -C "${F5_MULTI_LINK_DIR}" init --quiet 2>/dev/null || true
+cat > "${F5_MULTI_LINK_DIR}/CLAUDE.md" <<'MD'
+# Test
+
+See [alpha](./missing-one.md) and [beta](./missing-two.md) on the same line.
+MD
+
+test_f5_multiple_links_same_line() {
+  local out="${TEMP_ROOT}/f5-multi-link.jsonl"
+  bash "${SCANNER}" --project-dir "${F5_MULTI_LINK_DIR}" > "$out" 2>/dev/null
+  local detail
+  detail="$(extract_check_detail "$out" "F5")" || {
+    TEST_ERROR="F5 detail not found"; return 1
+  }
+  case "$detail" in
+    *"Broken references: 2/2"*missing-one.md*missing-two.md*) return 0 ;;
+    *) TEST_ERROR="F5 should count both same-line markdown links as broken (detail: ${detail})"; return 1 ;;
+  esac
+}
+
+run_test "F5 regression: multiple markdown links on one line stay isolated" test_f5_multiple_links_same_line
+
+extract_scanner_lib() {
+  local lib_path="${TEMP_ROOT}/scanner-lib.sh"
+  sed '$d' "${SCANNER}" > "${lib_path}"
+  printf '%s\n' "${lib_path}"
+}
+
+test_emit_result_unknown_check_id_fails_loudly() {
+  local lib_path stderr_file stdout_file
+  lib_path="$(extract_scanner_lib)"
+  stderr_file="${TEMP_ROOT}/emit-unknown.stderr"
+  stdout_file="${TEMP_ROOT}/emit-unknown.stdout"
+
+  if bash -c 'source "$1"; EVIDENCE_FILE="$2/standards/evidence.json"; THRESHOLDS_FILE="$2/standards/reference-thresholds.json"; emit_result "demo" "ZZ99" "0" "null" "1" "detail"' bash "${lib_path}" "${ROOT_DIR}" >"${stdout_file}" 2>"${stderr_file}"; then
+    TEST_ERROR="emit_result should fail for unknown check_id"
+    return 1
+  fi
+  if [ -s "${stdout_file}" ]; then
+    TEST_ERROR="emit_result should not write stdout for unknown check_id"
+    return 1
+  fi
+  if ! grep -q 'unknown check_id "ZZ99"' "${stderr_file}"; then
+    TEST_ERROR="stderr should mention unknown check_id (got: $(cat "${stderr_file}"))"
+    return 1
+  fi
+}
+
+test_emit_result_jq_failure_fails_loudly() {
+  local lib_path stderr_file stdout_file
+  lib_path="$(extract_scanner_lib)"
+  stderr_file="${TEMP_ROOT}/emit-jq.stderr"
+  stdout_file="${TEMP_ROOT}/emit-jq.stdout"
+
+  if bash -c 'source "$1"; EVIDENCE_FILE="$2/standards/evidence.json"; THRESHOLDS_FILE="$2/standards/reference-thresholds.json"; emit_result "demo" "F1" "{oops" "null" "1" "detail"' bash "${lib_path}" "${ROOT_DIR}" >"${stdout_file}" 2>"${stderr_file}"; then
+    TEST_ERROR="emit_result should fail when jq cannot build output"
+    return 1
+  fi
+  if [ -s "${stdout_file}" ]; then
+    TEST_ERROR="emit_result should not write stdout on jq failure"
+    return 1
+  fi
+  if ! grep -q 'jq failed emitting F1 for demo' "${stderr_file}"; then
+    TEST_ERROR="stderr should mention jq failure (got: $(cat "${stderr_file}"))"
+    return 1
+  fi
+}
+
+test_emit_result_empty_output_fails_loudly() {
+  local lib_path stderr_file stdout_file
+  lib_path="$(extract_scanner_lib)"
+  stderr_file="${TEMP_ROOT}/emit-empty.stderr"
+  stdout_file="${TEMP_ROOT}/emit-empty.stdout"
+
+  if bash -c 'source "$1"; EVIDENCE_FILE="$2/standards/evidence.json"; THRESHOLDS_FILE="$2/standards/reference-thresholds.json"; jq() { if [ "$1" = "-cn" ]; then return 0; fi; command jq "$@"; }; emit_result "demo" "F1" "0" "null" "1" "detail"' bash "${lib_path}" "${ROOT_DIR}" >"${stdout_file}" 2>"${stderr_file}"; then
+    TEST_ERROR="emit_result should fail when jq returns empty output"
+    return 1
+  fi
+  if [ -s "${stdout_file}" ]; then
+    TEST_ERROR="emit_result should not write stdout on empty-output failure"
+    return 1
+  fi
+  if ! grep -q 'jq produced empty output for F1' "${stderr_file}"; then
+    TEST_ERROR="stderr should mention empty jq output (got: $(cat "${stderr_file}"))"
+    return 1
+  fi
+}
+
+run_test "emit_result: unknown check_id fails loudly" test_emit_result_unknown_check_id_fails_loudly
+run_test "emit_result: jq failure fails loudly" test_emit_result_jq_failure_fails_loudly
+run_test "emit_result: empty jq output fails loudly" test_emit_result_empty_output_fails_loudly
+
 printf '%s/%s tests passed\n' "${pass_count}" "${test_count}"
 
 if [ "${pass_count}" -eq "${test_count}" ]; then
