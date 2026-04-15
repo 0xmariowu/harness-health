@@ -28,6 +28,8 @@ prefix_to_dimension = {
     "C": "continuity",
     "S": "safety",
     "H": "harness",
+    "D": "deep",
+    "SS": "session",
 }
 
 display_names = {
@@ -37,6 +39,8 @@ display_names = {
     "continuity": "Continuity",
     "safety": "Safety",
     "harness": "Harness",
+    "deep": "Deep",
+    "session": "Session",
 }
 
 # Group checks by dimension
@@ -51,7 +55,7 @@ for dim in dim_checks:
     dim_checks[dim].sort(key=lambda x: (re.match(r"[A-Z]+", x).group(), int(re.search(r"\d+", x).group())))
 
 # Build dimensions array in display order
-dim_order = ["findability", "instructions", "workability", "continuity", "safety", "harness"]
+dim_order = ["findability", "instructions", "workability", "continuity", "safety", "harness", "deep", "session"]
 dimensions = []
 for dim_id in dim_order:
     checks = dim_checks[dim_id]
