@@ -79,6 +79,10 @@ jobs:
         shell: bash
         run: bash tests/windows/smoke.sh
 
+      - name: Run postinstall detection unit test
+        shell: bash
+        run: node tests/unit/test-postinstall-detection.js
+
       - name: Run full Linux test suite
         if: runner.os == 'Linux'
         shell: bash
@@ -205,38 +209,3 @@ jobs:
           echo "--- end ---"
           test "$code" -eq 1
           echo "$output" | grep -qi "Claude Code not found"
-
-      # Path B (Windows only): stub a fake claude.cmd on PATH so the first
-      # check passes, then give the node subprocess a PATH with no bash so
-      # the Windows bash-detection branch fires. System32 stays on PATH so
-      # the stubbed claude.cmd and `where.exe` are both reachable. We
-      # invoke node by absolute path so Git Bash's command lookup (which
-      # uses Unix-style PATH with `:` separators) is not affected by our
-      # Windows-style semicolon PATH override.
-      - name: Path B — simulate bash-missing on Windows only
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          STUB_DIR="$RUNNER_TEMP/stub-bin"
-          mkdir -p "$STUB_DIR"
-          cat > "$STUB_DIR/claude.cmd" <<'EOF'
-          @echo off
-          echo stub-claude
-          EOF
-          NODE_UNIX="$(which node)"
-          NODE_DIR_WIN="$(cygpath -w "$(dirname "$NODE_UNIX")")"
-          STUB_WIN="$(cygpath -w "$STUB_DIR")"
-          # Windows-style PATH: stub dir + node dir + System32, intentionally
-          # omitting C:\Program Files\Git\bin so bash --version fails.
-          SAFE_PATH="$STUB_WIN;$NODE_DIR_WIN;C:\\Windows\\System32;C:\\Windows"
-          set +e
-          output=$(PATH="$SAFE_PATH" "$NODE_UNIX" npm/postinstall.js 2>&1)
-          code=$?
-          set -e
-          echo "exit=$code"
-          echo "--- output ---"
-          echo "$output"
-          echo "--- end ---"
-          test "$code" -eq 1
-          echo "$output" | grep -qi "bash"
-          echo "$output" | grep -qi "Git for Windows\\|WSL"
