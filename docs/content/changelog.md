@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.0 (2026-04-16)
+
+### Added
+
+- **You can now get AgentLint findings in GitHub's Security tab and as inline PR annotations.** Enable with `sarif-upload: 'true'` in your workflow. Findings appear alongside CodeQL and Dependabot alerts — persistent, trackable, and integrated with your existing security notification workflow. SARIF upload requires Code scanning enabled (free for public repos, GHAS for private).
+- **Inline PR annotations now appear on every run** — even without SARIF/Code scanning. AgentLint emits `::warning` and `::error` workflow commands that GitHub renders as yellow/red annotations on the PR Files changed tab. No configuration needed.
+
 ## v0.7.1 (2026-04-16)
 
 ### Added
