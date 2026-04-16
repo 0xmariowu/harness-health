@@ -29,6 +29,7 @@ paths = [
   '''\.gitleaks\.toml$''',
   '''README\.md$''',
   '''CHANGELOG\.md$''',
+  '''docs/content/changelog\.md$''',
   '''docs/checks\.md$''',
   '''docs/scoring\.md$''',
   '''standards/evidence\.json$''',
