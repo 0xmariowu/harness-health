@@ -2,15 +2,19 @@
 
 ## v0.7.1 (unreleased)
 
+### Added
+
+- **You can now install AgentLint on Windows** from inside Git Bash or WSL (#82). `npm install -g @0xmariowu/agent-lint` previously rejected Windows with `EBADPLATFORM` before the installer could even run; that block is gone.
+- **Clear guidance when bash is missing on Windows.** Running the installer from `cmd.exe` or PowerShell now exits with a message pointing to Git for Windows or WSL instead of a cryptic shell error.
+
 ### Fixed
 
-- **Windows install no longer fails with `EBADPLATFORM`** (#82). The npm package previously hardcoded `"os": ["darwin", "linux"]`, rejecting Windows before the postinstall script could even run. That field is gone. `npm install -g @0xmariowu/agent-lint` now works on Windows when run from Git Bash or WSL.
-- **Cross-platform postinstall detection.** `npm/postinstall.js` now uses `where claude` on win32 and `command -v claude` elsewhere to find the Claude CLI. On Windows it additionally verifies `bash` is available before attempting to run the installer. When bash is missing, it exits with an actionable message pointing to Git for Windows or WSL rather than a cryptic error.
-- **LF line endings enforced** via `.gitattributes`. Without this, Windows checkouts with default `core.autocrlf=true` would convert `.sh` files to CRLF, breaking the shebang and every heredoc in `src/scanner.sh`.
+- Postinstall detects `claude` cross-platform (`where` on win32, `command -v` elsewhere) and verifies `bash` availability on Windows before invoking the installer.
+- `.gitattributes` now forces LF on `*.sh`, `*.js`, `*.md`, and other text files so Windows checkouts with default `core.autocrlf=true` no longer convert shell scripts to CRLF and break shebangs.
 
 ### Notes
 
-- The scanner itself (`src/scanner.sh`) remains bash. Windows users must install it from inside Git Bash or WSL; the requirements are documented in `README.md`.
+- The scanner itself (`src/scanner.sh`) is still bash. Running it on Windows requires Git Bash or WSL — see the Platform requirements table in `README.md`. A native cmd.exe / PowerShell flow is out of scope for this patch.
 
 ## v0.7.0 (2026-04-15)
 
