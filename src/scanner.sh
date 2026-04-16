@@ -117,27 +117,40 @@ score_count_presence() {
   awk -v measured="$measured" 'BEGIN { if (measured > 0) print 1; else print 0 }'
 }
 
+is_regular_file() {
+  # Return true only for regular files, NOT symlinks, directories, or special files.
+  [ -f "$1" ] && [ ! -L "$1" ]
+}
+
 entry_file_rel() {
   local project_dir="$1"
-  if [ -f "${project_dir}/CLAUDE.md" ]; then
+  if is_regular_file "${project_dir}/CLAUDE.md"; then
     printf '%s\n' "CLAUDE.md"
-  elif [ -f "${project_dir}/AGENTS.md" ]; then
+  elif is_regular_file "${project_dir}/AGENTS.md"; then
     printf '%s\n' "AGENTS.md"
-  elif [ -f "${project_dir}/.cursorrules" ]; then
+  elif is_regular_file "${project_dir}/.cursorrules"; then
     printf '%s\n' ".cursorrules"
-  elif [ -f "${project_dir}/.github/copilot-instructions.md" ]; then
+  elif is_regular_file "${project_dir}/.github/copilot-instructions.md"; then
     printf '%s\n' ".github/copilot-instructions.md"
-  elif [ -f "${project_dir}/GEMINI.md" ]; then
+  elif is_regular_file "${project_dir}/GEMINI.md"; then
     printf '%s\n' "GEMINI.md"
-  elif [ -f "${project_dir}/.windsurfrules" ]; then
+  elif is_regular_file "${project_dir}/.windsurfrules"; then
     printf '%s\n' ".windsurfrules"
-  elif [ -f "${project_dir}/.clinerules" ]; then
+  elif is_regular_file "${project_dir}/.clinerules"; then
     printf '%s\n' ".clinerules"
-  elif ls "${project_dir}/.cursor/rules/"*.mdc >/dev/null 2>&1; then
-    local mdc_file
-    # shellcheck disable=SC2012
-    mdc_file="$(ls "${project_dir}/.cursor/rules/"*.mdc 2>/dev/null | head -1)"
-    printf '%s\n' ".cursor/rules/$(basename "$mdc_file")"
+  elif [ -d "${project_dir}/.cursor/rules" ] && [ ! -L "${project_dir}/.cursor/rules" ]; then
+    local mdc_file=""
+    local candidate=""
+    for candidate in "${project_dir}/.cursor/rules/"*.mdc; do
+      is_regular_file "$candidate" || continue
+      mdc_file="$candidate"
+      break
+    done
+    if [ -n "$mdc_file" ]; then
+      printf '%s\n' ".cursor/rules/$(basename "$mdc_file")"
+    else
+      printf '\n'
+    fi
   else
     printf '\n'
   fi
@@ -660,6 +673,16 @@ extract_script_path() {
     ./*) script_path="${project_dir}/${script_path#./}" ;;
     ../*) script_path="${project_dir}/${script_path}" ;;
   esac
+  # Confine resolved path to project_dir — reject traversal outside repo
+  local real_script real_project
+  real_script="$(cd "$(dirname "$script_path")" 2>/dev/null && pwd)/$(basename "$script_path")" 2>/dev/null || return
+  real_project="$(cd "$project_dir" 2>/dev/null && pwd)" 2>/dev/null || return
+  case "$real_script" in
+    "${real_project}"/*) ;;
+    *) return ;;  # outside project — do not return path
+  esac
+  # Reject symlinks
+  [ -L "$script_path" ] && return
   printf '%s\n' "$script_path"
 }
 
@@ -813,27 +836,31 @@ EOF
   emit_result "$project_name" "F6" "$measured" "null" "$score" "$detail"
 
   if [ -n "$entry_abs" ]; then
-    # Strip fenced code blocks (```...```) and indented code (4+ spaces / tab)
-    # before counting emphasis keywords, so code examples don't inflate counts.
-    local prose_content=""
-    local in_fence=false
-    while IFS= read -r line || [ -n "$line" ]; do
-      case "$line" in
-        '```'*|'~~~'*)
-          if [ "$in_fence" = true ]; then in_fence=false; else in_fence=true; fi
-          continue ;;
-      esac
-      [ "$in_fence" = true ] && continue
-      case "$line" in
-        '    '*|'	'*) continue ;;
-      esac
-      prose_content="${prose_content}${line}
-"
-    done < "$entry_abs"
-    count_important="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'IMPORTANT' || true)"
-    count_never="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'NEVER' || true)"
-    count_must="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'MUST' || true)"
-    count_critical="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'CRITICAL' || true)"
+    # Strip fenced code blocks and indented code, then count keywords.
+    # Uses awk streaming — no buffering of the entire file in memory.
+    local keyword_counts=""
+    # LC_ALL=C makes awk treat input as bytes, tolerating non-UTF-8/binary files.
+    keyword_counts="$(LC_ALL=C awk '
+      /^```/ || /^~~~/ { fence = !fence; next }
+      fence { next }
+      /^    / || /^\t/ { next }
+      {
+        n = split($0, words, /[^A-Za-z]+/)
+        for (i = 1; i <= n; i++) {
+          if (words[i] == "IMPORTANT") imp++
+          else if (words[i] == "NEVER") nev++
+          else if (words[i] == "MUST") mus++
+          else if (words[i] == "CRITICAL") cri++
+        }
+      }
+      END { printf "%d %d %d %d", imp+0, nev+0, mus+0, cri+0 }
+    ' "$entry_abs" 2>/dev/null || printf '0 0 0 0')"
+    count_important="${keyword_counts%% *}"
+    keyword_counts="${keyword_counts#* }"
+    count_never="${keyword_counts%% *}"
+    keyword_counts="${keyword_counts#* }"
+    count_must="${keyword_counts%% *}"
+    count_critical="${keyword_counts#* }"
     measured="$(jq -cn \
       --argjson IMPORTANT "$count_important" \
       --argjson NEVER "$count_never" \
@@ -1308,7 +1335,7 @@ WF
     has_secret_scan=true
   elif [ -f "${project_dir}/.pre-commit-config.yaml" ] && grep -q 'gitleaks' "${project_dir}/.pre-commit-config.yaml" 2>/dev/null; then
     has_secret_scan=true
-  elif [ -d "$wf_dir" ] && grep -rl 'gitleaks' "$wf_dir" >/dev/null 2>&1; then
+  elif [ -d "$wf_dir" ] && [ ! -L "$wf_dir" ] && grep -rl 'gitleaks' "$wf_dir" >/dev/null 2>&1; then
     has_secret_scan=true
   fi
   if [ "$has_secret_scan" = true ]; then
@@ -1354,11 +1381,14 @@ WF2
   local secret_hits=0
   local secret_examples=""
   if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Note: .env files ARE checked — S6 detects secrets committed in source.
+    # S1 separately checks whether .env is gitignored. If .env is tracked AND
+    # contains secret patterns, both S1 and S6 should flag it.
     secret_hits="$(git -C "$project_dir" grep -lE \
       'sk-[a-zA-Z0-9]{48,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
-      -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
-      ':!*.env' ':!*.env.*' ':!*.lock' \
-      2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build\|__pycache__')" || secret_hits=0
+      -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' '*.env' '*.env.*' \
+      ':!*.lock' \
+      2>/dev/null | grep -cEv 'node_modules|\.git/|vendor/|dist/|build/|__pycache__')" || secret_hits=0
     if [ "${secret_hits:-0}" -gt 0 ]; then
       secret_examples="$(git -C "$project_dir" grep -lE \
         'sk-[a-zA-Z0-9]{48,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN.*(PRIVATE|RSA|EC) KEY' \
@@ -1625,13 +1655,15 @@ EOF_H6
 
   # F8 — Rule file frontmatter uses globs not paths
   local rules_dir="${project_dir}/.claude/rules"
-  if [ ! -d "$rules_dir" ]; then
+  if [ ! -d "$rules_dir" ] || [ -L "$rules_dir" ]; then
     emit_result "$project_name" "F8" '{"total_scoped":0}' "null" "1" "No .claude/rules directory"
   else
     local f8_total_scoped=0
     local f8_uses_globs=0
     while IFS= read -r rule_file; do
       [ -z "$rule_file" ] && continue
+      # Skip symlinks and non-regular files
+      is_regular_file "$rule_file" || continue
       # Parse YAML frontmatter (between first two --- markers)
       local in_fm=false
       local has_scope=false

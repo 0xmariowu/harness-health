@@ -177,6 +177,15 @@ function inferFixType(checkId) {
   return DEFAULT_ITEM_IDS.get(checkId.toUpperCase()) || 'guided';
 }
 
+function isRegularFile(filePath) {
+  try {
+    const lstat = fs.lstatSync(filePath);
+    return lstat.isFile() && !lstat.isSymbolicLink();
+  } catch (_) {
+    return false;
+  }
+}
+
 function resolveEntryFile(projectDir) {
   const entryCandidates = [
     'CLAUDE.md',
@@ -189,17 +198,18 @@ function resolveEntryFile(projectDir) {
   ];
   for (const name of entryCandidates) {
     const abs = path.join(projectDir, name); // nosemgrep: path-join-resolve-traversal
-    if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+    if (isRegularFile(abs)) {
       return abs;
     }
   }
   // Fallback: .cursor/rules/*.mdc (first match)
   const cursorRulesDir = path.join(projectDir, '.cursor', 'rules'); // nosemgrep: path-join-resolve-traversal
   try {
-    if (fs.existsSync(cursorRulesDir) && fs.statSync(cursorRulesDir).isDirectory()) {
+    if (fs.existsSync(cursorRulesDir) && fs.lstatSync(cursorRulesDir).isDirectory() && !fs.lstatSync(cursorRulesDir).isSymbolicLink()) {
       const entries = fs.readdirSync(cursorRulesDir).filter((n) => n.endsWith('.mdc')).sort();
-      if (entries.length > 0) {
-        return path.join(cursorRulesDir, entries[0]); // nosemgrep: path-join-resolve-traversal
+      for (const e of entries) {
+        const mdcPath = path.join(cursorRulesDir, e); // nosemgrep: path-join-resolve-traversal
+        if (isRegularFile(mdcPath)) return mdcPath;
       }
     }
   } catch (_) { /* ignore */ }
@@ -222,7 +232,24 @@ function backupFile(originalPath, projectDir, backupRoot, backedSet) {
     return;
   }
 
+  // Refuse to back up files outside the project dir (symlink protection).
+  const projectAbs = path.resolve(projectDir); // nosemgrep: path-join-resolve-traversal
+  if (!abs.startsWith(projectAbs + path.sep) && abs !== projectAbs) {
+    throw new Error(`Refusing to back up file outside project directory: ${abs}`);
+  }
+  // Refuse symlinks — writing to them escapes the project.
+  try {
+    if (fs.lstatSync(abs).isSymbolicLink()) {
+      throw new Error(`Refusing to back up symlink: ${abs}`);
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+
   const rel = path.relative(projectDir, abs);
+  if (rel.startsWith('..')) {
+    throw new Error(`Refusing backup path traversal: ${rel}`);
+  }
   const destination = path.join(backupRoot, rel); // nosemgrep: path-join-resolve-traversal
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.copyFileSync(abs, destination);
@@ -453,11 +480,15 @@ function executeAssistedF1(projectDir, projectName) {
 
 function executeAssistedC2(projectDir, projectName) {
   const target = path.join(projectDir, 'HANDOFF.md'); // nosemgrep: path-join-resolve-traversal
-  if (fs.existsSync(target)) {
-    return {
-      status: 'failed',
-      detail: 'Skipped: HANDOFF.md already exists.',
-    };
+  if (fs.existsSync(target) || fs.existsSync(target + '')) {
+    // Check lstat to catch symlinks too — existsSync follows them.
+    try {
+      fs.lstatSync(target);
+      return {
+        status: 'failed',
+        detail: 'Skipped: HANDOFF.md already exists.',
+      };
+    } catch (_) { /* not exist — proceed */ }
   }
 
   const date = new Date().toISOString().slice(0, 10);
@@ -475,6 +506,14 @@ function executeAutoFix(checkId, projectDir, filePath, backupRoot, backedSet) {
     return {
       status: 'failed',
       detail: 'No entry file found to apply fix.',
+    };
+  }
+  // Refuse to write to symlinks — this prevents arbitrary file overwrite
+  // via an attacker-placed symlinked entry file.
+  if (!isRegularFile(filePath)) {
+    return {
+      status: 'failed',
+      detail: `Refusing to modify non-regular file or symlink: ${path.basename(filePath)}.`,
     };
   }
 

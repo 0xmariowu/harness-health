@@ -83,21 +83,35 @@ RESPOND WITH ONLY A VALID JSON OBJECT:
   },
 };
 
+function isRegularFile(filePath) {
+  try {
+    const lstat = fs.lstatSync(filePath);
+    return lstat.isFile() && !lstat.isSymbolicLink();
+  } catch (_) {
+    return false;
+  }
+}
+
 function findEntryFile(projectDir) {
   for (const name of ENTRY_FILES) {
     const fullPath = path.join(projectDir, name); // nosemgrep: path-join-resolve-traversal
-    if (fs.existsSync(fullPath)) {
+    if (isRegularFile(fullPath)) {
       return { name, path: fullPath };
     }
   }
-  // Fallback: .cursor/rules/*.mdc
+  // Fallback: .cursor/rules/*.mdc — skip symlinked directories and non-regular files.
   const cursorRulesDir = path.join(projectDir, '.cursor', 'rules'); // nosemgrep: path-join-resolve-traversal
   try {
-    if (fs.existsSync(cursorRulesDir) && fs.statSync(cursorRulesDir).isDirectory()) {
-      const entries = fs.readdirSync(cursorRulesDir).filter((n) => n.endsWith('.mdc')).sort();
-      if (entries.length > 0) {
-        const name = `.cursor/rules/${entries[0]}`;
-        return { name, path: path.join(cursorRulesDir, entries[0]) }; // nosemgrep: path-join-resolve-traversal
+    if (fs.existsSync(cursorRulesDir)) {
+      const lstat = fs.lstatSync(cursorRulesDir);
+      if (lstat.isDirectory() && !lstat.isSymbolicLink()) {
+        const entries = fs.readdirSync(cursorRulesDir).filter((n) => n.endsWith('.mdc')).sort();
+        for (const e of entries) {
+          const mdcPath = path.join(cursorRulesDir, e); // nosemgrep: path-join-resolve-traversal
+          if (isRegularFile(mdcPath)) {
+            return { name: `.cursor/rules/${e}`, path: mdcPath };
+          }
+        }
       }
     }
   } catch (_) { /* ignore */ }

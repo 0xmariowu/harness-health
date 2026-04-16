@@ -202,7 +202,15 @@ function loadProjectCatalog(projectsRoot) {
     const projectDir = path.join(projectsRoot, entry.name); // nosemgrep: path-join-resolve-traversal
     const claudePath = path.join(projectDir, 'CLAUDE.md'); // nosemgrep: path-join-resolve-traversal
     const agentsPath = path.join(projectDir, 'AGENTS.md'); // nosemgrep: path-join-resolve-traversal
-    const entryFile = fs.existsSync(claudePath) ? claudePath : fs.existsSync(agentsPath) ? agentsPath : null;
+    // Reject symlinked entry files — they can leak arbitrary host files
+    // into session analysis output.
+    const isReg = (p) => {
+      try {
+        const s = fs.lstatSync(p);
+        return s.isFile() && !s.isSymbolicLink();
+      } catch (_) { return false; }
+    };
+    const entryFile = isReg(claudePath) ? claudePath : isReg(agentsPath) ? agentsPath : null;
     if (!entryFile) continue;
 
     const rules = splitProjectRules(entryFile);
