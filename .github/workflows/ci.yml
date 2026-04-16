@@ -207,8 +207,12 @@ jobs:
           echo "$output" | grep -qi "Claude Code not found"
 
       # Path B (Windows only): stub a fake claude.cmd on PATH so the first
-      # check passes, then give PATH no bash so the Windows bash-detection
-      # branch fires. System32 stays on PATH so `where.exe` is available.
+      # check passes, then give the node subprocess a PATH with no bash so
+      # the Windows bash-detection branch fires. System32 stays on PATH so
+      # the stubbed claude.cmd and `where.exe` are both reachable. We
+      # invoke node by absolute path so Git Bash's command lookup (which
+      # uses Unix-style PATH with `:` separators) is not affected by our
+      # Windows-style semicolon PATH override.
       - name: Path B — simulate bash-missing on Windows only
         if: runner.os == 'Windows'
         shell: bash
@@ -219,14 +223,14 @@ jobs:
           @echo off
           echo stub-claude
           EOF
-          # Node needs its own bin dir on PATH. `where.exe` lives in System32.
-          # Intentionally omit Git Bash (C:\Program Files\Git\bin).
-          NODE_DIR="$(dirname "$(which node)")"
-          # Convert any mixed / paths to Windows-style for PATH use
-          NODE_DIR_WIN="$(cygpath -w "$NODE_DIR" 2>/dev/null || echo "$NODE_DIR")"
-          SAFE_PATH="$STUB_DIR;$NODE_DIR_WIN;C:\\Windows\\System32;C:\\Windows"
+          NODE_UNIX="$(which node)"
+          NODE_DIR_WIN="$(cygpath -w "$(dirname "$NODE_UNIX")")"
+          STUB_WIN="$(cygpath -w "$STUB_DIR")"
+          # Windows-style PATH: stub dir + node dir + System32, intentionally
+          # omitting C:\Program Files\Git\bin so bash --version fails.
+          SAFE_PATH="$STUB_WIN;$NODE_DIR_WIN;C:\\Windows\\System32;C:\\Windows"
           set +e
-          output=$(PATH="$SAFE_PATH" node npm/postinstall.js 2>&1)
+          output=$(PATH="$SAFE_PATH" "$NODE_UNIX" npm/postinstall.js 2>&1)
           code=$?
           set -e
           echo "exit=$code"
