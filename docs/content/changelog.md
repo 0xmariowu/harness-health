@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- **S7 personal paths check no longer silently fails on git < 2.40.** The `:!__tests__/*` pathspec exclusion triggered `fatal: Unimplemented pathspec magic '_'` on git 2.39 (Debian 12 default). The error was swallowed by `|| true`, causing the check to always report "no personal paths" — even when files contained `/Users/xxx/` or `/home/xxx/`. Fix moves the exclusion from git pathspec to a grep pipe filter.
+- **S7 personal paths check no longer silently fails on git < 2.40.** The `:!__tests__/*` pathspec exclusion triggered `fatal: Unimplemented pathspec magic '_'` on git 2.39 (Debian 12 default). The error was swallowed by `|| true`, causing the check to always report "no personal paths" — even when files contained personal filesystem paths. Fix moves the exclusion from git pathspec to a grep pipe filter.
 - **I1 emphasis keywords are no longer counted inside code blocks.** `IMPORTANT`, `NEVER`, `MUST`, and `CRITICAL` inside fenced code blocks (` ``` `) and indented code (4-space) were inflating keyword density for CLAUDE.md files with code examples. Fix strips code blocks before counting.
 
 ### Notes
