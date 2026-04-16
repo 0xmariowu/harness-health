@@ -5,6 +5,10 @@ const fs = require('fs');
 const path = require('path');
 
 const faviconPath = path.join(__dirname, '..', 'assets', 'favicon.svg');
+const evidencePath = path.join(__dirname, '..', 'standards', 'evidence.json');
+const releaseMetadataPath = path.join(__dirname, '..', 'release-metadata.json');
+const SARIF_SCHEMA_URI = 'https://json.schemastore.org/sarif-2.1.0.json';
+const AGENTLINT_INFORMATION_URI = 'https://github.com/0xmariowu/AgentLint';
 
 let faviconB64 = '';
 let logoInlineSvg = '';
@@ -21,6 +25,10 @@ try {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function bar(score, max, width = 20) {
@@ -131,6 +139,280 @@ function generateJsonl(scores, date) {
     }
   }
   return lines.join('\n') + '\n';
+}
+
+function writeOutput(outputDir, fileName, content, label = 'Report') {
+  const dir = outputDir || '.';
+  fs.mkdirSync(dir, { recursive: true });
+  const filePath = path.join(dir, fileName);
+  fs.writeFileSync(filePath, content);
+  process.stderr.write(`${label}: ${filePath}\n`);
+  return filePath;
+}
+
+function readEvidenceChecks() {
+  const evidence = readJson(evidencePath);
+  return isObject(evidence) && isObject(evidence.checks) ? evidence.checks : {};
+}
+
+function readReleaseVersion() {
+  const metadata = readJson(releaseMetadataPath);
+  return metadata && typeof metadata.version === 'string' ? metadata.version : '';
+}
+
+function normalizeArtifactUri(filePath) {
+  const normalized = String(filePath || '.')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\/{2,}/g, '/');
+  return encodeURI(normalized || '.');
+}
+
+function isPathLikeString(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed || /^[a-z]+:\/\//i.test(trimmed)) return false;
+  return (
+    trimmed === '.' ||
+    trimmed.startsWith('./') ||
+    trimmed.startsWith('../') ||
+    trimmed.startsWith('~/') ||
+    trimmed.startsWith('/') ||
+    trimmed.includes('/') ||
+    trimmed.includes('\\') ||
+    /^\.?[A-Za-z0-9_-]+\.[A-Za-z0-9._-]+$/.test(trimmed)
+  );
+}
+
+function findMeasuredPath(value, preferredKeys = []) {
+  if (typeof value === 'string') {
+    return isPathLikeString(value) ? value.trim() : null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findMeasuredPath(item, preferredKeys);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (!isObject(value)) return null;
+
+  for (const key of preferredKeys) {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
+    const found = findMeasuredPath(value[key], preferredKeys);
+    if (found) return found;
+  }
+
+  for (const [key, item] of Object.entries(value)) {
+    if (preferredKeys.includes(key)) continue;
+    if (!/(?:^|_)(entry|target|broken|index|settings|workflow|script|config|artifact|file|path|reference)s?$/i.test(key)) {
+      continue;
+    }
+    const found = findMeasuredPath(item, preferredKeys);
+    if (found) return found;
+  }
+
+  for (const item of Object.values(value)) {
+    const found = findMeasuredPath(item, preferredKeys);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function findMeasuredPathByExtension(value, extensions) {
+  const pathMatch = findMeasuredPath(value);
+  if (pathMatch && extensions.some((ext) => pathMatch.toLowerCase().endsWith(ext))) {
+    return pathMatch;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findMeasuredPathByExtension(item, extensions);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (!isObject(value)) return null;
+
+  for (const item of Object.values(value)) {
+    const found = findMeasuredPathByExtension(item, extensions);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function findProjectEntryFile(scores, project) {
+  if (!project || !isObject(scores) || !isObject(scores.by_project)) return null;
+  const projectScores = scores.by_project[project];
+  if (!isObject(projectScores)) return null;
+  if (typeof projectScores.entry_file === 'string' && projectScores.entry_file.trim()) {
+    return projectScores.entry_file.trim();
+  }
+
+  for (const dim of Object.values(projectScores)) {
+    if (!isObject(dim) || !Array.isArray(dim.checks)) continue;
+    for (const check of dim.checks) {
+      if (!check || check.check_id !== 'F1') continue;
+      const entryFile = check.measured_value && check.measured_value.entry_file;
+      if (typeof entryFile === 'string' && entryFile.trim()) {
+        return entryFile.trim();
+      }
+    }
+  }
+
+  return null;
+}
+
+function levelFromScore(score) {
+  if (score < 0.5) return 'error';
+  if (score < 0.8) return 'warning';
+  return 'note';
+}
+
+function formatSarifValue(value) {
+  if (value == null) return 'null';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
+function resolveFilePath(check, scores, project) {
+  if (check && isObject(check.measured_value) && typeof check.measured_value.entry_file === 'string' && check.measured_value.entry_file.trim()) {
+    return normalizeArtifactUri(check.measured_value.entry_file);
+  }
+
+  const measuredPath = findMeasuredPath(check ? check.measured_value : null, [
+    'broken_reference',
+    'target_file',
+    'file',
+    'path',
+    'index_files',
+    'script_path',
+    'settings_path',
+  ]);
+  if (measuredPath) {
+    return normalizeArtifactUri(measuredPath);
+  }
+
+  if (check && typeof check.check_id === 'string' && /^[FIC]/i.test(check.check_id)) {
+    return normalizeArtifactUri(findProjectEntryFile(scores, project) || 'CLAUDE.md');
+  }
+
+  if (check && typeof check.check_id === 'string' && /^H/i.test(check.check_id)) {
+    const configPath = findMeasuredPathByExtension(check.measured_value, ['.json', '.yaml', '.yml']);
+    return normalizeArtifactUri(configPath || '.claude/settings.json');
+  }
+
+  return normalizeArtifactUri('.');
+}
+
+/**
+ * Generate a SARIF 2.1.0 report from AgentLint scorer output.
+ *
+ * AgentLint scorer check fields map to SARIF as follows:
+ * - `check.check_id` -> `tool.driver.rules[].id` and `results[].ruleId`
+ * - `check.name` -> `tool.driver.rules[].name` and `tool.driver.rules[].shortDescription.text`
+ * - `standards/evidence.json` `checks[check_id].evidence_text` -> `tool.driver.rules[].fullDescription.text`
+ * - `standards/evidence.json` `checks[check_id].dimension` -> `tool.driver.rules[].properties.tags[]`
+ * - `check.detail` -> `results[].message.text`
+ * - `check.detail`, `check.measured_value`, and `check.reference_value` -> `results[].message.markdown`
+ * - `resolveFilePath(check, scores, project)` -> `results[].locations[0].physicalLocation.artifactLocation.uri`
+ * - `check.score` -> `results[].level` via `levelFromScore(check.score)` and `results[].properties.score`
+ * - scorer/evidence dimension -> `results[].properties.dimension`
+ * - `check.evidence_id` -> `results[].properties.evidence_id`
+ * - `release-metadata.json` `.version` -> `tool.driver.version`
+ *
+ * Input is expected to follow the scorer schema:
+ * `{ total_score, dimensions, by_project: { [project]: { [dimension]: { checks: [...] }}} }`
+ *
+ * Results are filtered to `score < 0.8` unless `opts.sarifIncludeAll` is truthy.
+ *
+ * @param {object} scores
+ * @param {object|null} plan
+ * @param {{ sarifIncludeAll?: boolean } | undefined} opts
+ * @returns {object}
+ */
+function generateSarif(scores, plan, opts) {
+  void plan;
+
+  const evidenceChecks = readEvidenceChecks();
+  const version = readReleaseVersion();
+  const includeAll = Boolean(opts && opts.sarifIncludeAll);
+  const rules = Object.entries(evidenceChecks)
+    .sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true }))
+    .map(([checkId, evidence]) => ({
+      id: checkId,
+      name: evidence.name || checkId,
+      shortDescription: { text: evidence.name || checkId },
+      fullDescription: { text: evidence.evidence_text || evidence.name || checkId },
+      helpUri: `https://github.com/0xmariowu/AgentLint/blob/main/standards/evidence.json#check-${checkId}`,
+      properties: {
+        tags: [evidence.dimension || 'unknown'],
+      },
+    }));
+
+  const results = [];
+  for (const [project, projectDims] of Object.entries(scores.by_project || {})) {
+    for (const [dimension, dim] of Object.entries(projectDims || {})) {
+      for (const check of dim.checks || []) {
+        if (!includeAll && check.score >= 0.8) continue;
+
+        const rule = evidenceChecks[check.check_id] || {};
+        const messageText = check.detail || rule.name || check.check_id;
+        const markdownLines = [
+          messageText,
+          '',
+          `- Score: ${check.score}`,
+          `- Dimension: ${rule.dimension || dimension || 'unknown'}`,
+        ];
+        if (check.evidence_id != null) markdownLines.push(`- Evidence ID: ${check.evidence_id}`);
+        if (check.measured_value !== undefined) markdownLines.push(`- Measured value: \`${formatSarifValue(check.measured_value)}\``);
+        if (check.reference_value !== undefined) markdownLines.push(`- Reference value: \`${formatSarifValue(check.reference_value)}\``);
+
+        results.push({
+          ruleId: check.check_id,
+          level: levelFromScore(check.score),
+          message: {
+            text: messageText,
+            markdown: markdownLines.join('\n'),
+          },
+          locations: [{
+            physicalLocation: {
+              artifactLocation: {
+                uri: resolveFilePath(check, scores, project),
+              },
+            },
+          }],
+          properties: {
+            score: check.score,
+            dimension: rule.dimension || dimension || 'unknown',
+            evidence_id: check.evidence_id || null,
+          },
+        });
+      }
+    }
+  }
+
+  return {
+    $schema: SARIF_SCHEMA_URI,
+    version: '2.1.0',
+    runs: [{
+      tool: {
+        driver: {
+          name: 'AgentLint',
+          version,
+          informationUri: AGENTLINT_INFORMATION_URI,
+          rules,
+        },
+      },
+      results,
+    }],
+  };
 }
 
 function esc(s) {
@@ -506,7 +788,8 @@ function main() {
   const planFile = args.find((a, i) => args[i - 1] === '--plan');
   const outputDir = args.find((a, i) => args[i - 1] === '--output-dir') || null;
   const format = args.find((a, i) => args[i - 1] === '--format') || 'terminal';
-  const validFormats = ['terminal', 'md', 'jsonl', 'html', 'all'];
+  const sarifIncludeAll = args.includes('--sarif-include-all');
+  const validFormats = ['terminal', 'md', 'jsonl', 'html', 'sarif', 'all'];
   if (!validFormats.includes(format)) {
     process.stderr.write(`reporter.js: unknown --format '${format}'. Valid: ${validFormats.join(', ')}\n`);
     process.exit(1);
@@ -515,7 +798,7 @@ function main() {
   const beforeFile = args.find((a, i) => args[i - 1] === '--before');
 
   if (!scoresFile) {
-    process.stderr.write('Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|all]\n');
+    process.stderr.write('Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|sarif|all] [--sarif-include-all]\n');
     process.exit(1);
   }
 
@@ -528,29 +811,25 @@ function main() {
     process.stdout.write(generateTerminalSummary(scores));
   }
 
-  if (outputDir || format === 'all' || format === 'md' || format === 'jsonl' || format === 'html') {
-    const dir = outputDir || '.';
-    fs.mkdirSync(dir, { recursive: true });
-
+  if (outputDir || format === 'all' || format === 'md' || format === 'jsonl' || format === 'html' || format === 'sarif') {
     if (format === 'md' || format === 'all') {
       const md = generateMarkdownReport(scores, plan, date);
-      const mdPath = path.join(dir, `al-${date}.md`);
-      fs.writeFileSync(mdPath, md);
-      process.stderr.write(`Report: ${mdPath}\n`);
+      writeOutput(outputDir, `al-${date}.md`, md, 'Report');
     }
 
     if (format === 'jsonl' || format === 'all') {
       const jsonl = generateJsonl(scores, date);
-      const jsonlPath = path.join(dir, `al-${date}.jsonl`);
-      fs.writeFileSync(jsonlPath, jsonl);
-      process.stderr.write(`Data: ${jsonlPath}\n`);
+      writeOutput(outputDir, `al-${date}.jsonl`, jsonl, 'Data');
     }
 
     if (format === 'html' || format === 'all') {
       const html = generateHtmlReport(scores, beforeScores, plan, date);
-      const htmlPath = path.join(dir, `al-${date}.html`);
-      fs.writeFileSync(htmlPath, html);
-      process.stderr.write(`HTML: ${htmlPath}\n`);
+      writeOutput(outputDir, `al-${date}.html`, html, 'HTML');
+    }
+
+    if (format === 'sarif' || format === 'all') {
+      const sarif = generateSarif(scores, plan, { sarifIncludeAll });
+      writeOutput(outputDir, `al-${date}.sarif`, JSON.stringify(sarif, null, 2), 'SARIF');
     }
   }
 }
