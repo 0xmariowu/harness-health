@@ -32,7 +32,7 @@ Then start a new Claude Code session and run:
 
 ## What it does
 
-AgentLint scans your repository and scores how well it supports AI coding agents across 5 dimensions: Findability, Instructions, Workability, Safety, and Continuity.
+AgentLint scans your repository and scores how well it supports AI coding agents across 8 dimensions: Findability, Instructions, Workability, Continuity, Safety, Harness, Deep, and Session.
 
 ## Requirements
 
