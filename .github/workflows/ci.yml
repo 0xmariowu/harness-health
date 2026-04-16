@@ -39,6 +39,7 @@ jobs:
   test:
     needs: lint
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -114,6 +115,7 @@ jobs:
   npm-e2e:
     needs: test
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -163,14 +165,16 @@ jobs:
           [ -f "$PKG" ] || PKG="$PREFIX/lib/node_modules/@0xmariowu/agent-lint/package.json"
           echo "Inspecting: $PKG"
           [ -f "$PKG" ]
-          node -e "
-            const p = require('$PKG');
+          # Pass the path via argv so Windows backslashes aren't reinterpreted
+          # as JS escape sequences inside a `node -e` source string.
+          node -e '
+            const p = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
             if (Array.isArray(p.os) || p.os) {
-              console.error('FAIL: os field still present in installed package:', JSON.stringify(p.os));
+              console.error("FAIL: os field still present in installed package:", JSON.stringify(p.os));
               process.exit(1);
             }
-            console.log('OK: no os field in installed package.json');
-          "
+            console.log("OK: no os field in installed package.json");
+          ' "$PKG"
 
       - name: Verify postinstall.js ships with Windows detection
         shell: bash
