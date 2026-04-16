@@ -38,6 +38,8 @@ AgentLint scans your repository and scores how well it supports AI coding agents
 
 - [Claude Code](https://claude.com/download)
 - Node.js 20+
+- `bash`, `jq`, `git` on `PATH`
+- **Windows**: install from inside **Git Bash** (ships with [Git for Windows](https://git-scm.com/download/win)) or **WSL** ([install guide](https://learn.microsoft.com/windows/wsl/install)). Installing from `cmd.exe` / PowerShell will exit with a guidance message.
 
 ## Links
 

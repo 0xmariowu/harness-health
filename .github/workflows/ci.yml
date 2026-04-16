@@ -38,9 +38,15 @@ jobs:
 
   test:
     needs: lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
         node-version:
           - 20
           - 22
@@ -52,11 +58,34 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install jq
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          case "$RUNNER_OS" in
+            Linux)   sudo apt-get update && sudo apt-get install -y jq ;;
+            macOS)   brew install jq ;;
+            Windows) choco install jq -y ;;
+          esac
 
-      - name: Run tests
+      - name: Toolchain versions
+        shell: bash
+        run: |
+          echo "RUNNER_OS=$RUNNER_OS"
+          bash --version | head -1
+          node --version
+          jq --version
+          git --version
+
+      - name: Cross-platform smoke test
+        shell: bash
+        run: bash tests/windows/smoke.sh
+
+      - name: Run postinstall detection unit test
+        shell: bash
+        run: node tests/unit/test-postinstall-detection.js
+
+      - name: Run full Linux test suite
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
           bash tests/test-scanner.sh
           bash tests/test-action-smoke.sh
@@ -72,6 +101,8 @@ jobs:
           node tests/fixer-safety/test-traversal.js
 
       - name: Prepare deep-analyzer corpus fixture
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
           mkdir -p /tmp/al-corpus/small /tmp/al-corpus/medium /tmp/al-corpus/large
           printf '# Small\nbrief.\n' > /tmp/al-corpus/small/CLAUDE.md
@@ -79,6 +110,102 @@ jobs:
           { printf '# Large\n'; for i in $(seq 1 500); do printf 'line %s of content here\n' "$i"; done; } > /tmp/al-corpus/large/CLAUDE.md
 
       - name: Run deep-analyzer test
+        if: runner.os == 'Linux'
         env:
           AL_CORPUS_DIR: /tmp/al-corpus
+        shell: bash
         run: bash tests/test-deep-analyzer.sh
+
+  npm-e2e:
+    needs: test
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: 20
+
+      - name: Install jq
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux)   sudo apt-get update && sudo apt-get install -y jq ;;
+            macOS)   brew install jq ;;
+            Windows) choco install jq -y ;;
+          esac
+
+      # Path A: Pack the npm tarball and install it with --ignore-scripts.
+      # The published package is a BOOTSTRAPPER (README + package.json +
+      # postinstall.js = ~5KB). The scanner itself ships via the Claude Code
+      # plugin mechanism, not inside this tarball. So the only meaningful
+      # install-time assertion here is: the `os` field that caused #82 is
+      # really gone and the tarball installs cleanly on every OS.
+      - name: Pack npm tarball
+        shell: bash
+        run: |
+          cd npm
+          npm pack
+          ls -la 0xmariowu-agent-lint-*.tgz
+          TARBALL_DEST="${RUNNER_TEMP:-/tmp}/al.tgz"
+          mv 0xmariowu-agent-lint-*.tgz "$TARBALL_DEST"
+          echo "TARBALL_PATH=$TARBALL_DEST" >> "$GITHUB_ENV"
+
+      - name: Install globally with --ignore-scripts
+        shell: bash
+        run: |
+          npm install -g --ignore-scripts "$TARBALL_PATH"
+
+      - name: Verify installed package has no os field (regression test for #82)
+        shell: bash
+        run: |
+          PREFIX="$(npm prefix -g)"
+          PKG="$PREFIX/node_modules/@0xmariowu/agent-lint/package.json"
+          [ -f "$PKG" ] || PKG="$PREFIX/lib/node_modules/@0xmariowu/agent-lint/package.json"
+          echo "Inspecting: $PKG"
+          [ -f "$PKG" ]
+          # Pass the path via argv so Windows backslashes aren't reinterpreted
+          # as JS escape sequences inside a `node -e` source string.
+          node -e '
+            const p = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            if (Array.isArray(p.os) || p.os) {
+              console.error("FAIL: os field still present in installed package:", JSON.stringify(p.os));
+              process.exit(1);
+            }
+            console.log("OK: no os field in installed package.json");
+          ' "$PKG"
+
+      - name: Verify postinstall.js ships with Windows detection
+        shell: bash
+        run: |
+          PREFIX="$(npm prefix -g)"
+          PI="$PREFIX/node_modules/@0xmariowu/agent-lint/postinstall.js"
+          [ -f "$PI" ] || PI="$PREFIX/lib/node_modules/@0xmariowu/agent-lint/postinstall.js"
+          [ -f "$PI" ]
+          grep -q "where claude" "$PI"
+          grep -q "bash --version" "$PI"
+          grep -q "Git for Windows\|WSL" "$PI"
+
+      # Path B: simulate the failure modes of postinstall.js.
+      # Runners do not have the `claude` CLI installed, so simply running
+      # postinstall.js on a clean PATH should hit the "Claude Code not found"
+      # branch. We don't strip PATH (that would break `node` itself on
+      # Windows); we rely on the runner's default state.
+      - name: Path B — assert claude-missing branch fires on clean runner
+        shell: bash
+        run: |
+          set +e
+          output=$(node npm/postinstall.js 2>&1)
+          code=$?
+          set -e
+          echo "exit=$code"
+          echo "--- output ---"
+          echo "$output"
+          echo "--- end ---"
+          test "$code" -eq 1
+          echo "$output" | grep -qi "Claude Code not found"

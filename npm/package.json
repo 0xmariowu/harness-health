@@ -21,10 +21,6 @@
   "scripts": {
     "postinstall": "node postinstall.js"
   },
-  "os": [
-    "darwin",
-    "linux"
-  ],
   "engines": {
     "node": ">=20"
   }

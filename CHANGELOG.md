@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.1 (unreleased)
+
+### Added
+
+- **You can now install AgentLint on Windows** from inside Git Bash or WSL (#82). `npm install -g @0xmariowu/agent-lint` previously rejected Windows with `EBADPLATFORM` before the installer could even run; that block is gone.
+- **Clear guidance when bash is missing on Windows.** Running the installer from `cmd.exe` or PowerShell now exits with a message pointing to Git for Windows or WSL instead of a cryptic shell error.
+
+### Fixed
+
+- Postinstall detects `claude` cross-platform (`where` on win32, `command -v` elsewhere) and verifies `bash` availability on Windows before invoking the installer.
+- `.gitattributes` now forces LF on `*.sh`, `*.js`, `*.md`, and other text files so Windows checkouts with default `core.autocrlf=true` no longer convert shell scripts to CRLF and break shebangs.
+
+### Notes
+
+- The scanner itself (`src/scanner.sh`) is still bash. Running it on Windows requires Git Bash or WSL — see the Platform requirements table in `README.md`. A native cmd.exe / PowerShell flow is out of scope for this patch.
+
 ## v0.7.0 (2026-04-15)
 
 Audit-driven minor release. Dimension count grows from 6 to 8, check count from 42 to 49 — your repo score will shift, because the scanner is now finally counting checks it had been silently dropping.

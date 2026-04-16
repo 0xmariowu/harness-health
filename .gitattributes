@@ -1,0 +1,28 @@
+# Force LF line endings for source files so Windows checkouts (default
+# core.autocrlf=true) do not mangle shell shebangs, heredocs, or Node scripts.
+# Without this, `bash src/scanner.sh` on Windows fails the moment it hits
+# `#!/usr/bin/env bash\r`.
+* text=auto eol=lf
+
+*.sh    text eol=lf
+*.bash  text eol=lf
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.toml  text eol=lf
+*.py    text eol=lf
+Dockerfile* text eol=lf
+
+# Binary (never touch)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.pdf   binary
