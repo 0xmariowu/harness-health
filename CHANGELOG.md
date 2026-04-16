@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.8.2 (2026-04-16)
+
+### Security
+
+- **Symlink attack protection across scanner, fixer, and analyzers.** A malicious repository could place a symlinked `CLAUDE.md` (or `AGENTS.md`, `.cursorrules`, `.cursor/rules/*.mdc`) pointing to sensitive host files like `~/.ssh/id_rsa` or `/etc/passwd`. Running scanner, fixer, deep-analyzer, or session-analyzer on such a repo would read, leak (to LLM prompts or output), or overwrite the symlink target. All entry-file resolution now uses `lstat`-based checks that reject symlinks.
+- **I1 keyword scan no longer buffers entire entry file in memory.** v0.8.1 introduced a bash variable accumulator that grew unbounded — a 29 MB `CLAUDE.md` could crash the scanner with `xrealloc: cannot allocate N bytes` under constrained memory. Replaced with streaming awk that uses O(1) memory regardless of file size.
+- **S6 hardcoded secrets check now inspects `.env` files.** Previous `':!*.env'` exclusion allowed committed secrets in `.env` / `.env.local` / `.env.production` to bypass detection.
+- **Hook script paths confined to project directory.** `extract_script_path` (used by H3/H6) refuses absolute paths and traversal sequences that escape the scanned repo.
+- **F8 rules directory check rejects symlinks and non-regular files.** Symlinked `.claude/rules` or non-regular `.md` rule files could cause tool crashes or unexpected reads.
+- **S3 secret-scan detection refuses symlinked `.github/workflows`.** `grep -rl` follows symlinks passed as command-line arguments; a symlinked workflows directory could cause the scanner to traverse outside the repo.
+
+### Notes
+
+- Addresses 10 security findings from Codex code review.
+- All local tests pass (scorer 15, fixer 20, reporter 11, scanner 93, e2e 45, sarif 10, action-smoke 6, install-script 16, traversal 7, malicious-fixtures 10) plus E2B extreme correctness suite 33/33.
+
 ## v0.8.1 (2026-04-16)
 
 ### Fixed
