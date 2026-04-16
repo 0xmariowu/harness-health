@@ -233,7 +233,7 @@ function backupFile(originalPath, projectDir, backupRoot, backedSet) {
   }
 
   // Refuse to back up files outside the project dir (symlink protection).
-  const projectAbs = path.resolve(projectDir);
+  const projectAbs = path.resolve(projectDir); // nosemgrep: path-join-resolve-traversal
   if (!abs.startsWith(projectAbs + path.sep) && abs !== projectAbs) {
     throw new Error(`Refusing to back up file outside project directory: ${abs}`);
   }
