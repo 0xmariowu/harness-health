@@ -813,10 +813,27 @@ EOF
   emit_result "$project_name" "F6" "$measured" "null" "$score" "$detail"
 
   if [ -n "$entry_abs" ]; then
-    count_important="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'IMPORTANT' || true)"
-    count_never="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'NEVER' || true)"
-    count_must="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'MUST' || true)"
-    count_critical="$(tr -cs '[:alpha:]' '\n' < "$entry_abs" | grep -cx 'CRITICAL' || true)"
+    # Strip fenced code blocks (```...```) and indented code (4+ spaces / tab)
+    # before counting emphasis keywords, so code examples don't inflate counts.
+    local prose_content=""
+    local in_fence=false
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        '```'*|'~~~'*)
+          if [ "$in_fence" = true ]; then in_fence=false; else in_fence=true; fi
+          continue ;;
+      esac
+      [ "$in_fence" = true ] && continue
+      case "$line" in
+        '    '*|'	'*) continue ;;
+      esac
+      prose_content="${prose_content}${line}
+"
+    done < "$entry_abs"
+    count_important="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'IMPORTANT' || true)"
+    count_never="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'NEVER' || true)"
+    count_must="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'MUST' || true)"
+    count_critical="$(printf '%s' "$prose_content" | tr -cs '[:alpha:]' '\n' | grep -cx 'CRITICAL' || true)"
     measured="$(jq -cn \
       --argjson IMPORTANT "$count_important" \
       --argjson NEVER "$count_never" \
@@ -1359,15 +1376,18 @@ WF2
   local path_hits=0
   local path_examples=""
   if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Note: ':!__tests__/*' pathspec triggers "Unimplemented pathspec magic '_'"
+    # on git < 2.40 (Debian 12 default). Filter __tests__ via grep instead.
     path_hits="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
       -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
-      ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!__tests__/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
-      2>/dev/null | grep -cv 'node_modules\|\.git\|vendor\|dist\|build' || true)" || path_hits=0
-    if [ "${path_hits:-0}" -gt 0 ]; then
+      ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
+      2>/dev/null | grep -cEv 'node_modules|\.git/|vendor/|dist/|build/|__tests__/')" || path_hits=0
+    path_hits="${path_hits:-0}"
+    if [ "${path_hits}" -gt 0 ]; then
       path_examples="$(git -C "$project_dir" grep -lE '/Users/[a-zA-Z]|/home/[a-z][a-z0-9_-]+/' \
         -- '*.js' '*.ts' '*.py' '*.rb' '*.go' '*.rs' '*.java' '*.sh' '*.yml' '*.yaml' '*.json' '*.toml' \
-        ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!__tests__/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
-        2>/dev/null | grep -v 'node_modules\|\.git\|vendor' | head -3 | tr '\n' ', ' | sed 's/, $//')"
+        ':!.gitleaks.toml' ':!.gitignore' ':!*.example' ':!standards/*' ':!tests/*' ':!test/*' ':!fixtures/*' ':!testdata/*' ':!*.test.*' ':!*.spec.*' ':!*.snap' ':!*.min.js' ':!coverage/*' \
+        2>/dev/null | grep -Ev 'node_modules|\.git/|vendor/|dist/|build/|__tests__/' | head -3 | tr '\n' ', ' | sed 's/, $//')"
     fi
   fi
   if [ "${path_hits:-0}" -eq 0 ]; then
