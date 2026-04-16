@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
@@ -130,6 +131,59 @@ jobs:
           else
             echo "::warning::Skipping website sync (CROSS_REPO_TOKEN not configured)"
           fi
+
+      - name: Comment on closed issues referenced in CHANGELOG
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          SAFE_TAG="${VERSION//./\\.}"
+
+          # Extract issue numbers from this version's CHANGELOG section only.
+          # The awk pattern matches '## v0.7.1 ...' as start and stops at the
+          # next '## v...' header so we never pick up numbers from older entries.
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::warning::CHANGELOG.md not found; skipping issue notification"
+            exit 0
+          fi
+
+          SECTION=$(awk "/^## v${SAFE_TAG}([[:space:]]|$)/{f=1;next} /^## v[0-9]/{f=0} f" CHANGELOG.md)
+          if [ -z "$SECTION" ]; then
+            echo "No CHANGELOG section for v${VERSION}; skipping issue notification"
+            exit 0
+          fi
+
+          ISSUES=$(printf '%s\n' "$SECTION" | grep -oE '#[0-9]+' | sort -u | tr -d '#')
+          if [ -z "$ISSUES" ]; then
+            echo "No issues referenced in v${VERSION} CHANGELOG; nothing to notify"
+            exit 0
+          fi
+
+          RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}"
+          BODY=$(printf '%s\n\n%s\n' \
+            "Shipped in [v${VERSION}](${RELEASE_URL})." \
+            "If anything here regressed or you hit a follow-up issue, reopen this or file a new one — happy to take another look.")
+
+          for num in $ISSUES; do
+            # Only comment if the reference resolves to an actual issue (not a
+            # PR from this repo, not a dangling number from some other source).
+            TYPE=$(gh api "repos/${{ github.repository }}/issues/${num}" --jq '.pull_request // empty | if . then "pr" else "issue" end' 2>/dev/null || echo "missing")
+            case "$TYPE" in
+              issue)
+                echo "Commenting on #${num}"
+                gh issue comment "$num" --repo "${{ github.repository }}" --body "$BODY" \
+                  || echo "::warning::Failed to post comment on #${num}"
+                ;;
+              pr)
+                echo "Skipping #${num} (PR, not an issue)"
+                ;;
+              missing)
+                echo "::warning::Cannot resolve #${num}; skipping"
+                ;;
+            esac
+          done
 
       - name: Summary
         if: steps.check.outputs.exists == 'false'
