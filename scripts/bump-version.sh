@@ -14,6 +14,8 @@ PACKAGE="$ROOT/package.json"
 NPM_PACKAGE="$ROOT/npm/package.json"
 SECURITY="$ROOT/SECURITY.md"
 README="$ROOT/README.md"
+NPM_README="$ROOT/npm/README.md"
+INTRO="$ROOT/docs/content/intro.md"
 
 current=$(python3 -c "import json; print(json.load(open('$PLUGIN'))['version'])")
 echo "Current version: $current"
@@ -106,14 +108,37 @@ else:
     print(f"  SECURITY.md: {new_mm}.x already present")
 PYEOF
 
-# ── 3. Regenerate metadata + update README badge ─────────────────
+# ── 3. Regenerate metadata + sync check/dimension counts ─────────
+#
+# The source of truth is release-metadata.json. Every user-facing spot
+# that prints these counts is rewritten here. If you add another such
+# spot (e.g. a new doc file or landing page), add its sed below AND
+# ideally a guard in release.yml Validate content sync, or the count
+# will silently drift the next time the content is rephrased.
 
 bash "$ROOT/scripts/generate-metadata.sh"
 check_count=$(python3 -c "import json; print(json.load(open('$ROOT/release-metadata.json'))['check_count'])")
+dim_count=$(python3 -c "import json; print(len(json.load(open('$ROOT/release-metadata.json'))['dimensions']))")
 
-sed -i '' "s|checks-[0-9]*-|checks-${check_count}-|g" "$README"
-sed -i '' "s|[0-9]* checks, every one backed|${check_count} checks, every one backed|" "$README"
-echo "  README.md: badge → checks-${check_count}"
+# README.md — badge + hero tagline "N checks. M dimensions."
+sed -i '' "s|checks-[0-9][0-9]*-|checks-${check_count}-|g" "$README"
+sed -i '' -E "s|[0-9]+ checks\\. [0-9]+ dimensions\\.|${check_count} checks. ${dim_count} dimensions.|g" "$README"
+# Preserve the older prose form in case it gets reintroduced elsewhere.
+sed -i '' -E "s|[0-9]+ checks, every one backed|${check_count} checks, every one backed|g" "$README"
+echo "  README.md: badge + hero → ${check_count} checks / ${dim_count} dimensions"
+
+# npm/README.md — "N checks. M dimensions. Evidence-backed."
+if [ -f "$NPM_README" ]; then
+  sed -i '' -E "s|[0-9]+ checks\\. [0-9]+ dimensions\\.|${check_count} checks. ${dim_count} dimensions.|g" "$NPM_README"
+  echo "  npm/README.md: hero → ${check_count} checks / ${dim_count} dimensions"
+fi
+
+# docs/content/intro.md — GitBook source: "N checks across M dimensions"
+if [ -f "$INTRO" ]; then
+  sed -i '' -E "s|[0-9]+ checks across [0-9]+ dimensions|${check_count} checks across ${dim_count} dimensions|g" "$INTRO"
+  sed -i '' -E "s|[0-9]+ checks\\. [0-9]+ dimensions\\.|${check_count} checks. ${dim_count} dimensions.|g" "$INTRO"
+  echo "  docs/content/intro.md: hero → ${check_count} checks / ${dim_count} dimensions"
+fi
 
 # ── 4. Sync root docs to docs/content/ (GitBook source) ──────────
 
@@ -131,7 +156,9 @@ echo "  $MARKETPLACE → $new"
 echo "  $PACKAGE → $new"
 echo "  $NPM_PACKAGE → $new"
 echo "  $SECURITY → supported versions"
-echo "  $README → badge + check count"
+echo "  $README → badge + ${check_count} checks / ${dim_count} dimensions"
+echo "  $NPM_README → ${check_count} checks / ${dim_count} dimensions"
+echo "  $INTRO → ${check_count} checks / ${dim_count} dimensions"
 echo "  $ROOT/release-metadata.json → regenerated"
 echo "  docs/content/ → synced from root"
 echo ""

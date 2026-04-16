@@ -51,6 +51,7 @@ jobs:
         run: |
           ACTUAL_CHECKS=$(python3 -c "import json; print(len(json.load(open('standards/weights.json'))['check_weights']))")
           META_CHECKS=$(python3 -c "import json; print(json.load(open('release-metadata.json'))['check_count'])")
+          ACTUAL_DIMS=$(python3 -c "import json; print(len(json.load(open('release-metadata.json'))['dimensions']))")
 
           if [ "$ACTUAL_CHECKS" != "$META_CHECKS" ]; then
             echo "::error::release-metadata.json check_count ($META_CHECKS) != actual ($ACTUAL_CHECKS)"
@@ -64,7 +65,30 @@ jobs:
             exit 1
           fi
 
-          echo "Validated: check_count=$ACTUAL_CHECKS (metadata + README in sync)"
+          # Every number adjacent to "check" or "dimension" in the user-
+          # facing docs must match release-metadata. Historical CHANGELOGs
+          # are excluded because old entries legitimately reference older
+          # counts.
+          drift=0
+          for f in README.md npm/README.md docs/content/intro.md; do
+            [ -f "$f" ] || continue
+            bad_checks=$(grep -oE "[0-9]+ check[s]?[^a-zA-Z0-9]" "$f" | grep -oE "^[0-9]+" | sort -u | grep -vx "$ACTUAL_CHECKS" || true)
+            bad_dims=$(grep -oE "[0-9]+ dimension[s]?[^a-zA-Z0-9]" "$f" | grep -oE "^[0-9]+" | sort -u | grep -vx "$ACTUAL_DIMS" || true)
+            if [ -n "$bad_checks" ]; then
+              echo "::error::$f has stale check count(s): $bad_checks (expected $ACTUAL_CHECKS)"
+              drift=1
+            fi
+            if [ -n "$bad_dims" ]; then
+              echo "::error::$f has stale dimension count(s): $bad_dims (expected $ACTUAL_DIMS)"
+              drift=1
+            fi
+          done
+          if [ "$drift" -eq 1 ]; then
+            echo "::error::Run: scripts/bump-version.sh (and verify sed patterns match current prose)"
+            exit 1
+          fi
+
+          echo "Validated: $ACTUAL_CHECKS checks, $ACTUAL_DIMS dimensions (metadata + README + intro in sync)"
 
       - name: Extract changelog for this version
         if: steps.check.outputs.exists == 'false'

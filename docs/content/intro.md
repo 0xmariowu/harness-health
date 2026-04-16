@@ -1,6 +1,6 @@
 # AgentLint
 
-**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 42 checks across 6 dimensions, every one backed by data. Works across Claude Code, Cursor, Copilot, Gemini CLI, Windsurf, and Cline.
+**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 49 checks across 8 dimensions, every one backed by data. Works across Claude Code, Cursor, Copilot, Gemini CLI, Windsurf, and Cline.
 
 > We analyzed 265 versions of Anthropic's Claude Code system prompt, documented the hard limits, audited thousands of real repos, and reviewed the academic research. The result: a single command that tells you exactly what your AI agent is struggling with and why.
 
@@ -17,6 +17,18 @@ Then start a new Claude Code session:
 ```
 
 That's it. AgentLint scans your projects, scores them, shows what's wrong, and fixes what it can.
+
+### Platform requirements
+
+The scanner is a bash script, so the host needs a POSIX shell:
+
+| Platform | Requirement |
+|----------|-------------|
+| macOS | Works out of the box (system bash). |
+| Linux | Works out of the box. `jq` and `git` must be on `PATH`. |
+| Windows | Requires **Git Bash** (from [Git for Windows](https://git-scm.com/download/win)) or **WSL** ([install guide](https://learn.microsoft.com/windows/wsl/install)). Run `npm install -g @0xmariowu/agent-lint` from inside the bash shell. Installing from `cmd.exe` or PowerShell will exit with a message pointing to one of those two options. |
+
+Node.js 20+ is required on every platform.
 
 ## Supported AI coding agents
 
@@ -105,7 +117,8 @@ Every check cites its source. Full citations in [`standards/evidence.json`](http
 ## Requirements
 
 - [Claude Code](https://claude.com/download)
-- `jq` and `node` 20+
+- Node.js 20+
+- `bash`, `jq`, `git` on `PATH` (macOS/Linux work out of the box; on Windows use **Git Bash** or **WSL** — see [Platform requirements](#platform-requirements) above)
 
 ## Update
 
