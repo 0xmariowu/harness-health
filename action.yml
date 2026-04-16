@@ -21,6 +21,10 @@ inputs:
     description: 'Directory to write reports. Only used when format != terminal.'
     required: false
     default: ''
+  sarif-upload:
+    description: 'Upload SARIF to GitHub Code Scanning. Requires the calling workflow to declare `permissions: security-events: write` and (for private repos) a GHAS license. Default: false.'
+    required: false
+    default: 'false'
 
 outputs:
   score:
@@ -96,6 +100,33 @@ runs:
           REPORTER_ARGS+=(--output-dir "${AL_OUTPUT_DIR}")
         fi
         node "${AL_ACTION_PATH}/src/reporter.js" "${RUNNER_TEMP}/al-scores.json" "${REPORTER_ARGS[@]}"
+        # Emit inline PR annotations (::warning / ::error). Works on all repos,
+        # no GHAS required. Complements SARIF for users without Code Scanning.
+        node "${AL_ACTION_PATH}/scripts/emit-workflow-commands.js" \
+          "${RUNNER_TEMP}/al-scores.json" \
+          "${RUNNER_TEMP}/al-plan.json" || true
+
+    - name: Generate SARIF
+      if: inputs.sarif-upload == 'true'
+      shell: bash
+      env:
+        AL_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        node "${AL_ACTION_PATH}/src/reporter.js" \
+          "${RUNNER_TEMP}/al-scores.json" \
+          --plan "${RUNNER_TEMP}/al-plan.json" \
+          --format sarif \
+          --output-dir "${RUNNER_TEMP}"
+        # Stable filename for upload step
+        mv "${RUNNER_TEMP}"/al-*.sarif "${RUNNER_TEMP}/agent-lint.sarif"
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: ${{ inputs.sarif-upload == 'true' && always() }}
+      uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a  # v3.35.2
+      continue-on-error: true
+      with:
+        sarif_file: ${{ runner.temp }}/agent-lint.sarif
+        category: agent-lint
 
     - name: Threshold check
       shell: bash
