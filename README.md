@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Your AI agent is only as good as your repo.</strong><br>
-  49 checks. 8 dimensions. Works across Claude Code, Cursor, Copilot, Gemini, Windsurf, Cline.
+  49 checks. 8 dimensions. Works across Claude Code, Codex, Cursor, Copilot, Gemini, Windsurf, Cline.
 </p>
 
 <p align="center">
