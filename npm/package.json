@@ -1,6 +1,6 @@
 {
   "name": "@0xmariowu/agent-lint",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Check how well your repo supports AI coding agents. Claude Code plugin.",
   "author": "0xmariowu",
   "license": "MIT",
