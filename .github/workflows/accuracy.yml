@@ -47,17 +47,19 @@ jobs:
           mkdir -p /tmp/corpus-raw /tmp/corpus-repos
           tar -xzf /tmp/corpus-full.tar.gz -C /tmp/corpus-raw
 
-          # Reconstruct in parallel (4 workers)
-          find /tmp/corpus-raw -mindepth 1 -maxdepth 1 -type d | \
-            xargs -P 4 -I{} bash tests/docker-e2e/reconstruct-repo.sh {} /tmp/corpus-repos/$(basename {})
+          # Reconstruct in parallel (4 workers).
+          # "$1" inside single quotes is intentional — expansion happens in the child bash.
+          # shellcheck disable=SC2016
+          find /tmp/corpus-raw -mindepth 1 -maxdepth 1 -type d -print0 | \
+            xargs -0 -P 4 -I{} bash -c 'bash tests/docker-e2e/reconstruct-repo.sh "$1" "/tmp/corpus-repos/$(basename "$1")"' _ {}
 
-          echo "Reconstructed $(ls /tmp/corpus-repos | wc -l) repos"
+          echo "Reconstructed $(find /tmp/corpus-repos -mindepth 1 -maxdepth 1 -type d | wc -l) repos"
 
       - name: Run scanner on all repos
         if: steps.download.outputs.found == 'true'
         run: |
           RESULTS=/tmp/scanner-results.jsonl
-          > "$RESULTS"
+          : > "$RESULTS"
 
           for repo_dir in /tmp/corpus-repos/*/; do
             [ -d "$repo_dir" ] || continue

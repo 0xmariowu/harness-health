@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# pre-push — rebase on latest main so CI sees an up-to-date branch.
+# Tests run in CI (node tests/test-*.js across matrix). Skip local test execution
+# because agent-lint has no `npm test` script — tests are invoked individually.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Skip for main (direct push, e.g. release tags)
+if [ "$branch" = "main" ]; then
+  exit 0
+fi
+
+git fetch origin main --quiet
+if ! git rebase origin/main --quiet; then
+  echo "error: rebase on origin/main failed"
+  echo "  Rule: feature branches must be up-to-date with main before push"
+  echo "  Fix:  resolve conflicts, then 'git rebase --continue' and retry push"
+  echo "  See:  CLAUDE.md — Workflow section"
+  git rebase --abort 2>/dev/null || true
+  exit 1
+fi
+echo "[pre-push] rebased on origin/main"

@@ -1,0 +1,60 @@
+name: Detect docs-only changes
+description: Emit docs_only=true when the PR diff touches only docs / markdown files; fail-safe to false on any error.
+inputs:
+  base-ref:
+    description: Base ref to compare against.
+    required: false
+    default: "${{ github.event.pull_request.base.sha }}"
+outputs:
+  docs_only:
+    description: Set to true when changes are docs-only.
+    value: ${{ steps.detect.outputs.docs_only }}
+  docs_changed:
+    description: Set to true when any docs-matching file is changed.
+    value: ${{ steps.detect.outputs.docs_changed }}
+runs:
+  using: composite
+  steps:
+    - id: detect
+      name: Detect docs-only diffs
+      shell: bash
+      env:
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+      run: |
+        set +e
+
+        BASE_REF="${INPUT_BASE_REF:-${{ github.event.pull_request.base.sha || '' }}}"
+        DIFF_FILES=""
+        DIFF_EXIT=0
+
+        if [[ -z "$BASE_REF" || "$BASE_REF" == 0000000000000000000000000000000000000000 ]]; then
+          echo "Base ref is empty or zero-sha. Skipping docs-only detection."
+          echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          echo "docs_changed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        DIFF_FILES="$(git diff --name-only "$BASE_REF" HEAD 2>/dev/null)"
+        DIFF_EXIT=$?
+        if [[ $DIFF_EXIT -ne 0 || -z "$DIFF_FILES" ]]; then
+          echo "No diff detected for base ref $BASE_REF; defaulting to full execution."
+          echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          echo "docs_changed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        DOCS_CHANGED=false
+        DOCS_ONLY=true
+
+        while IFS= read -r FILE; do
+          [ -z "$FILE" ] && continue
+          if [[ "$FILE" == *.md ]] || [[ "$FILE" == docs/* ]] || [[ "$FILE" == *.txt ]] || [[ "$FILE" == LICENSE ]] || [[ "$FILE" == CODEOWNERS ]] || [[ "$FILE" == configs/*.md ]]; then
+            DOCS_CHANGED=true
+          else
+            DOCS_ONLY=false
+          fi
+        done <<< "$DIFF_FILES"
+
+        echo "docs_only=$DOCS_ONLY" >> "$GITHUB_OUTPUT"
+        echo "docs_changed=$DOCS_CHANGED" >> "$GITHUB_OUTPUT"
+

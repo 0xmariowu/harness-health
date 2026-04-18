@@ -144,7 +144,7 @@ jobs:
           GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          METADATA=$(cat release-metadata.json | jq -c .)
+          METADATA=$(jq -c . release-metadata.json)
 
           if [ -n "$GH_TOKEN" ]; then
             gh workflow run sync-release.yml \

@@ -1,0 +1,63 @@
+name: Workflow Sanity
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  no-tabs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Fail on tabs in workflow files
+        shell: bash
+        run: |
+          bad=$(awk '/\t/ { print FILENAME; nextfile }' .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Tabs found in workflow files:"
+            echo "$bad"
+            exit 1
+          fi
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          ACTIONLINT_VERSION="1.7.11"
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          base_url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+          curl --retry 5 --retry-delay 2 --retry-all-errors -sSfL -o "${archive}" "${base_url}/${archive}"
+          curl --retry 5 --retry-delay 2 --retry-all-errors -sSfL -o checksums.txt "${base_url}/actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          grep " ${archive}\$" checksums.txt | sha256sum -c -
+          tar -xzf "${archive}" actionlint
+          sudo install -m 0755 actionlint /usr/local/bin/actionlint
+      - name: Lint workflows
+        run: actionlint
+
+  no-conflict-markers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Check no unresolved merge conflict markers
+        run: |
+          hits=$(grep -rnE '^(<<<<<<<|=======|>>>>>>>)( |$)' --include='*.yml' --include='*.yaml' --include='*.md' --include='*.ts' --include='*.js' --include='*.py' --include='*.sh' --exclude-dir='.git' . || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Merge conflict markers found:"
+            echo "$hits"
+            exit 1
+          fi

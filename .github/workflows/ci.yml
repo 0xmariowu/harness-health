@@ -121,6 +121,19 @@ jobs:
         shell: bash
         run: bash tests/test-deep-analyzer.sh
 
+  # Aggregator that emits check contexts 'test (20)' and 'test (22)' required by
+  # main branch protection. The real test matrix fans out to os x node (6 jobs),
+  # whose check names include OS and can't be the required contexts directly.
+  test-summary:
+    name: test
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - run: echo "test matrix passed for node ${{ matrix.node-version }}"
+
   npm-e2e:
     needs: test
     runs-on: ${{ matrix.os }}
