@@ -1,7 +1,7 @@
 {
   "name": "agent-lint",
   "private": true,
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Check how well your repo supports AI coding agents.",
   "license": "MIT",
   "repository": {

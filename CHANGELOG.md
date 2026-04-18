@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.8.3 (2026-04-18)
+
+### Infrastructure
+
+- **Public Repo Hygiene workflow.** New `hygiene.yml` enforces codename, personal-path, and container-image-pin checks on every PR — complementing the existing `author-email.yml` commit-identity gate.
+- **Workflow Sanity workflow.** New `workflow-sanity.yml` runs actionlint (with shellcheck) plus no-tabs and no-conflict-marker checks whenever `.github/workflows/**` changes.
+- **CodeQL analysis.** New `codeql.yml` runs `javascript-typescript` scans on every PR, push to `main`, and weekly cron. Closes the CodeQL gap from the public-repo security audit.
+- **Composite actions.** `ensure-base-commit` progressively deepens shallow clones until a required base SHA is reachable; `detect-docs-changes` emits `docs_only=true` when a PR touches only docs — reusable building blocks for future workflows.
+- **`.shellcheckrc`** sets the repo-wide shellcheck baseline (warning severity, bash dialect, sourced-file following).
+- **`.husky/pre-push`** rebases feature branches on `origin/main` before push so CI always sees an up-to-date branch.
+- **Test aggregator job** (`test (20)` / `test (22)`) wraps the OS × Node test matrix to satisfy stable branch-protection contexts without pinning individual OS variants as required.
+
+### Chore
+
+- **`docs/rules-style.md`** and **`docs/ship-boundary.md`** — rule-authoring style guide and file-tier decision framework imported from VibeKit.
+- **`github/codeql-action` 3.35.2 → 4.35.2** (dependabot). Unifies `init`, `analyze`, and `upload-sarif` on v4 and ships CodeQL bundle 2.25.2.
+- **Shellcheck cleanups** in `accuracy.yml` (find/xargs null-byte handling, `ls`→`find` for counting, noop-truncate prefix) and `release.yml` (useless `cat` removed) to satisfy the new actionlint gate.
+
+### Notes
+
+- No new checks, no scoring changes, no scanner behavior changes. Check count stays 49. Dimensions unchanged.
+
 ## v0.8.2 (2026-04-16)
 
 ### Security
