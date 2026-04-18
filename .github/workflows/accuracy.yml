@@ -47,7 +47,9 @@ jobs:
           mkdir -p /tmp/corpus-raw /tmp/corpus-repos
           tar -xzf /tmp/corpus-full.tar.gz -C /tmp/corpus-raw
 
-          # Reconstruct in parallel (4 workers)
+          # Reconstruct in parallel (4 workers).
+          # "$1" inside single quotes is intentional — expansion happens in the child bash.
+          # shellcheck disable=SC2016
           find /tmp/corpus-raw -mindepth 1 -maxdepth 1 -type d -print0 | \
             xargs -0 -P 4 -I{} bash -c 'bash tests/docker-e2e/reconstruct-repo.sh "$1" "/tmp/corpus-repos/$(basename "$1")"' _ {}
 
