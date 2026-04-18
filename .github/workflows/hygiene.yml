@@ -16,37 +16,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Ensure base commit available for PR diff
-        if: github.event_name == 'pull_request'
-        uses: ./.github/actions/ensure-base-commit
-        with:
-          base-sha: ${{ github.event.pull_request.base.sha }}
-
-      - name: Check author emails in PR commits
-        if: github.event_name == 'pull_request'
-        run: |
-          BAD=$(git log --no-merges --format='%ae' origin/main..HEAD \
-            | grep -v '@users.noreply.github.com' \
-            | grep -v 'github-actions' \
-            | grep -v 'dependabot' || true)
-          if [ -n "$BAD" ]; then
-            echo "::error::Non-noreply author emails: $BAD"
-            exit 1
-          fi
-
-      - name: Check author names in PR commits
-        if: github.event_name == 'pull_request'
-        run: |
-          # GITHUB_ACTOR per GitHub spec is alphanumeric + hyphen only — no regex-special chars, so no escaping needed.
-          ALLOWED_AUTHOR_PATTERN="${ALLOWED_AUTHOR_PATTERN:-$GITHUB_ACTOR}"
-          BAD=$(git log --no-merges --format='%an' origin/main..HEAD \
-            | grep -vE "$ALLOWED_AUTHOR_PATTERN" \
-            | grep -v 'github-actions' \
-            | grep -v 'dependabot' || true)
-          if [ -n "$BAD" ]; then
-            echo "::error::Non-pseudonym author names: $BAD"
-            exit 1
-          fi
+      # Author email/name checks live in author-email.yml (stricter, SHA-range based).
 
       - name: Check internal codenames
         run: |
