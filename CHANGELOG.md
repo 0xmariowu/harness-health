@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.8.5 (2026-04-19)
+
+### Infrastructure
+
+- **`scripts/sanitize.sh`** — new read-only pre-release PII audit. Eight checks cover author emails (git log), personal paths (tracked files + commit messages + recent history), Tailscale and mDNS machine hostnames, and optional `.internal-codenames` enforcement across files / commits / branches. Scans tracked-only so untracked test artifacts don't create noise. Mirrors the placeholder filter from `.husky/pre-commit` so documentation examples don't trip it.
+- **Commit-message PII scan workflow.** New `.github/workflows/commit-message-scan.yml` rejects PRs whose commit messages contain personal paths or machine hostnames. Closes the gap where `.husky/pre-commit` and `hygiene.yml` only scanned staged file contents, not commit metadata.
+
+### Chore
+
+- **`.husky/pre-commit`** now excludes `scripts/sanitize.sh` from the private-pattern scan — same rationale as the existing `.gitleaks.toml` exclusion: detection tools must be allowed to mention the patterns they detect.
+
+### Notes
+
+- Docs and tooling only. No scanner behavior, check set, or scoring changes. Check count stays 49.
+
 ## v0.8.4 (2026-04-18)
 
 ### Fixed

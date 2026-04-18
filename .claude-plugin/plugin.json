@@ -1,6 +1,6 @@
 {
   "name": "agent-lint",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Check how well your repo supports AI coding agents.",
   "author": {
     "name": "0xmariowu"
