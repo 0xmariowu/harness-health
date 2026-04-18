@@ -1,0 +1,101 @@
+name: Public Repo Hygiene
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Ensure base commit available for PR diff
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/ensure-base-commit
+        with:
+          base-sha: ${{ github.event.pull_request.base.sha }}
+
+      - name: Check author emails in PR commits
+        if: github.event_name == 'pull_request'
+        run: |
+          BAD=$(git log --no-merges --format='%ae' origin/main..HEAD \
+            | grep -v '@users.noreply.github.com' \
+            | grep -v 'github-actions' \
+            | grep -v 'dependabot' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Non-noreply author emails: $BAD"
+            exit 1
+          fi
+
+      - name: Check author names in PR commits
+        if: github.event_name == 'pull_request'
+        run: |
+          # GITHUB_ACTOR per GitHub spec is alphanumeric + hyphen only — no regex-special chars, so no escaping needed.
+          ALLOWED_AUTHOR_PATTERN="${ALLOWED_AUTHOR_PATTERN:-$GITHUB_ACTOR}"
+          BAD=$(git log --no-merges --format='%an' origin/main..HEAD \
+            | grep -vE "$ALLOWED_AUTHOR_PATTERN" \
+            | grep -v 'github-actions' \
+            | grep -v 'dependabot' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Non-pseudonym author names: $BAD"
+            exit 1
+          fi
+
+      - name: Check internal codenames
+        run: |
+          if [ -f .internal-codenames ]; then
+            MATCHES=$(grep -rn -E -f .internal-codenames \
+              --include='*.py' --include='*.ts' --include='*.js' \
+              --include='*.tsx' --include='*.jsx' --include='*.md' \
+              --include='*.yml' --include='*.yaml' \
+              --include='*.json' --include='*.toml' --include='*.sh' \
+              --exclude-dir='.git' --exclude='.gitleaks.toml' \
+              --exclude='.husky/pre-commit' --exclude='CLAUDE.md' . || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::error::Internal project codenames found:"
+              echo "$MATCHES"
+              exit 1
+            fi
+          else
+            echo "Skipping internal codename check: .internal-codenames not found."
+          fi
+
+      - name: Check personal paths and hostnames
+        run: |
+          # Placeholder patterns like /Users/xxx and /home/testuser are intentional
+          # (README examples, evidence text, docker-e2e fixtures). Matches .husky/pre-commit.
+          MATCHES=$(grep -rn '/Users/[a-zA-Z]\|/home/[a-z]\|\.ts\.net' \
+            --include='*.py' --include='*.ts' --include='*.js' \
+            --include='*.tsx' --include='*.jsx' --include='*.md' \
+            --include='*.yml' --include='*.yaml' \
+            --include='*.json' --include='*.toml' --include='*.sh' \
+            --exclude-dir='.git' --exclude-dir='node_modules' \
+            --exclude-dir='coverage' --exclude-dir='experience' \
+            --exclude-dir='.claude' --exclude='.gitleaks.toml' \
+            --exclude='.husky/pre-commit' --exclude='sanitize.sh' \
+            --exclude='_shared.sh' --exclude='hygiene.yml' . \
+            | grep -v '/Users/xxx\|/home/xxx\|/home/testuser\|/Users/yourusername\|/Users/example\|/home/runner' \
+            || true)
+          if [ -n "$MATCHES" ]; then
+            echo "::error::Personal paths or hostnames found:"
+            echo "$MATCHES"
+            exit 1
+          fi
+
+      - name: Check container image pins
+        run: |
+          UNPINNED=$(grep -rn 'image:' .github/workflows/ --exclude='hygiene.yml' \
+            | grep -v '@sha256:' \
+            | grep -v '^#' || true)
+          if [ -n "$UNPINNED" ]; then
+            echo "::error::Unpinned container images:"
+            echo "$UNPINNED"
+            exit 1
+          fi

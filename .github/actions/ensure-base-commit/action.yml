@@ -1,0 +1,56 @@
+name: Ensure base commit present
+description: Progressively deepen a shallow clone until the base SHA is reachable.
+inputs:
+  base-sha:
+    description: Commit SHA that must be available locally.
+    required: true
+  depths:
+    description: Comma-separated fetch depths to try before unshallow/deepen.
+    required: false
+    default: "25,100,300"
+runs:
+  using: composite
+  steps:
+    - name: Ensure base commit is fetched
+      shell: bash
+      env:
+        INPUT_BASE_SHA: ${{ inputs.base-sha }}
+        INPUT_DEPTHS: ${{ inputs.depths }}
+      run: |
+        set -euo pipefail
+
+        BASE_SHA="${INPUT_BASE_SHA}"
+        DEPTHS="${INPUT_DEPTHS:-25,100,300}"
+
+        if [[ ! "$BASE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          echo "::error::Invalid base SHA: $BASE_SHA"
+          exit 1
+        fi
+
+        if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+          echo "Base SHA already present."
+          exit 0
+        fi
+
+        IFS=',' read -r -a depth_values <<< "$DEPTHS"
+        for depth in "${depth_values[@]}"; do
+          git fetch --depth="$depth" origin "$BASE_SHA" 2>/dev/null || true
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "Base SHA found at depth $depth."
+            exit 0
+          fi
+        done
+
+        if ! (git fetch --unshallow 2>/dev/null || git fetch --deepen=50000); then
+          echo "::error::Unable to expand git history."
+          exit 1
+        fi
+
+        if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+          echo "Base SHA found after full fetch."
+          exit 0
+        fi
+
+        echo "::error::Base SHA $BASE_SHA not reachable even after full fetch."
+        exit 1
+
