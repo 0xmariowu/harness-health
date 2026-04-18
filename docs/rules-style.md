@@ -98,7 +98,7 @@ The root `CLAUDE.md` answers "what is this repo?". A subsystem `CLAUDE.md` (e.g.
 
 Rules:
 
-- Start the file empty (just the skeleton from `configs/templates/subsystem-CLAUDE.md`).
+- Start the file empty (just a minimal skeleton: one-line purpose statement + empty `## Rules` section).
 - Add a line *only* when an agent made a mistake here that a rule would have prevented. Every line cites a real failure.
 - Delete lines that no longer apply. Old "gotchas" create noise when the underlying cause is fixed.
 - Scope is *only this directory*. Anything broader belongs in the root `CLAUDE.md`.
@@ -107,7 +107,7 @@ Why: agent attention is finite (IFScale). Subsystem rules that only load when wo
 
 ## 3.10 Plan files — one step, one verify
 
-For multi-step work (3+ sequential actions, or 2+ files that must change in lockstep), write a plan first. Use `configs/templates/plan.md`. The rule:
+For multi-step work (3+ sequential actions, or 2+ files that must change in lockstep), write a plan first (a short markdown doc with numbered steps). The rule:
 
 - **One step = one atomic action + one mechanical verify.**
 - If `Verify` reads as "check manually that it feels right", the step isn't atomic — split further.
@@ -132,7 +132,7 @@ Bad step:
 - Verify: Review output.
 ```
 
-Why: without mechanical verify, you can't tell whether AI actually completed the step or hallucinated success. Atomic verify turns agent work into a loop the harness can drive — see `atomic-dev-environment.md` §任务原子化.
+Why: without mechanical verify, you can't tell whether AI actually completed the step or hallucinated success. Atomic verify turns agent work into a loop the harness can drive.
 
 ## 3.11 Delete Chat Test — the honest repo-quality check
 
@@ -146,7 +146,7 @@ If the new agent succeeds: your repo carries the context — the harness works.
 
 If the new agent gets stuck / asks you things you already "knew" / rebuilds something that was almost done: context was in *your* head, not the repo. That gap is an asset for today but a liability for every future session (your own included). Fix the harness: write the missing fact into `CLAUDE.md`, a subsystem `CLAUDE.md`, a comment, a test, or a plan file — wherever an agent would look for it next time.
 
-This is the same reflex as wiki B7 ("fix the harness, not try harder"), made testable. Run it whenever the same thing keeps frustrating you across sessions.
+Same reflex as "fix the harness, not try harder" — made testable. Run it whenever the same thing keeps frustrating you across sessions.
 
 ## 3.12 Error messages — four-part format
 
@@ -159,13 +159,13 @@ error: <what went wrong>
   See:  <file or section pointing at more context>
 ```
 
-Good — from VibeKit's pre-commit hook:
+Good — from this repo's `.husky/pre-push`:
 
 ```
-error: direct git commit blocked — use scripts/committer
-  Rule: This repo routes every commit through scripts/committer for scoping + PII scan.
-  Fix:  scripts/committer "<message>" <file...>
-  See:  docs/rules-style.md — Commit protocol
+error: rebase on origin/main failed
+  Rule: feature branches must be up-to-date with main before push
+  Fix:  resolve conflicts, then 'git rebase --continue' and retry push
+  See:  CLAUDE.md — Workflow section
 ```
 
 Bad:
