@@ -1,0 +1,70 @@
+name: Summon Codex on CI Failure
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  summon:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'failure' &&
+          github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment @codex on the failing PR
+        uses: actions/github-script@v7
+        env:
+          FAILED_RUN_URL: ${{ github.event.workflow_run.html_url }}
+          FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const prs = run.pull_requests || [];
+            if (prs.length === 0) {
+              core.info('No associated PR; skipping.');
+              return;
+            }
+            const pr = prs[0];
+
+            const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: Number(process.env.FAILED_RUN_ID),
+            });
+            const failedJobs = jobs.jobs
+              .filter(j => j.conclusion === 'failure')
+              .map(j => `- ${j.name}: ${j.html_url}`)
+              .join('\n') || '(none reported)';
+
+            const body = [
+              `@codex **${process.env.WORKFLOW_NAME}** failed on this PR. Please diagnose and fix.`,
+              '',
+              `**Failed run:** ${process.env.FAILED_RUN_URL}`,
+              `**Branch:** \`${process.env.HEAD_BRANCH}\``,
+              '',
+              '**Failed jobs:**',
+              failedJobs,
+              '',
+              'Task:',
+              '1. Read the failing job logs to find the root cause.',
+              '2. Apply a minimal, surgical fix — no unrelated refactors.',
+              `3. Push the fix commit to this PR's branch (\`${process.env.HEAD_BRANCH}\`).`,
+              '4. Reply with a short summary of root cause + fix.',
+              '',
+              "If the failure is environmental (flaky / infra) and not a code defect, reply 'no code fix needed' with reasoning.",
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body,
+            });
