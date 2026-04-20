@@ -1,0 +1,73 @@
+name: Three-Commit Required
+
+# Enforces the three-commit atomicity rule (plan §1.5):
+#   feat(x) / fix(x) PR must contain at least one matching test(x) commit
+#   AND one matching docs(x) commit (CHANGELOG edit qualifies as docs).
+#
+# Skip commit types: chore / style / ci / refactor.
+# Opt-out: add the label `no-three-commit` to the PR (with a reason comment).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: three-commit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.pull_request.labels.*.name, 'no-three-commit')"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Classify commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          subjects=$(git log --format='%s' "$BASE_SHA..$HEAD_SHA" 2>/dev/null || true)
+          if [ -z "$subjects" ]; then
+            echo "No commits in range; skipping."
+            exit 0
+          fi
+
+          has_behavior=0
+          has_test=0
+          has_docs=0
+
+          while IFS= read -r s; do
+            case "$s" in
+              feat\(*|feat:*|fix\(*|fix:*) has_behavior=1 ;;
+              test\(*|test:*)              has_test=1 ;;
+              docs\(*|docs:*)              has_docs=1 ;;
+              chore*|style*|ci*|refactor*) : ;;
+            esac
+          done <<< "$subjects"
+
+          if [ "$has_behavior" = "0" ]; then
+            echo "No feat/fix commits → three-commit rule not applicable."
+            exit 0
+          fi
+
+          echo "has_behavior=$has_behavior  has_test=$has_test  has_docs=$has_docs"
+
+          if [ "$has_test" = "0" ]; then
+            echo "::error::feat/fix PR is missing a test(...) commit. Three-commit rule: code + test + docs."
+            exit 1
+          fi
+          if [ "$has_docs" = "0" ]; then
+            echo "::error::feat/fix PR is missing a docs(...) commit. Three-commit rule: code + test + docs (CHANGELOG edit counts)."
+            exit 1
+          fi
+
+          echo "three-commit rule satisfied."

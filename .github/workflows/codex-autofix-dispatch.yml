@@ -1,0 +1,137 @@
+name: Codex Autofix Dispatch
+
+# V1 fallback (plan §8.3 revision):
+# Codex cloud does auto-REVIEW but does NOT auto-FIX. This workflow
+# closes that loop by automatically commenting `@codex please fix ...`
+# on the PR whenever:
+#   (a) a blocking review is submitted, or
+#   (b) one of our mechanical gates fails.
+#
+# The comment is posted as github-actions[bot] — Codex Cloud docs
+# confirm bot comments do trigger @codex tasks.
+#
+# Loop prevention: checks the last 5 comments to avoid re-@'ing if we
+# already asked Codex within this same PR head SHA.
+
+on:
+  pull_request_review:
+    types: [submitted]
+  workflow_run:
+    workflows:
+      - "Three-Commit Required"
+      - "PR Closes Issue Check"
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: codex-autofix-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    # Only run for real PRs and actual blocking signals.
+    # Codex Cloud reviews arrive as state == 'commented' (not
+    # 'changes_requested'), even when they raise P0/P1 issues. We
+    # therefore trigger on any non-approval review from a bot (so
+    # we don't dispatch on human comments).
+    if: >
+      (github.event_name == 'pull_request_review'
+       && github.event.review.state != 'approved'
+       && github.event.review.user.type == 'Bot'
+       && github.event.review.user.login != 'github-actions[bot]')
+      ||
+      (github.event_name == 'workflow_run'
+       && github.event.workflow_run.conclusion == 'failure'
+       && github.event.workflow_run.event == 'pull_request')
+    steps:
+      - name: Identify PR
+        id: pr
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v8.0.0
+        with:
+          script: |
+            let prNumber = null;
+            let trigger = '';
+            let details = '';
+            if (context.eventName === 'pull_request_review') {
+              prNumber = context.payload.pull_request.number;
+              trigger = 'blocking-review';
+              details = `Review by @${context.payload.review.user.login}: ${context.payload.review.body || '(no body)'}`;
+            } else if (context.eventName === 'workflow_run') {
+              const prs = context.payload.workflow_run.pull_requests || [];
+              if (prs.length === 0) {
+                core.setOutput('skip', 'true');
+                core.notice('workflow_run had no associated PR; skipping');
+                return;
+              }
+              prNumber = prs[0].number;
+              trigger = 'ci-failure';
+              details = `Workflow "${context.payload.workflow_run.name}" failed on run ${context.payload.workflow_run.id}`;
+            }
+            if (!prNumber) {
+              core.setOutput('skip', 'true');
+              return;
+            }
+            core.setOutput('pr_number', prNumber);
+            core.setOutput('trigger', trigger);
+            core.setOutput('details', details);
+
+      - name: Check if Codex was already asked for this head SHA
+        id: loopcheck
+        if: steps.pr.outputs.skip != 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v8.0.0
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.pr_number }}', 10);
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const headSha = pr.data.head.sha;
+            core.setOutput('head_sha', headSha);
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 30,
+            });
+            // Loop guard: skip if there is already a dispatch marker
+            // for this head SHA.
+            const marker = `codex-autofix-dispatch: ${headSha}`;
+            const already = comments.data.some(c => (c.body || '').includes(marker));
+            core.setOutput('skip', already ? 'true' : 'false');
+            if (already) core.notice(`already dispatched for head ${headSha}, skipping`);
+
+      - name: Post Codex dispatch comment
+        if: steps.pr.outputs.skip != 'true' && steps.loopcheck.outputs.skip != 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v8.0.0
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.pr_number }}', 10);
+            const trigger  = '${{ steps.pr.outputs.trigger }}';
+            const details  = `${{ steps.pr.outputs.details }}`;
+            const headSha  = '${{ steps.loopcheck.outputs.head_sha }}';
+
+            const body = [
+              '@codex please address the blocking signals on this PR and push a fix commit.',
+              '',
+              `**Trigger**: ${trigger}`,
+              `**Details**: ${details}`,
+              '',
+              'Follow the PR\'s `.github/copilot-instructions.md` hard rules. Do not suppress lints, skip tests, or weaken CI.',
+              '',
+              `<!-- codex-autofix-dispatch: ${headSha} -->`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body,
+            });
+            core.notice(`Codex dispatched on PR #${prNumber} (head ${headSha})`);
