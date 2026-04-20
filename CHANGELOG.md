@@ -436,3 +436,5 @@ First release. You can now:
 - Auto-fix engine (fixer.js)
 - CI: shellcheck, syntax check, 14 tests, security scanning (gitleaks, trivy, semgrep)
 - Claude Code plugin format with `${CLAUDE_PLUGIN_ROOT}` paths
+
+- ci: conductor-mode infrastructure (docs commit for three-commit gate)
