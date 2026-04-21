@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- ci: fix codex-autofix-dispatch marker mismatch — loop-prevention guard searched `codex-autofix-dispatch:` but write-block emitted `copilot-autofix-dispatch:`, so repeat CI failures on the same PR head spammed fresh `@copilot please fix` comments. Unified both to `copilot-autofix-dispatch:`.
+
 ## v0.8.5 (2026-04-19)
 
 ### Infrastructure
