@@ -107,7 +107,7 @@ jobs:
             });
             // Loop guard: skip if there is already a dispatch marker
             // for this head SHA.
-            const marker = `codex-autofix-dispatch: ${headSha}`;
+            const marker = `copilot-autofix-dispatch: ${headSha}`;
             const already = comments.data.some(c => (c.body || '').includes(marker));
             core.setOutput('skip', already ? 'true' : 'false');
             if (already) core.notice(`already dispatched for head ${headSha}, skipping`);
