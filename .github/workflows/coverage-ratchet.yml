@@ -16,7 +16,7 @@ jobs:
           else
             BASE=0
           fi
-          echo "baseline=$BASE" >> $GITHUB_OUTPUT
+          echo "baseline=$BASE" >> "$GITHUB_OUTPUT"
       - name: Read PR coverage
         id: pr
         run: |
@@ -25,7 +25,7 @@ jobs:
           else
             CURRENT=0
           fi
-          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
       - name: Compare
         run: |
           BASE=${{ steps.baseline.outputs.baseline }}
