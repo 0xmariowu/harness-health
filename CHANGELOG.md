@@ -436,3 +436,7 @@ First release. You can now:
 - Auto-fix engine (fixer.js)
 - CI: shellcheck, syntax check, 14 tests, security scanning (gitleaks, trivy, semgrep)
 - Claude Code plugin format with `${CLAUDE_PLUGIN_ROOT}` paths
+
+## [Unreleased] — AI-native env sync
+
+- feat(ci): bootstrap AI-native dev environment from sync pack v1.4 (Closes #106)
