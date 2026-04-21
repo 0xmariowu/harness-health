@@ -1,0 +1,41 @@
+name: PR Closes Issue Check
+
+# Enforces plan §7: every PR body must include 'Closes #N' (or
+# 'Fixes #N' / 'Resolves #N'). This is the atomicity anchor — every
+# PR maps back to exactly one issue (or epic).
+#
+# Skip: pure chore/style PRs may bypass with label `no-issue-link`.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: closes-issue-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.pull_request.labels.*.name, 'no-issue-link')"
+    steps:
+      - name: Verify issue link in PR body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PR_BODY:-}" ]; then
+            echo "::error::PR body is empty. Include 'Closes #<issue>' so the PR maps to an issue."
+            exit 1
+          fi
+
+          if printf '%s' "$PR_BODY" | grep -qiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+'; then
+            echo "issue link found."
+            exit 0
+          fi
+
+          echo "::error::PR body must include 'Closes #N' (or Fixes/Resolves). Add the linked issue number or use the 'no-issue-link' label with justification."
+          exit 1
