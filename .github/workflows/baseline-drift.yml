@@ -1,0 +1,30 @@
+name: Baseline Drift
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read baseline accuracy/perf
+        run: |
+          if [ -f .perf-baseline ]; then
+            BASE=$(cat .perf-baseline)
+          else
+            BASE=100
+          fi
+          if [ -f perf.txt ]; then
+            CURRENT=$(cat perf.txt)
+          else
+            CURRENT=100
+          fi
+          echo "perf baseline=$BASE current=$CURRENT"
+          # Allow 5% drift
+          THRESHOLD=$(echo "$BASE * 0.95" | bc -l | awk '{printf "%d", $1}')
+          if [ "$CURRENT" -lt "$THRESHOLD" ]; then
+            echo "::error::Perf regressed: $CURRENT < $THRESHOLD (5% drift threshold)"
+            exit 1
+          fi
+          echo "Perf OK"
