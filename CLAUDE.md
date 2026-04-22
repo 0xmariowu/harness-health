@@ -24,3 +24,13 @@
 - One commit = one logical change. Commit sequence: source code first, tests second, docs/config third. Don't batch. Because: reviewers need to verify tests cover exactly the code that changed.
 - Feature commits without corresponding test commits will not pass review. Because: untested features are untested assumptions.
 - Don't stage `.env*`, credentials, `node_modules/`, `__pycache__/`, or `.git/` internals. Because: these files contain secrets or generated content that must not enter version control.
+
+## Tests
+
+```bash
+# Run scanner on a project
+bash src/scanner.sh --project-dir <path>
+
+# Run unit tests
+npm test
+```

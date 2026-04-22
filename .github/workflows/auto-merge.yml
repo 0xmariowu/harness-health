@@ -4,14 +4,12 @@ on:
   pull_request:
     types: [opened, reopened, ready_for_review]
 
-permissions:
-  pull-requests: write
-  contents: write
-
 jobs:
   enable:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - run: gh pr merge --auto --squash --repo "${{ github.repository }}" "${{ github.event.pull_request.number }}"
         env:
