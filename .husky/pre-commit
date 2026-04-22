@@ -15,7 +15,7 @@ if [ "$AUTHOR_NAME" != "0xmariowu" ]; then
   exit 1
 fi
 
-SCAN_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v -E '(\.gitleaks\.toml$|\.husky/|^CLAUDE\.md$|\.github/workflows/|^scripts/sanitize\.sh$)' || true)
+SCAN_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v -E '(\.gitleaks\.toml$|\.husky/|\.github/workflows/|^scripts/sanitize\.sh$)' || true)
 
 # Private-pattern scan — patterns live outside this public repo.
 # Create ~/.agentlint-private-patterns (one regex per line, blank/# ignored) to enable.
@@ -33,9 +33,18 @@ if [ -n "$SCAN_FILES" ] && [ -f "$PRIVATE_PATTERNS_FILE" ]; then
   fi
 fi
 
-# Generic PII scan — personal paths (applies to everyone, no repo-specific knowledge)
+# Generic PII scan — placeholder usernames whitelisted per-match (not per-line)
 if [ -n "$SCAN_FILES" ]; then
-  PII_MATCHES=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '/Users/[a-zA-Z]|/home/[a-z]' "$f" 2>/dev/null; done | grep -v '/Users/xxx\|/home/xxx\|/home/testuser' || true)
+  _PII_RAW=$(echo "$SCAN_FILES" | while IFS= read -r f; do grep -nEH '/Users/[a-zA-Z]|/home/[a-z]' "$f" 2>/dev/null; done || true)
+  # shellcheck disable=SC2016
+  PII_MATCHES=$(printf '%s' "$_PII_RAW" | python3 -c '
+import sys, re
+OK = {"xxx", "yourusername", "example", "your-username", "testuser"}
+for line in sys.stdin:
+    users = re.findall(r"/Users/([A-Za-z][A-Za-z0-9_-]*)", line)
+    if any(u not in OK for u in users) or (not users and "/home/" in line):
+        sys.stdout.write(line)
+' 2>/dev/null || printf '%s' "$_PII_RAW")
   if [ -n "$PII_MATCHES" ]; then
     echo "error: personal paths in staged files:"
     echo "$PII_MATCHES"

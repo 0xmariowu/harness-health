@@ -20,11 +20,11 @@ on:
     types: [submitted]
   workflow_run:
     workflows:
-      - "Three-Commit Required"
-      - "PR Closes Issue Check"
-      - "CHANGELOG Required"
-      - "Coverage Ratchet"
-      - "Baseline Drift"
+      - "CI"
+      - "Semgrep"
+      - "Trivy"
+      - "Gitleaks"
+      - "PR Lint"
     types: [completed]
 
 permissions:
