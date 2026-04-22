@@ -463,15 +463,38 @@ function getItem(item) {
 
 function executeAssistedF1(projectDir, projectName) {
   const target = path.join(projectDir, 'CLAUDE.md'); // nosemgrep: path-join-resolve-traversal
-  if (fs.existsSync(target)) {
+
+  // Use lstatSync to detect both existing files and symlinks (even dangling ones).
+  // existsSync() returns false for dangling symlinks, which would allow writeFileSync
+  // to follow the symlink and write outside the project directory.
+  try {
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink()) {
+      return {
+        status: 'failed',
+        detail: 'Skipped: CLAUDE.md is a symlink — refusing to write.',
+      };
+    }
+    // File exists (regular file or directory)
     return {
       status: 'failed',
       detail: 'Skipped: CLAUDE.md already exists.',
     };
+  } catch (_) {
+    // ENOENT — path does not exist, safe to create
   }
 
   const template = fs.readFileSync(CLAUDE_TEMPLATE, 'utf8').replace(/\{Project Name\}/g, projectName);
-  fs.writeFileSync(target, template);
+  // flag 'wx' = O_EXCL|O_CREAT: fails atomically if file exists, and on POSIX
+  // refuses to follow symlinks at open-time (defense-in-depth with lstat check above).
+  try {
+    fs.writeFileSync(target, template, { flag: 'wx' });
+  } catch (err) {
+    return {
+      status: 'failed',
+      detail: `Failed to create CLAUDE.md: ${err.message}`,
+    };
+  }
   return {
     status: 'fixed',
     detail: 'Created CLAUDE.md from claude-md-starter template.',
@@ -480,21 +503,40 @@ function executeAssistedF1(projectDir, projectName) {
 
 function executeAssistedC2(projectDir, projectName) {
   const target = path.join(projectDir, 'HANDOFF.md'); // nosemgrep: path-join-resolve-traversal
-  if (fs.existsSync(target) || fs.existsSync(target + '')) {
-    // Check lstat to catch symlinks too — existsSync follows them.
-    try {
-      fs.lstatSync(target);
+
+  // Use lstatSync to detect both existing files and symlinks (even dangling ones).
+  // existsSync() returns false for dangling symlinks, which would allow writeFileSync
+  // to follow the symlink and write outside the project directory.
+  try {
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink()) {
       return {
         status: 'failed',
-        detail: 'Skipped: HANDOFF.md already exists.',
+        detail: 'Skipped: HANDOFF.md is a symlink — refusing to write.',
       };
-    } catch (_) { /* not exist — proceed */ }
+    }
+    // File exists (regular file or directory)
+    return {
+      status: 'failed',
+      detail: 'Skipped: HANDOFF.md already exists.',
+    };
+  } catch (_) {
+    // ENOENT — path does not exist, safe to create
   }
 
   const date = new Date().toISOString().slice(0, 10);
   const content = [`# Hand-off: ${projectName}`, `Date: ${date}`, '', 'Status: in-progress', ''].join('\n');
 
-  fs.writeFileSync(target, content);
+  // flag 'wx' = O_EXCL|O_CREAT: fails atomically if file exists, and on POSIX
+  // refuses to follow symlinks at open-time (defense-in-depth with lstat check above).
+  try {
+    fs.writeFileSync(target, content, { flag: 'wx' });
+  } catch (err) {
+    return {
+      status: 'failed',
+      detail: `Failed to create HANDOFF.md: ${err.message}`,
+    };
+  }
   return {
     status: 'fixed',
     detail: `Created HANDOFF.md with date ${date}.`,
