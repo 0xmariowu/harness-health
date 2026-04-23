@@ -18,6 +18,21 @@ Then start a new Claude Code session:
 
 That's it. AgentLint scans your projects, scores them, shows what's wrong, and fixes what it can.
 
+## CLI commands
+
+Once installed, you can also use AgentLint from any shell:
+
+```bash
+agentlint setup --lang python ~/Projects/my-repo   # bootstrap CI/hooks/templates
+agentlint check --project-dir ~/Projects/my-repo   # diagnose (58 checks, 8 dimensions)
+agentlint fix   --project-dir ~/Projects/my-repo   # auto-fix issues found
+agentlint fix W11 --project-dir ~/Projects/my-repo # fix a specific check directly
+```
+
+**setup** installs the full AI-native stack: 12 CI workflows, git hooks, CLAUDE.md template, plan format, compliance tests.  
+**check** finds what's broken — file structure, instruction quality, build setup, continuity, security.  
+**fix** applies the fixes automatically.
+
 ## GitHub Action
 
 Add AgentLint to your CI in three lines:
