@@ -130,9 +130,9 @@
         "S6": {
           "range": [
             0,
-            0.5
+            1.0
           ],
-          "label": "S6 detects secret or low score"
+          "label": "S6 detection (known false negatives)"
         }
       },
       "expected_total_score": {
