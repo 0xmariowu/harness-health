@@ -270,6 +270,18 @@
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Claude Code behavior: CC is instructed to NEVER skip hooks (--no-verify). If a pre-commit hook is slow (>10s) or flaky, CC's commit workflow stalls visibly. CC will retry indefinitely on hook failure."
     },
+    "W7": {
+      "dimension": "workability",
+      "name": "Local fast test command documented",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "AI agents need a single, fast, documented command to run before pushing. Without it, agents either skip local verification or invoke the full slow CI suite. Observed pattern: gstack documents 'bun test' at top of CLAUDE.md; all 4 audited repos were missing this and had to add it manually in a single session."
+    },
+    "W8": {
+      "dimension": "workability",
+      "name": "npm test script exists (JS/Node projects)",
+      "evidence_sources": ["anthropic-265"],
+      "evidence_text": "For Node.js projects, the absence of 'scripts.test' in package.json means there is no canonical test entry point. AI agents attempting 'npm test' get 'missing script: test'. Observed: agent-lint shipped without this for its entire history; fixed when explicitly audited."
+    },
     "D1": {
       "dimension": "deep",
       "name": "Contradictory rules",
@@ -347,6 +359,18 @@
       "name": "Hook scripts network access",
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 5 repos have hooks that POST tool call input/output to external servers via curl/wget/fetch. This is a data exfiltration vector — tool calls may contain source code, credentials, or user data."
+    },
+    "H7": {
+      "dimension": "harness",
+      "name": "Gate workflows are blocking (not warn-only)",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Observed failure: VibeKit's test-required.yml ran in warn-only mode for months, exiting 0 regardless of outcome. Zero PRs were blocked during this period. A gate workflow that always exits 0 provides no enforcement — it only creates false confidence. Pattern: gate workflows must have a failure path that exits 1."
+    },
+    "S9": {
+      "dimension": "safety",
+      "name": "No personal email in git history",
+      "evidence_sources": ["corpus-4533"],
+      "evidence_text": "Observed incident: 5 commits with a personal Gmail address in a public repo's git history. Git history is permanent and publicly visible — author email in commits is a PII leak even if the current source code is clean. Pre-commit author identity hooks prevent new leaks but don't retroactively clean history."
     },
     "F8": {
       "dimension": "findability",

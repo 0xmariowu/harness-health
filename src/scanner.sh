@@ -1281,6 +1281,42 @@ EOF
     emit_result "$project_name" "W6" "0" "10" "1" "No pre-commit hook (OK)"
   fi
 
+  # W7 — Local fast test command documented in entry file
+  local has_local_test=false
+  if [ -n "$entry_abs" ] && [ -f "$entry_abs" ]; then
+    # Look for a code block containing a test command after a "local test" heading
+    # Pattern: heading with "test" near a code block that has a test runner command
+    local entry_content
+    entry_content="$(cat "$entry_abs" 2>/dev/null)" || entry_content=""
+    if printf '%s' "$entry_content" | grep -qiE '##[[:space:]]+(local[[:space:]]+test|test[[:space:]]+(command|run)|before[[:space:]]+push)'; then
+      # Heading found — check it's followed by a code block with a test command
+      if printf '%s' "$entry_content" | grep -qE '(pytest|npm[[:space:]]+test|bun[[:space:]]+test|xcodebuild[[:space:]]+test|cargo[[:space:]]+test|go[[:space:]]+test|jest|vitest|rspec|bash[[:space:]]+tests/)'; then
+        has_local_test=true
+      fi
+    fi
+  fi
+  if [ "$has_local_test" = true ]; then
+    emit_result "$project_name" "W7" "true" "null" "1" "Local fast test command documented in entry file"
+  else
+    emit_result "$project_name" "W7" "false" "null" "0" "No documented local test command — AI agents don't know what to run before push (add '## Local test' section with executable command)"
+  fi
+
+  # W8 — npm test script exists (JS/Node projects)
+  local pkg_json="${project_dir}/package.json"
+  if [ -f "$pkg_json" ]; then
+    local has_test_script=false
+    if python3 -c "import json,sys; d=json.load(open('$pkg_json')); sys.exit(0 if d.get('scripts',{}).get('test') else 1)" 2>/dev/null; then
+      has_test_script=true
+    fi
+    if [ "$has_test_script" = true ]; then
+      emit_result "$project_name" "W8" "true" "null" "1" "npm test script exists in package.json"
+    else
+      emit_result "$project_name" "W8" "false" "null" "0" "package.json has no 'scripts.test' — 'npm test' fails with 'missing script' for AI agents"
+    fi
+  else
+    emit_result "$project_name" "W8" "null" "null" "1" "No package.json (not a JS/Node project — skip)"
+  fi
+
   # S1 — .env in .gitignore
   local env_gitignored=false
   local env_tracked=false
@@ -1444,6 +1480,20 @@ WF_PRT
     emit_result "$project_name" "S8" "0" "null" "1" "No workflows use pull_request_target"
   else
     emit_result "$project_name" "S8" "$prt_count" "null" "0" "${prt_count} workflow(s) use pull_request_target: ${prt_files}"
+  fi
+
+  # S9 — No personal email in git history
+  # NEVER execute hook files or user scripts — static analysis only.
+  local personal_emails=""
+  personal_emails="$(git -C "$project_dir" log --all --format="%ae" 2>/dev/null \
+    | grep -vE "(noreply|github-actions|dependabot|action@github\.com|bot@)" \
+    | grep "@" | sort -u | head -5 || true)"
+  if [ -z "$personal_emails" ]; then
+    emit_result "$project_name" "S9" "0" "null" "1" "No personal email addresses found in git history"
+  else
+    local email_count
+    email_count="$(printf '%s\n' "$personal_emails" | wc -l | tr -d '[:space:]')"
+    emit_result "$project_name" "S9" "$email_count" "null" "0" "Personal email(s) in git history: ${personal_emails} — PII in public commit history"
   fi
 
   # ─── Harness dimension (v0.6.0) ───
@@ -1651,6 +1701,36 @@ EOF_H6
       h6_measured="$(jq -cn --argjson count "$h6_network_count" --argjson total "$h6_total" '{hooks_with_network: $count, total_hooks: $total}')"
       emit_result "$project_name" "H6" "$h6_measured" "null" "0" "${h6_network_count}/${h6_total} hook script(s) make external network calls — review for legitimacy"
     fi
+  fi
+
+  # H7 — Gate workflows are blocking (not warn-only)
+  local h7_warn_only=0
+  local h7_gate_total=0
+  if [ -d "$wf_dir" ]; then
+    while IFS= read -r wf_file; do
+      [ -z "$wf_file" ] && continue
+      local wf_name
+      wf_name="$(basename "$wf_file" .yml)"
+      # Only check workflows that look like gates
+      if printf '%s' "$wf_name" | grep -qiE '(required|gate|test-required|size|check)'; then
+        h7_gate_total=$((h7_gate_total + 1))
+        local wf_content
+        wf_content="$(cat "$wf_file" 2>/dev/null)" || wf_content=""
+        # Check if any failure path has exit 1 (blocking)
+        if ! printf '%s' "$wf_content" | grep -qE 'exit[[:space:]]+1'; then
+          h7_warn_only=$((h7_warn_only + 1))
+        fi
+      fi
+    done <<H7WF
+$(find "$wf_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null)
+H7WF
+  fi
+  if [ "$h7_gate_total" -eq 0 ]; then
+    emit_result "$project_name" "H7" "0" "null" "1" "No gate workflows found (OK)"
+  elif [ "$h7_warn_only" -eq 0 ]; then
+    emit_result "$project_name" "H7" "$h7_gate_total" "null" "1" "All ${h7_gate_total} gate workflow(s) are blocking (exit 1 on failure)"
+  else
+    emit_result "$project_name" "H7" "$h7_warn_only" "null" "0" "${h7_warn_only}/${h7_gate_total} gate workflow(s) are warn-only (always exit 0) — they never block merge"
   fi
 
   # F8 — Rule file frontmatter uses globs not paths

@@ -1841,6 +1841,134 @@ test_emit_result_empty_output_fails_loudly() {
   fi
 }
 
+# ── W7: local test command documented ─────────────────────────────────────
+
+W7_WITH_DIR="${TEMP_ROOT}/w7-with"
+W7_WITHOUT_DIR="${TEMP_ROOT}/w7-without"
+mkdir -p "${W7_WITH_DIR}" "${W7_WITHOUT_DIR}"
+git -C "${W7_WITH_DIR}" init --quiet 2>/dev/null || true
+git -C "${W7_WITHOUT_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n\n## Local test (run before push)\n\n```bash\npytest tests/unit/ -x -q\n```\n' > "${W7_WITH_DIR}/CLAUDE.md"
+printf '# Project\n\n## Build\n\n- npm install\n' > "${W7_WITHOUT_DIR}/CLAUDE.md"
+git -C "${W7_WITH_DIR}" add -A 2>/dev/null && git -C "${W7_WITH_DIR}" -c user.name=test -c user.email=t@noreply.github.com commit -m "init" --quiet 2>/dev/null || true
+git -C "${W7_WITHOUT_DIR}" add -A 2>/dev/null && git -C "${W7_WITHOUT_DIR}" -c user.name=test -c user.email=t@noreply.github.com commit -m "init" --quiet 2>/dev/null || true
+
+test_w7_with_local_test() {
+  local out="${TEMP_ROOT}/w7-with.jsonl"
+  bash "${SCANNER}" --project-dir "${W7_WITH_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W7")" || { TEST_ERROR="W7 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="W7 should be 1 when local test section + command present (got ${score})"; return 1; fi
+}
+
+test_w7_without_local_test() {
+  local out="${TEMP_ROOT}/w7-without.jsonl"
+  bash "${SCANNER}" --project-dir "${W7_WITHOUT_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W7")" || { TEST_ERROR="W7 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="W7 should be 0 when no local test section (got ${score})"; return 1; fi
+}
+
+run_test "W7: local test documented → 1" test_w7_with_local_test
+run_test "W7: no local test documented → 0" test_w7_without_local_test
+
+# ── W8: npm test script ────────────────────────────────────────────────────
+
+W8_WITH_DIR="${TEMP_ROOT}/w8-with"
+W8_WITHOUT_DIR="${TEMP_ROOT}/w8-without"
+mkdir -p "${W8_WITH_DIR}" "${W8_WITHOUT_DIR}"
+git -C "${W8_WITH_DIR}" init --quiet 2>/dev/null || true
+git -C "${W8_WITHOUT_DIR}" init --quiet 2>/dev/null || true
+printf '{"name":"my-tool","scripts":{"test":"jest"}}\n' > "${W8_WITH_DIR}/package.json"
+printf '{"name":"my-tool","scripts":{}}\n' > "${W8_WITHOUT_DIR}/package.json"
+printf '# Project\n' > "${W8_WITH_DIR}/CLAUDE.md"
+printf '# Project\n' > "${W8_WITHOUT_DIR}/CLAUDE.md"
+git -C "${W8_WITH_DIR}" add -A 2>/dev/null && git -C "${W8_WITH_DIR}" -c user.name=test -c user.email=t@noreply.github.com commit -m "init" --quiet 2>/dev/null || true
+git -C "${W8_WITHOUT_DIR}" add -A 2>/dev/null && git -C "${W8_WITHOUT_DIR}" -c user.name=test -c user.email=t@noreply.github.com commit -m "init" --quiet 2>/dev/null || true
+
+test_w8_has_npm_test() {
+  local out="${TEMP_ROOT}/w8-with.jsonl"
+  bash "${SCANNER}" --project-dir "${W8_WITH_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W8")" || { TEST_ERROR="W8 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="W8 should be 1 when package.json has scripts.test (got ${score})"; return 1; fi
+}
+
+test_w8_missing_npm_test() {
+  local out="${TEMP_ROOT}/w8-without.jsonl"
+  bash "${SCANNER}" --project-dir "${W8_WITHOUT_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W8")" || { TEST_ERROR="W8 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="W8 should be 0 when package.json has no scripts.test (got ${score})"; return 1; fi
+}
+
+run_test "W8: npm test script present → 1" test_w8_has_npm_test
+run_test "W8: npm test script missing → 0" test_w8_missing_npm_test
+
+# ── H7: gate workflow blocking ─────────────────────────────────────────────
+
+H7_BLOCKING_DIR="${TEMP_ROOT}/h7-blocking"
+H7_WARNONLY_DIR="${TEMP_ROOT}/h7-warnonly"
+mkdir -p "${H7_BLOCKING_DIR}/.github/workflows" "${H7_WARNONLY_DIR}/.github/workflows"
+git -C "${H7_BLOCKING_DIR}" init --quiet 2>/dev/null || true
+git -C "${H7_WARNONLY_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${H7_BLOCKING_DIR}/CLAUDE.md"
+printf '# Project\n' > "${H7_WARNONLY_DIR}/CLAUDE.md"
+printf 'name: Test Required\non: [pull_request]\njobs:\n  gate:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Gate\n        run: |\n          if [ "$result" = "fail" ]; then exit 1; fi\n' > "${H7_BLOCKING_DIR}/.github/workflows/test-required.yml"
+printf 'name: Test Required\non: [pull_request]\njobs:\n  gate:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Summary\n        run: |\n          echo "mode=warn"\n' > "${H7_WARNONLY_DIR}/.github/workflows/test-required.yml"
+git -C "${H7_BLOCKING_DIR}" add -A 2>/dev/null && git -C "${H7_BLOCKING_DIR}" -c user.name=test -c user.email=t@noreply.github.com commit -m "init" --quiet 2>/dev/null || true
+git -C "${H7_WARNONLY_DIR}" add -A 2>/dev/null && git -C "${H7_WARNONLY_DIR}" -c user.name=test -c user.email=t@noreply.github.com commit -m "init" --quiet 2>/dev/null || true
+
+test_h7_gate_blocking() {
+  local out="${TEMP_ROOT}/h7-blocking.jsonl"
+  bash "${SCANNER}" --project-dir "${H7_BLOCKING_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "H7")" || { TEST_ERROR="H7 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="H7 should be 1 when gate workflow has exit 1 (got ${score})"; return 1; fi
+}
+
+test_h7_gate_warnonly() {
+  local out="${TEMP_ROOT}/h7-warnonly.jsonl"
+  bash "${SCANNER}" --project-dir "${H7_WARNONLY_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "H7")" || { TEST_ERROR="H7 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="H7 should be 0 when gate workflow has no exit 1 (got ${score})"; return 1; fi
+}
+
+run_test "H7: gate workflow blocking (exit 1) → 1" test_h7_gate_blocking
+run_test "H7: gate workflow warn-only (no exit 1) → 0" test_h7_gate_warnonly
+
+# ── S9: no personal email in git history ──────────────────────────────────
+
+S9_CLEAN_DIR="${TEMP_ROOT}/s9-clean"
+S9_DIRTY_DIR="${TEMP_ROOT}/s9-dirty"
+mkdir -p "${S9_CLEAN_DIR}" "${S9_DIRTY_DIR}"
+git -C "${S9_CLEAN_DIR}" init --quiet 2>/dev/null || true
+git -C "${S9_DIRTY_DIR}" init --quiet 2>/dev/null || true
+printf '# Project\n' > "${S9_CLEAN_DIR}/CLAUDE.md"
+printf '# Project\n' > "${S9_DIRTY_DIR}/CLAUDE.md"
+git -C "${S9_CLEAN_DIR}" add -A 2>/dev/null && git -C "${S9_CLEAN_DIR}" -c user.name=test -c user.email=test@users.noreply.github.com commit -m "init" --quiet 2>/dev/null || true
+git -C "${S9_DIRTY_DIR}" add -A 2>/dev/null && git -C "${S9_DIRTY_DIR}" -c user.name=test -c user.email=developer@gmail.com commit -m "init" --quiet 2>/dev/null || true
+
+test_s9_clean_history() {
+  local out="${TEMP_ROOT}/s9-clean.jsonl"
+  bash "${SCANNER}" --project-dir "${S9_CLEAN_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "S9")" || { TEST_ERROR="S9 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="S9 should be 1 when git history has only noreply emails (got ${score})"; return 1; fi
+}
+
+test_s9_personal_email() {
+  local out="${TEMP_ROOT}/s9-dirty.jsonl"
+  bash "${SCANNER}" --project-dir "${S9_DIRTY_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "S9")" || { TEST_ERROR="S9 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="S9 should be 0 when git history contains personal email (got ${score})"; return 1; fi
+}
+
+run_test "S9: clean git history (noreply only) → 1" test_s9_clean_history
+run_test "S9: personal email in git history → 0" test_s9_personal_email
+
 run_test "emit_result: unknown check_id fails loudly" test_emit_result_unknown_check_id_fails_loudly
 run_test "emit_result: jq failure fails loudly" test_emit_result_jq_failure_fails_loudly
 run_test "emit_result: empty jq output fails loudly" test_emit_result_empty_output_fails_loudly
