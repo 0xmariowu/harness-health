@@ -30,5 +30,8 @@
   ],
   "bin": {
     "al-scan": "src/scanner.sh"
+  },
+  "scripts": {
+    "test": "bash tests/test_compliance.sh && bash tests/test-scanner.sh"
   }
 }
