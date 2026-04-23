@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v1.0.1 (2026-04-23)
+
+- fix: `npx agentlint-ai init` now works (previous v1.0.0 published but the `agentlint-ai` bin alias was missing, so npx couldn't resolve the executable)
+
 ## v1.0.0 (2026-04-23)
 
 **Breaking: package renamed from `@0xmariowu/agent-lint` to `agentlint-ai`**

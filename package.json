@@ -1,6 +1,6 @@
 {
   "name": "agentlint-ai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Setup, check, and fix your repo for AI-native development.",
   "license": "MIT",
   "repository": {
@@ -36,9 +36,10 @@
     "LICENSE"
   ],
   "bin": {
+    "agentlint-ai": "postinstall.js",
     "agent-lint": "scripts/agentlint.sh",
-    "al-scan": "src/scanner.sh",
-    "agentlint": "scripts/agentlint.sh"
+    "agentlint": "scripts/agentlint.sh",
+    "al-scan": "src/scanner.sh"
   },
   "scripts": {
     "postinstall": "node postinstall.js",
