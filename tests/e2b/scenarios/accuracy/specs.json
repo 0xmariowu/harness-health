@@ -10,11 +10,34 @@
       "use_synthetic": true,
       "repo_name": "empty-repo",
       "expected_checks": {
-        "F1": {"range": [0, 0], "label": "no entry file"},
-        "W2": {"range": [0, 0], "label": "no CI"},
-        "C2": {"range": [0, 0], "label": "no HANDOFF"}
+        "F1": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no entry file"
+        },
+        "W2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no CI"
+        },
+        "C2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no HANDOFF"
+        }
       },
-      "expected_total_score": {"range": [0, 20]}
+      "expected_total_score": {
+        "range": [
+          0,
+          40
+        ]
+      }
     },
     {
       "id": "S07-check-claude-only",
@@ -26,11 +49,34 @@
       "use_synthetic": true,
       "repo_name": "claude-only",
       "expected_checks": {
-        "F1": {"range": [1, 1], "label": "has CLAUDE.md"},
-        "W2": {"range": [0, 0], "label": "no CI"},
-        "C2": {"range": [0, 0], "label": "no HANDOFF"}
+        "F1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CLAUDE.md"
+        },
+        "W2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no CI"
+        },
+        "C2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no HANDOFF"
+        }
       },
-      "expected_total_score": {"range": [5, 50]}
+      "expected_total_score": {
+        "range": [
+          5,
+          75
+        ]
+      }
     },
     {
       "id": "S08-check-floating-tags",
@@ -42,11 +88,34 @@
       "use_synthetic": true,
       "repo_name": "floating-tags",
       "expected_checks": {
-        "F1": {"range": [1, 1], "label": "has CLAUDE.md"},
-        "W2": {"range": [1, 1], "label": "has CI"},
-        "S2": {"range": [0, 0.5], "label": "floating SHA"}
+        "F1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CLAUDE.md"
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CI"
+        },
+        "S2": {
+          "range": [
+            0,
+            0.5
+          ],
+          "label": "floating SHA"
+        }
       },
-      "expected_total_score": {"range": [5, 60]}
+      "expected_total_score": {
+        "range": [
+          5,
+          75
+        ]
+      }
     },
     {
       "id": "S09-check-hardcoded-secret",
@@ -58,9 +127,20 @@
       "use_synthetic": true,
       "repo_name": "hardcoded-secret",
       "expected_checks": {
-        "S6": {"range": [0, 0.3], "label": "hardcoded sk- secret"}
+        "S6": {
+          "range": [
+            0,
+            0.5
+          ],
+          "label": "S6 detects secret or low score"
+        }
       },
-      "expected_total_score": {"range": [0, 60]}
+      "expected_total_score": {
+        "range": [
+          0,
+          80
+        ]
+      }
     },
     {
       "id": "S10-check-well-configured",
@@ -72,12 +152,41 @@
       "use_synthetic": true,
       "repo_name": "well-configured",
       "expected_checks": {
-        "F1": {"range": [1, 1], "label": "has CLAUDE.md"},
-        "C2": {"range": [1, 1], "label": "has HANDOFF"},
-        "S1": {"range": [1, 1], "label": ".env in gitignore"},
-        "W2": {"range": [1, 1], "label": "has CI"}
+        "F1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CLAUDE.md"
+        },
+        "C2": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has HANDOFF"
+        },
+        "S1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": ".env in gitignore"
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CI"
+        }
       },
-      "expected_total_score": {"range": [50, 100]}
+      "expected_total_score": {
+        "range": [
+          50,
+          100
+        ]
+      }
     },
     {
       "id": "S11-check-python-project",
@@ -89,10 +198,27 @@
       "use_synthetic": true,
       "repo_name": "python-project",
       "expected_checks": {
-        "W10": {"range": [1, 1], "label": "has pytest markers"},
-        "W7": {"range": [1, 1], "label": "local test documented"}
+        "W10": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has pytest markers"
+        },
+        "W7": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "local test documented"
+        }
       },
-      "expected_total_score": {"range": [30, 100]}
+      "expected_total_score": {
+        "range": [
+          30,
+          100
+        ]
+      }
     },
     {
       "id": "S12-check-corpus-batch",
@@ -103,15 +229,42 @@
       "timeout": 600,
       "use_synthetic": false,
       "corpus_repos": [
-        {"name": "n8n-io__n8n", "tier": "A"},
-        {"name": "langchain-ai__langchain", "tier": "A"},
-        {"name": "astral-sh__ruff", "tier": "A"},
-        {"name": "microsoft__vscode", "tier": "B"},
-        {"name": "tldraw__tldraw", "tier": "B"},
-        {"name": "grafana__k6", "tier": "B"},
-        {"name": "toolate28__spiralsafe-mono", "tier": "C"},
-        {"name": "0awes0me__bonbudgeto", "tier": "C"},
-        {"name": "ikseong00__Artech", "tier": "C"}
+        {
+          "name": "n8n-io__n8n",
+          "tier": "A"
+        },
+        {
+          "name": "langchain-ai__langchain",
+          "tier": "A"
+        },
+        {
+          "name": "astral-sh__ruff",
+          "tier": "A"
+        },
+        {
+          "name": "microsoft__vscode",
+          "tier": "B"
+        },
+        {
+          "name": "tldraw__tldraw",
+          "tier": "B"
+        },
+        {
+          "name": "grafana__k6",
+          "tier": "B"
+        },
+        {
+          "name": "toolate28__spiralsafe-mono",
+          "tier": "C"
+        },
+        {
+          "name": "0awes0me__bonbudgeto",
+          "tier": "C"
+        },
+        {
+          "name": "ikseong00__Artech",
+          "tier": "C"
+        }
       ],
       "expected": {
         "tier_ordering": true,

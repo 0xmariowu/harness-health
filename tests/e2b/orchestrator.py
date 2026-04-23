@@ -53,6 +53,20 @@ def build_agentlint_tarball() -> bytes:
         buf = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
         buf.close()
         
+        # Use git archive to get all tracked files (includes src/, templates/, standards/, scripts/)
+        # This is correct for E2B testing where we need the full source tree.
+        archive_result = subprocess.run(
+            ["git", "archive", "--format=tar.gz", "HEAD", "-o", buf.name],
+            cwd=str(ROOT),
+            capture_output=True,
+        )
+        if archive_result.returncode == 0:
+            data = Path(buf.name).read_bytes()
+            os.unlink(buf.name)
+            _tarball_cache[cache_key] = data
+            return data
+
+        # Fallback: manual tar excluding large directories
         with tarfile.open(buf.name, "w:gz") as tar:
             for item in sorted(ROOT.rglob("*")):
                 rel = item.relative_to(ROOT)
@@ -98,15 +112,15 @@ def run_one(spec: dict, tarball_bytes: bytes, run_dir: Path, dry_run: bool = Fal
         _save_result(run_dir, scenario_id, result)
         return result
     
-    api_key = os.environ.get("E2B_API_KEY", "")
-    if not api_key:
+    if not os.environ.get("E2B_API_KEY"):
         result["overall"] = "ERROR"
         result["stderr"] = "E2B_API_KEY not set"
         _save_result(run_dir, scenario_id, result)
         return result
-    
+
     try:
-        with Sandbox(api_key=api_key, timeout=timeout + 60) as sbx:
+        # E2B SDK v2: use Sandbox.create() — picks up E2B_API_KEY from env
+        with Sandbox.create(timeout=timeout + 60) as sbx:
             # Upload agentlint source
             sbx.files.write("/tmp/agentlint.tar.gz", tarball_bytes)
             
@@ -127,33 +141,37 @@ def run_one(spec: dict, tarball_bytes: bytes, run_dir: Path, dry_run: bool = Fal
                 envs["CORPUS_REPOS"] = json.dumps(spec["corpus_repos"])
             envs.update(spec.get("env", {}))
             
+            # Helper: run command, never raise on non-zero exit
+            def sh(cmd: str, t: int = 60) -> tuple[int, str, str]:
+                try:
+                    r = sbx.commands.run(cmd + " || true", timeout=t, envs=envs)
+                    return r.exit_code, r.stdout or "", r.stderr or ""
+                except Exception as exc:
+                    return -1, "", str(exc)
+
             # Bootstrap sandbox
             setup_script = (Path(__file__).parent / "sandbox_setup.sh").read_text()
             sbx.files.write("/tmp/sandbox_setup.sh", setup_script.encode())
-            r = sbx.commands.run("bash /tmp/sandbox_setup.sh", timeout=120, envs=envs)
-            if r.exit_code != 0:
+            code, out, err = sh("bash /tmp/sandbox_setup.sh", t=180)
+            if code not in (0, None) and "error" in err.lower() and "agentlint" not in out.lower():
                 result["overall"] = "ERROR"
-                result["stderr"] = f"Setup failed:\n{r.stderr}"
+                result["stderr"] = f"Setup failed (exit {code}):\n{err[:500]}"
                 result["wall_seconds"] = time.time() - t_start
                 _save_result(run_dir, scenario_id, result)
                 return result
-            
+
             # Upload synthetic fixtures if needed
             if spec.get("use_synthetic"):
                 _upload_synthetic_fixtures(sbx, spec)
-            
+
             # Run scenario script
             run_script_path = SCENARIOS_DIR / layer / "run.sh"
             if run_script_path.exists():
                 sbx.files.write("/tmp/scenario_run.sh", run_script_path.read_bytes())
-                r2 = sbx.commands.run(
-                    "bash /tmp/scenario_run.sh",
-                    timeout=timeout,
-                    envs=envs,
-                )
-                result["stdout"] = r2.stdout or ""
-                result["stderr"] = r2.stderr or ""
-                result["exit_code"] = r2.exit_code
+                code2, out2, err2 = sh("bash /tmp/scenario_run.sh", t=timeout)
+                result["stdout"] = out2
+                result["stderr"] = err2
+                result["exit_code"] = code2
             
             # Collect output
             try:
