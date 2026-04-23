@@ -156,8 +156,12 @@ function readEvidenceChecks() {
 }
 
 function readReleaseVersion() {
-  const metadata = readJson(releaseMetadataPath);
-  return metadata && typeof metadata.version === 'string' ? metadata.version : '';
+  try {
+    const metadata = readJson(releaseMetadataPath);
+    return metadata && typeof metadata.version === 'string' ? metadata.version : '';
+  } catch (_) {
+    return '';
+  }
 }
 
 function normalizeArtifactUri(filePath) {

@@ -40,6 +40,7 @@
     "scripts/setup.sh",
     "scripts/generate-metadata.sh",
     ".claude-plugin/",
+    "release-metadata.json",
     "README.md",
     "LICENSE"
   ],
