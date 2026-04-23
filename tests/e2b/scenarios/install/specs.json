@@ -1,0 +1,90 @@
+{
+  "scenarios": [
+    {
+      "id": "S01-install-node20-ubuntu22",
+      "layer": "install",
+      "scenario_type": "install",
+      "node_version": "20",
+      "description": "npm install -g agentlint on Ubuntu 22.04 + Node 20",
+      "timeout": 300,
+      "use_synthetic": false,
+      "expected": {
+        "version_pattern": "^\\d+\\.\\d+\\.\\d+$",
+        "help_contains": [
+          "check",
+          "fix",
+          "setup"
+        ],
+        "check_exits_nonzero_on_empty": false
+      }
+    },
+    {
+      "id": "S02-install-node22-ubuntu24",
+      "layer": "install",
+      "scenario_type": "install",
+      "node_version": "22",
+      "description": "npm install -g agentlint on Ubuntu 24.04 + Node 22",
+      "timeout": 300,
+      "use_synthetic": false,
+      "expected": {
+        "version_pattern": "^\\d+\\.\\d+\\.\\d+$",
+        "help_contains": [
+          "check",
+          "fix",
+          "setup"
+        ]
+      }
+    },
+    {
+      "id": "S03-install-node18-ubuntu22",
+      "layer": "install",
+      "scenario_type": "install",
+      "node_version": "18",
+      "description": "npm install -g agentlint on Node 18 (minimum supported)",
+      "timeout": 300,
+      "use_synthetic": false,
+      "expected": {
+        "version_pattern": "^\\d+\\.\\d+\\.\\d+$",
+        "help_contains": [
+          "check",
+          "fix",
+          "setup"
+        ]
+      }
+    },
+    {
+      "id": "S04-setup-lang-ts",
+      "layer": "install",
+      "scenario_type": "setup-ts",
+      "node_version": "20",
+      "description": "agentlint setup --lang ts creates all expected files",
+      "timeout": 300,
+      "use_synthetic": false,
+      "expected": {
+        "files_exist": [
+          ".github/workflows",
+          "CLAUDE.md",
+          "SECURITY.md"
+        ],
+        "claude_md_has_no_placeholder": true
+      }
+    },
+    {
+      "id": "S05-setup-lang-python",
+      "layer": "install",
+      "scenario_type": "setup-python",
+      "node_version": "20",
+      "description": "agentlint setup --lang python creates Python-specific files",
+      "timeout": 300,
+      "use_synthetic": false,
+      "expected": {
+        "files_exist": [
+          ".github/workflows",
+          "CLAUDE.md",
+          "SECURITY.md"
+        ],
+        "claude_md_has_no_placeholder": true
+      }
+    }
+  ]
+}

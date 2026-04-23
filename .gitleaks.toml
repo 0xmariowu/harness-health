@@ -34,4 +34,6 @@ paths = [
   '''docs/scoring\.md$''',
   '''standards/evidence\.json$''',
   '''^templates/''',
+  '''^tests/e2b/fixtures/''',
+  '''^tests/e2b/scenarios/''',
 ]

@@ -10,7 +10,10 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Follow symlinks so SCRIPT_DIR resolves to the real scripts/ directory
+# when installed via npm -g (which creates a symlink in /usr/local/bin).
+_SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$_SELF")" && pwd)"
 
 case "${1:-}" in
   setup)
@@ -68,6 +71,14 @@ case "${1:-}" in
         | node "$SCRIPT_DIR/../src/plan-generator.js" \
         | node "$SCRIPT_DIR/../src/fixer.js" "${path_args[@]}"
     fi
+    ;;
+  version|--version|-v)
+    # Resolve symlinks to find real script location (handles npm global installs)
+    _REAL="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+    _DIR="$(cd "$(dirname "$_REAL")" 2>/dev/null && pwd)"
+    node -e "console.log(require('$_DIR/../package.json').version)" 2>/dev/null \
+      || python3 -c "import json; print(json.load(open('$_DIR/../package.json'))['version'])" 2>/dev/null \
+      || echo "unknown"
     ;;
   help|--help|-h|"")
     cat <<'EOF'

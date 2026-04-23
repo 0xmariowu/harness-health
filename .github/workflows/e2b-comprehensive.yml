@@ -1,0 +1,135 @@
+name: E2B Comprehensive Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      layer:
+        description: 'Test layer to run'
+        required: false
+        default: 'all'
+        type: choice
+        options: [all, install, accuracy, fix, reports]
+      concurrency:
+        description: 'Max parallel sandboxes'
+        required: false
+        default: '20'
+  schedule:
+    - cron: '0 4 * * 1'  # Monday 4am UTC
+
+permissions:
+  contents: read
+
+jobs:
+  e2b-full:
+    name: E2B Full Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: pip install -r tests/e2b/requirements.txt
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Build npm tarball from local source
+        run: |
+          mkdir -p /tmp/agentlint-pack
+          npm pack --pack-destination /tmp/agentlint-pack
+          ls -lh /tmp/agentlint-pack
+
+      - name: Build synthetic repos (local verification)
+        run: bash tests/e2b/fixtures/create_synthetic.sh /tmp/e2b-synthetic-repos
+
+      - name: Run E2B test suite
+        env:
+          E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+          LAYER: ${{ inputs.layer || 'all' }}
+          CONCURRENCY: ${{ inputs.concurrency || '20' }}
+        run: |
+          RUN_ID="${{ github.run_id }}-${LAYER}"
+          python3 tests/e2b/orchestrator.py \
+            --layer "$LAYER" \
+            --concurrency "$CONCURRENCY" \
+            --run-id "$RUN_ID" \
+            || true
+
+      - name: Generate results report
+        if: always()
+        run: |
+          python3 tests/e2b/report_results.py \
+            --run-dir tests/e2b/results/ \
+            --output tests/e2b/results/REPORT.md \
+            || true
+
+      - name: Post summary to GitHub
+        if: always()
+        run: |
+          REPORT="tests/e2b/results/REPORT.md"
+          if [ -f "$REPORT" ]; then
+            cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No report generated" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: e2b-results-${{ github.run_id }}
+          path: tests/e2b/results/
+          retention-days: 30
+
+  e2b-gate:
+    name: E2B Pass Gate
+    runs-on: ubuntu-latest
+    needs: e2b-full
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Download results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: e2b-results-${{ github.run_id }}
+          path: tests/e2b/results/
+
+      - name: Check for failures
+        run: |
+          python3 -c "
+          import json, sys, glob
+
+          summaries = glob.glob('tests/e2b/results/*/SUMMARY.json')
+          if not summaries:
+              print('No SUMMARY.json found - treating as failure')
+              sys.exit(1)
+
+          total_fail = 0
+          total_error = 0
+          for s_path in summaries:
+              d = json.load(open(s_path))
+              total_fail += d.get('counts', {}).get('FAIL', 0)
+              total_error += d.get('counts', {}).get('ERROR', 0)
+
+          print(f'FAIL: {total_fail}, ERROR: {total_error}')
+          if total_fail > 0 or total_error > 0:
+              print('E2B gate: FAILED')
+              sys.exit(1)
+          else:
+              print('E2B gate: PASSED')
+          "

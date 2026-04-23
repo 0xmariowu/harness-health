@@ -1,0 +1,905 @@
+{
+  "description": "Extended accuracy matrix: 50 repos with expected per-check scores",
+  "repos": [
+    {
+      "name": "n8n-io__n8n",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 179208,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "High-star AI-friendly TypeScript repo with both entry files"
+    },
+    {
+      "name": "vercel__next.js",
+      "tier": "A",
+      "lang": "JavaScript",
+      "stars": 138292,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "High-star JavaScript framework repo with both entry files"
+    },
+    {
+      "name": "langgenius__dify",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 132866,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "Large AI application repo with both entry files"
+    },
+    {
+      "name": "langchain-ai__langchain",
+      "tier": "A",
+      "lang": "Python",
+      "stars": 129529,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "Large Python AI library with both entry files"
+    },
+    {
+      "name": "oven-sh__bun",
+      "tier": "A",
+      "lang": "Zig",
+      "stars": 88111,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "High-star Zig runtime repo with both entry files"
+    },
+    {
+      "name": "astral-sh__ruff",
+      "tier": "A",
+      "lang": "Rust",
+      "stars": 46284,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "Rust tooling repo with both entry files"
+    },
+    {
+      "name": "prisma__prisma",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 45523,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript database tooling repo with both entry files"
+    },
+    {
+      "name": "streamlit__streamlit",
+      "tier": "A",
+      "lang": "Python",
+      "stars": 43890,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "Python application framework repo with both entry files"
+    },
+    {
+      "name": "agno-agi__agno",
+      "tier": "A",
+      "lang": "Python",
+      "stars": 38702,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "Python agent framework repo with both entry files"
+    },
+    {
+      "name": "pnpm__pnpm",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 34291,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript package manager repo with both entry files"
+    },
+    {
+      "name": "CopilotKit__CopilotKit",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 29388,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "AI product repo with both entry files"
+    },
+    {
+      "name": "nrwl__nx",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 28331,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript monorepo tooling repo with both entry files"
+    },
+    {
+      "name": "langchain-ai__langgraph",
+      "tier": "A",
+      "lang": "Python",
+      "stars": 26427,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "Python agent graph repo with both entry files"
+    },
+    {
+      "name": "ComposioHQ__composio",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 27389,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript AI integration repo with both entry files"
+    },
+    {
+      "name": "lobehub__lobe-chat",
+      "tier": "A",
+      "lang": "TypeScript",
+      "stars": 73673,
+      "expected_score_range": [
+        55,
+        100
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ]
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ]
+        }
+      },
+      "note": "High-star chat application repo with both entry files"
+    },
+    {
+      "name": "microsoft__vscode",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 182696,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "High-star TypeScript repo with only AGENTS.md"
+    },
+    {
+      "name": "electron__electron",
+      "tier": "B",
+      "lang": "C++",
+      "stars": 120480,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "High-star C++ repo with only AGENTS.md"
+    },
+    {
+      "name": "denoland__deno",
+      "tier": "B",
+      "lang": "Rust",
+      "stars": 106337,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Rust runtime repo with only AGENTS.md"
+    },
+    {
+      "name": "astral-sh__uv",
+      "tier": "B",
+      "lang": "Rust",
+      "stars": 80990,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Rust package tooling repo with only AGENTS.md"
+    },
+    {
+      "name": "apache__superset",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 70975,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Large TypeScript analytics repo with only AGENTS.md"
+    },
+    {
+      "name": "tldraw__tldraw",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 45832,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript drawing app repo with only CLAUDE.md"
+    },
+    {
+      "name": "calcom__cal.com",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 40578,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript scheduling app repo with only CLAUDE.md"
+    },
+    {
+      "name": "backstage__backstage",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 32813,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Developer portal repo with only AGENTS.md"
+    },
+    {
+      "name": "cockroachdb__cockroach",
+      "tier": "B",
+      "lang": "Go",
+      "stars": 31975,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Go database repo with only AGENTS.md"
+    },
+    {
+      "name": "grafana__k6",
+      "tier": "B",
+      "lang": "Go",
+      "stars": 30128,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Go load-testing repo with only AGENTS.md"
+    },
+    {
+      "name": "thedotmack__claude-mem",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 35642,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript repo with only CLAUDE.md"
+    },
+    {
+      "name": "anthropics__claude-cookbooks",
+      "tier": "B",
+      "lang": "Jupyter Notebook",
+      "stars": 35031,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Notebook cookbook repo with only AGENTS.md"
+    },
+    {
+      "name": "chakra-ui__chakra-ui",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 40365,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "TypeScript UI library repo with only CLAUDE.md"
+    },
+    {
+      "name": "excalidraw__excalidraw",
+      "tier": "B",
+      "lang": "TypeScript",
+      "stars": 118755,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "High-star TypeScript drawing app with only CLAUDE.md"
+    },
+    {
+      "name": "metabase__metabase",
+      "tier": "B",
+      "lang": "Clojure",
+      "stars": 46411,
+      "expected_score_range": [
+        15,
+        70
+      ],
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            1
+          ]
+        }
+      },
+      "note": "Clojure analytics repo with only AGENTS.md"
+    },
+    {
+      "name": "SYNTHETIC__empty-repo",
+      "tier": "C",
+      "lang": "none",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Synthetic empty git repo with no entry files"
+    },
+    {
+      "name": "SYNTHETIC__claude-only",
+      "tier": "C",
+      "lang": "none",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Synthetic repo with only CLAUDE.md"
+    },
+    {
+      "name": "hawkymisc__dialized-monologue",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "No-entry corpus repo for low-score baseline"
+    },
+    {
+      "name": "wwhui__go-vue-admin",
+      "tier": "C",
+      "lang": "Go",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "No-entry Go corpus repo for low-score baseline"
+    },
+    {
+      "name": "sirlordt__cpp_dbc",
+      "tier": "C",
+      "lang": "C++",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "No-entry C++ corpus repo for low-score baseline"
+    },
+    {
+      "name": "HolistixForge__platform",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 2,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Small no-entry TypeScript corpus repo"
+    },
+    {
+      "name": "YotaroKono__tamai-project",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "No-entry TypeScript corpus repo"
+    },
+    {
+      "name": "YuheiNakasaka__cc-dev-kit",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "No-entry TypeScript corpus repo"
+    },
+    {
+      "name": "zeflq__getrevio-web",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "No-entry TypeScript web corpus repo"
+    },
+    {
+      "name": "ikseong00__Artech",
+      "tier": "C",
+      "lang": "Kotlin",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "No-entry Kotlin corpus repo"
+    },
+    {
+      "name": "toolate28__spiralsafe-mono",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "0awes0me__bonbudgeto",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "itamar1238__stypto",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "MatiDes12__my-fashion-marketplace",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "hidao80__ShigotoForm",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "nakaj1214__nakaj_claude",
+      "tier": "C",
+      "lang": "Python",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "prashank25__laravel-react-inertia",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "probitas-test__probitas",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 21,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "kunalshah017__web3ads",
+      "tier": "C",
+      "lang": "TypeScript",
+      "stars": 2,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    },
+    {
+      "name": "Lorenzo603__prompt-nest",
+      "tier": "C",
+      "lang": "JavaScript",
+      "stars": 0,
+      "expected_score_range": [
+        0,
+        30
+      ],
+      "expected_checks": {},
+      "note": "Supplemental no-entry corpus repo to reach the 50-repo fixture count"
+    }
+  ]
+}

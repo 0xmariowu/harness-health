@@ -649,17 +649,40 @@ function executeAutoFix(checkId, projectDir, filePath, backupRoot, backedSet) {
   }
 
   if (!filePath) {
+    // Check if a symlink exists at any standard entry file path (resolveEntryFile skips symlinks)
+    const entryCandidates = ['CLAUDE.md', 'AGENTS.md', '.cursorrules', 'GEMINI.md', '.windsurfrules', '.clinerules'];
+    for (const name of entryCandidates) {
+      const abs = path.join(projectDir, name); // nosemgrep: path-join-resolve-traversal
+      try {
+        const stat = fs.lstatSync(abs);
+        if (stat.isSymbolicLink()) {
+          return {
+            status: 'failed',
+            detail: `Refusing to modify symlink: ${name} is a symlink, not a regular file. agentlint will not write through symlinks.`,
+          };
+        }
+      } catch (_) { /* file doesn't exist, try next */ }
+    }
     return {
       status: 'failed',
-      detail: 'No entry file found to apply fix.',
+      detail: 'No entry file found to apply fix. The project may have no CLAUDE.md, AGENTS.md, or other AI entry file.',
     };
   }
   // Refuse to write to symlinks — this prevents arbitrary file overwrite
   // via an attacker-placed symlinked entry file.
   if (!isRegularFile(filePath)) {
+    try {
+      const stat = fs.lstatSync(filePath);
+      if (stat.isSymbolicLink()) {
+        return {
+          status: 'failed',
+          detail: `Refusing to modify symlink: ${path.basename(filePath)} is a symlink, not a regular file. agentlint will not write through symlinks.`,
+        };
+      }
+    } catch (_) { /* ignore stat error */ }
     return {
       status: 'failed',
-      detail: `Refusing to modify non-regular file or symlink: ${path.basename(filePath)}.`,
+      detail: `Refusing to modify non-regular file: ${path.basename(filePath)}.`,
     };
   }
 

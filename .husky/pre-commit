@@ -54,7 +54,7 @@ fi
 
 # Secret detection
 SECRET_PATTERNS='(API_KEY|SECRET_KEY|PRIVATE_KEY|AUTH_TOKEN|PASSWORD)\s*=\s*["\x27][^\s"'\'']+|sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AIzaSy[a-zA-Z0-9_-]{33}|sk-ant-[a-zA-Z0-9_-]{40,}|sk-or-[a-zA-Z0-9_-]{20,}|github_pat_[a-zA-Z0-9_]{22,}'
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v -E '(\.example$|\.test\.js$|tests/fixtures/|\.md$)' || true)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v -E '(\.example$|\.test\.js$|tests/fixtures/|tests/e2b/fixtures/|tests/e2b/scenarios/|\.md$)' || true)
 if [ -n "$STAGED_FILES" ]; then
   MATCHES=$(echo "$STAGED_FILES" | while IFS= read -r f; do grep -nEH "$SECRET_PATTERNS" "$f" 2>/dev/null; done || true)
   if [ -n "$MATCHES" ]; then

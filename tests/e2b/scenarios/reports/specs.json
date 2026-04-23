@@ -1,0 +1,63 @@
+{
+  "scenarios": [
+    {
+      "id": "S17-report-html",
+      "layer": "reports",
+      "scenario_type": "report-html",
+      "node_version": "20",
+      "description": "HTML report: all 8 dimensions in DOM, scores match JSONL",
+      "timeout": 180,
+      "use_synthetic": true,
+      "repo_name": "well-configured",
+      "expected": {
+        "dimensions_in_html": ["findability", "instructions", "workability", "continuity", "safety", "harness"],
+        "score_match_tolerance": 1.0,
+        "valid_html": true
+      }
+    },
+    {
+      "id": "S18-report-sarif",
+      "layer": "reports",
+      "scenario_type": "report-sarif",
+      "node_version": "20",
+      "description": "SARIF 2.1.0 schema valid, 58 rule IDs match evidence.json",
+      "timeout": 180,
+      "use_synthetic": true,
+      "repo_name": "well-configured",
+      "expected": {
+        "schema_valid": true,
+        "rule_count": 58,
+        "rule_ids_match_evidence": true
+      }
+    },
+    {
+      "id": "S19-report-jsonl",
+      "layer": "reports",
+      "scenario_type": "report-jsonl",
+      "node_version": "20",
+      "description": "JSONL: every line parses, scores in [0,1], required fields present",
+      "timeout": 180,
+      "use_synthetic": true,
+      "repo_name": "well-configured",
+      "expected": {
+        "all_lines_parse": true,
+        "scores_in_range": true,
+        "required_fields": ["check_id", "dimension", "score", "detail"]
+      }
+    },
+    {
+      "id": "S20-fail-below-gate",
+      "layer": "reports",
+      "scenario_type": "fail-below-gate",
+      "node_version": "20",
+      "description": "--fail-below 99 exits 1 on normal repo; --fail-below 0 exits 0",
+      "timeout": 180,
+      "use_synthetic": true,
+      "repo_name": "claude-only",
+      "expected": {
+        "high_threshold_exits_1": true,
+        "zero_threshold_exits_0": true
+      }
+    }
+  ]
+}

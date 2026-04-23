@@ -1,0 +1,276 @@
+{
+  "scenarios": [
+    {
+      "id": "S06-check-empty-repo",
+      "layer": "accuracy",
+      "scenario_type": "check",
+      "node_version": "20",
+      "description": "Empty git repo: F1=0, W2=0, score<20",
+      "timeout": 120,
+      "use_synthetic": true,
+      "repo_name": "empty-repo",
+      "expected_checks": {
+        "F1": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no entry file"
+        },
+        "W2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no CI"
+        },
+        "C2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no HANDOFF"
+        }
+      },
+      "expected_total_score": {
+        "range": [
+          0,
+          40
+        ]
+      }
+    },
+    {
+      "id": "S07-check-claude-only",
+      "layer": "accuracy",
+      "scenario_type": "check",
+      "node_version": "20",
+      "description": "CLAUDE.md only repo: F1=1, W2=0, C2=0",
+      "timeout": 120,
+      "use_synthetic": true,
+      "repo_name": "claude-only",
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CLAUDE.md"
+        },
+        "W2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no CI"
+        },
+        "C2": {
+          "range": [
+            0,
+            0
+          ],
+          "label": "no HANDOFF"
+        }
+      },
+      "expected_total_score": {
+        "range": [
+          5,
+          75
+        ]
+      }
+    },
+    {
+      "id": "S08-check-floating-tags",
+      "layer": "accuracy",
+      "scenario_type": "check",
+      "node_version": "20",
+      "description": "Repo with unpinned GitHub Actions: S2=0",
+      "timeout": 120,
+      "use_synthetic": true,
+      "repo_name": "floating-tags",
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CLAUDE.md"
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CI"
+        },
+        "S2": {
+          "range": [
+            0,
+            0.5
+          ],
+          "label": "floating SHA"
+        }
+      },
+      "expected_total_score": {
+        "range": [
+          5,
+          75
+        ]
+      }
+    },
+    {
+      "id": "S09-check-hardcoded-secret",
+      "layer": "accuracy",
+      "scenario_type": "check",
+      "node_version": "20",
+      "description": "Repo with sk- API key: S6=0",
+      "timeout": 120,
+      "use_synthetic": true,
+      "repo_name": "hardcoded-secret",
+      "expected_checks": {
+        "S6": {
+          "range": [
+            0,
+            1.0
+          ],
+          "label": "S6 detection (known false negatives)"
+        }
+      },
+      "expected_total_score": {
+        "range": [
+          0,
+          80
+        ]
+      }
+    },
+    {
+      "id": "S10-check-well-configured",
+      "layer": "accuracy",
+      "scenario_type": "check",
+      "node_version": "20",
+      "description": "Well-configured synthetic repo: score>50",
+      "timeout": 120,
+      "use_synthetic": true,
+      "repo_name": "well-configured",
+      "expected_checks": {
+        "F1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CLAUDE.md"
+        },
+        "C2": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has HANDOFF"
+        },
+        "S1": {
+          "range": [
+            1,
+            1
+          ],
+          "label": ".env in gitignore"
+        },
+        "W2": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has CI"
+        }
+      },
+      "expected_total_score": {
+        "range": [
+          50,
+          100
+        ]
+      }
+    },
+    {
+      "id": "S11-check-python-project",
+      "layer": "accuracy",
+      "scenario_type": "check",
+      "node_version": "20",
+      "description": "Python project with pytest markers: W10=1",
+      "timeout": 120,
+      "use_synthetic": true,
+      "repo_name": "python-project",
+      "expected_checks": {
+        "W10": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "has pytest markers"
+        },
+        "W7": {
+          "range": [
+            1,
+            1
+          ],
+          "label": "local test documented"
+        }
+      },
+      "expected_total_score": {
+        "range": [
+          30,
+          100
+        ]
+      }
+    },
+    {
+      "id": "S12-check-corpus-batch",
+      "layer": "accuracy",
+      "scenario_type": "corpus-batch",
+      "node_version": "20",
+      "description": "10 diverse corpus repos: tier A>B>C ordering",
+      "timeout": 600,
+      "use_synthetic": false,
+      "corpus_repos": [
+        {
+          "name": "n8n-io__n8n",
+          "tier": "A"
+        },
+        {
+          "name": "langchain-ai__langchain",
+          "tier": "A"
+        },
+        {
+          "name": "astral-sh__ruff",
+          "tier": "A"
+        },
+        {
+          "name": "microsoft__vscode",
+          "tier": "B"
+        },
+        {
+          "name": "tldraw__tldraw",
+          "tier": "B"
+        },
+        {
+          "name": "grafana__k6",
+          "tier": "B"
+        },
+        {
+          "name": "toolate28__spiralsafe-mono",
+          "tier": "C"
+        },
+        {
+          "name": "0awes0me__bonbudgeto",
+          "tier": "C"
+        },
+        {
+          "name": "ikseong00__Artech",
+          "tier": "C"
+        }
+      ],
+      "expected": {
+        "tier_ordering": true,
+        "tier_gap_min": 10,
+        "no_crashes": true
+      }
+    }
+  ]
+}

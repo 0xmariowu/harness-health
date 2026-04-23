@@ -2060,8 +2060,12 @@ main() {
 
   if [ -n "$project_dir" ]; then
     if [ ! -d "$project_dir" ]; then
-      printf '%s\n' "Project directory not found: $project_dir" >&2
+      printf '%s\n' "error: project directory not found: $project_dir" >&2
       exit 1
+    fi
+    # Warn if not a git repository — some checks (S9, C1, H6) require git and will skip.
+    if ! git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      printf '%s\n' "warning: $project_dir is not a git repository — git-dependent checks (S9, C1) will be skipped" >&2
     fi
     scan_project "$(CDPATH='' cd -- "$project_dir" && pwd)"
     exit 0

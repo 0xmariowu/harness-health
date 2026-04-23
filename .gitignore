@@ -4,6 +4,8 @@ docs/build/
 .DS_Store
 *.log
 reports/
+!tests/e2b/scenarios/reports/
+!tests/e2b/scenarios/reports/**
 coverage/
 .claude/
 experience/

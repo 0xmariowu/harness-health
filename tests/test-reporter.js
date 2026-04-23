@@ -251,6 +251,45 @@ runTest('terminal format with zero total_score does not crash', () => {
   }
 });
 
+runTest('fail-below exits non-zero when total score is below threshold', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-fail-below-'));
+  try {
+    const scoresPath = writeFixtureScores(tempDir);
+    const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--fail-below', '99'], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /below minimum 99/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('fail-below exits zero when threshold is disabled', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-fail-below-zero-'));
+  try {
+    const scoresPath = writeFixtureScores(tempDir);
+    const result = runReporter([scoresPath, '--fail-below', '0']);
+    assert.match(result.stdout, /Score: 73\/100/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('fail-below requires a numeric threshold', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-fail-below-invalid-'));
+  try {
+    const scoresPath = writeFixtureScores(tempDir);
+    const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--fail-below'], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /must be a number between 0 and 100/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 runTest('html format output contains project name escaped (XSS prevention)', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-xss-'));
   try {

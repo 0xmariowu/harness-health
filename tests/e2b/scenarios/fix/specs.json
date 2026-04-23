@@ -1,0 +1,77 @@
+{
+  "scenarios": [
+    {
+      "id": "S13-fix-w11",
+      "layer": "fix",
+      "scenario_type": "fix-check",
+      "node_version": "20",
+      "description": "agentlint fix W11 creates test-required.yml with blocking gate",
+      "timeout": 180,
+      "use_synthetic": true,
+      "repo_name": "empty-repo",
+      "check_id": "W11",
+      "expected": {
+        "files_created": [".github/workflows/test-required.yml"],
+        "file_content_checks": {
+          ".github/workflows/test-required.yml": {
+            "contains": ["exit 1", "feat", "test"],
+            "is_valid_yaml": true
+          }
+        },
+        "exit_code": 0
+      }
+    },
+    {
+      "id": "S14-fix-c2",
+      "layer": "fix",
+      "scenario_type": "fix-check",
+      "node_version": "20",
+      "description": "agentlint fix C2 creates HANDOFF.md; idempotent on second run",
+      "timeout": 180,
+      "use_synthetic": true,
+      "repo_name": "claude-only",
+      "check_id": "C2",
+      "expected": {
+        "files_created": ["HANDOFF.md"],
+        "idempotent": true,
+        "exit_code": 0
+      }
+    },
+    {
+      "id": "S15-fix-f1",
+      "layer": "fix",
+      "scenario_type": "fix-check",
+      "node_version": "20",
+      "description": "agentlint fix F1 creates CLAUDE.md with no template placeholders",
+      "timeout": 180,
+      "use_synthetic": true,
+      "repo_name": "empty-repo",
+      "check_id": "F1",
+      "expected": {
+        "files_created": ["CLAUDE.md"],
+        "file_content_checks": {
+          "CLAUDE.md": {
+            "no_placeholder": true,
+            "min_length": 100
+          }
+        },
+        "exit_code": 0
+      }
+    },
+    {
+      "id": "S16-fix-idempotency",
+      "layer": "fix",
+      "scenario_type": "fix-idempotency",
+      "node_version": "20",
+      "description": "Running fix W11, C2, F1 twice each: no errors, no duplicates",
+      "timeout": 300,
+      "use_synthetic": true,
+      "repo_name": "empty-repo",
+      "check_ids": ["W11", "C2", "F1"],
+      "expected": {
+        "second_run_no_new_files": true,
+        "second_run_exit_zero_or_skip": true
+      }
+    }
+  ]
+}

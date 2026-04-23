@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-schema-2.1.0.json",
+  "title": "SARIF 2.1.0 JSON Schema",
+  "type": "object",
+  "required": ["$schema", "version", "runs"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"type": "string", "enum": ["2.1.0"]},
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["tool", "results"],
+        "properties": {
+          "tool": {
+            "type": "object",
+            "required": ["driver"],
+            "properties": {
+              "driver": {
+                "type": "object",
+                "required": ["name", "rules"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "rules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id"],
+                      "properties": {
+                        "id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "shortDescription": {"type": "object"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "results": {"type": "array"}
+        }
+      }
+    }
+  }
+}

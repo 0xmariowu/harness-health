@@ -778,7 +778,7 @@ body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;ma
 function main() {
   const args = process.argv.slice(2);
   const flagValueIndices = new Set();
-  const flagsWithValues = new Set(['--plan', '--output-dir', '--format', '--before']);
+  const flagsWithValues = new Set(['--plan', '--output-dir', '--format', '--before', '--fail-below']);
   for (let i = 0; i < args.length - 1; i += 1) {
     if (flagsWithValues.has(args[i])) {
       flagValueIndices.add(i + 1);
@@ -788,6 +788,8 @@ function main() {
   const planFile = args.find((a, i) => args[i - 1] === '--plan');
   const outputDir = args.find((a, i) => args[i - 1] === '--output-dir') || null;
   const format = args.find((a, i) => args[i - 1] === '--format') || 'terminal';
+  const failBelowPresent = args.includes('--fail-below');
+  const failBelowRaw = args.find((a, i) => args[i - 1] === '--fail-below');
   const sarifIncludeAll = args.includes('--sarif-include-all');
   const validFormats = ['terminal', 'md', 'jsonl', 'html', 'sarif', 'all'];
   if (!validFormats.includes(format)) {
@@ -797,15 +799,34 @@ function main() {
 
   const beforeFile = args.find((a, i) => args[i - 1] === '--before');
 
+  // Accept scores from stdin when no file argument given (e.g. pipeline: scorer.js | reporter.js)
+  let scores;
   if (!scoresFile) {
-    process.stderr.write('Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|sarif|all] [--sarif-include-all]\n');
-    process.exit(1);
+    const stdinData = fs.readFileSync(0, 'utf8').trim();
+    if (!stdinData) {
+      process.stderr.write('Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|sarif|all] [--sarif-include-all] [--fail-below 0-100]\n');
+      process.exit(1);
+    }
+    try {
+      scores = JSON.parse(stdinData);
+    } catch (e) {
+      process.stderr.write(`reporter.js: failed to parse stdin as JSON: ${e.message}\n`);
+      process.exit(1);
+    }
+  } else {
+    scores = readJson(scoresFile);
   }
-
-  const scores = readJson(scoresFile);
   const beforeScores = beforeFile ? readJson(beforeFile) : null;
   const plan = planFile ? readJson(planFile) : null;
   const date = new Date().toISOString().split('T')[0];
+  let failBelow = null;
+  if (failBelowPresent) {
+    failBelow = Number(failBelowRaw);
+    if (!Number.isFinite(failBelow) || failBelow < 0 || failBelow > 100) {
+      process.stderr.write('reporter.js: --fail-below must be a number between 0 and 100\n');
+      process.exit(1);
+    }
+  }
 
   if (format === 'terminal' || format === 'all') {
     process.stdout.write(generateTerminalSummary(scores));
@@ -831,6 +852,11 @@ function main() {
       const sarif = generateSarif(scores, plan, { sarifIncludeAll });
       writeOutput(outputDir, `al-${date}.sarif`, JSON.stringify(sarif, null, 2), 'SARIF');
     }
+  }
+
+  if (failBelow !== null && failBelow > 0 && Number(scores.total_score || 0) < failBelow) {
+    process.stderr.write(`AgentLint score ${scores.total_score || 0}/100 is below minimum ${failBelow}\n`);
+    process.exit(1);
   }
 }
 
