@@ -165,9 +165,9 @@ jobs:
         shell: bash
         run: |
           npm pack
-          ls -la agent-lint-*.tgz
+          ls -la agentlint-ai-*.tgz
           TARBALL_DEST="${RUNNER_TEMP:-/tmp}/al.tgz"
-          mv agent-lint-*.tgz "$TARBALL_DEST"
+          mv agentlint-ai-*.tgz "$TARBALL_DEST"
           echo "TARBALL_PATH=$TARBALL_DEST" >> "$GITHUB_ENV"
 
       - name: Install globally with --ignore-scripts
@@ -179,8 +179,8 @@ jobs:
         shell: bash
         run: |
           PREFIX="$(npm prefix -g)"
-          PKG_DIR="$PREFIX/node_modules/agent-lint"
-          [ -d "$PKG_DIR" ] || PKG_DIR="$PREFIX/lib/node_modules/agent-lint"
+          PKG_DIR="$PREFIX/node_modules/agentlint-ai"
+          [ -d "$PKG_DIR" ] || PKG_DIR="$PREFIX/lib/node_modules/agentlint-ai"
           PKG="$PKG_DIR/package.json"
           echo "Inspecting: $PKG"
           [ -f "$PKG" ]
@@ -195,7 +195,7 @@ jobs:
           # as JS escape sequences inside a `node -e` source string.
           node -e '
             const p = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-            if (p.name !== "agent-lint") {
+            if (p.name !== "agentlint-ai") {
               console.error("FAIL: unexpected package name:", p.name);
               process.exit(1);
             }
@@ -203,7 +203,10 @@ jobs:
               console.error("FAIL: os field still present in installed package:", JSON.stringify(p.os));
               process.exit(1);
             }
-            if (!p.bin || p.bin["agent-lint"] !== "scripts/agentlint.sh" || p.bin.agentlint !== "scripts/agentlint.sh") {
+            if (!p.bin
+                || p.bin["agentlint-ai"] !== "postinstall.js"
+                || p.bin["agent-lint"] !== "scripts/agentlint.sh"
+                || p.bin.agentlint !== "scripts/agentlint.sh") {
               console.error("FAIL: bin aliases missing or incorrect:", JSON.stringify(p.bin));
               process.exit(1);
             }
@@ -214,8 +217,8 @@ jobs:
         shell: bash
         run: |
           PREFIX="$(npm prefix -g)"
-          PI="$PREFIX/node_modules/agent-lint/postinstall.js"
-          [ -f "$PI" ] || PI="$PREFIX/lib/node_modules/agent-lint/postinstall.js"
+          PI="$PREFIX/node_modules/agentlint-ai/postinstall.js"
+          [ -f "$PI" ] || PI="$PREFIX/lib/node_modules/agentlint-ai/postinstall.js"
           [ -f "$PI" ]
           grep -q "where claude" "$PI"
           grep -q "bash --version" "$PI"
