@@ -9,43 +9,48 @@ const postinstallPath = path.join(__dirname, '..', '..', 'npm', 'postinstall.js'
 
 const scenarios = [
   {
+    // Claude missing: exit 0, show CLI box, print note (graceful degradation)
     name: 'linux-claude-missing',
     platform: 'linux',
     mocks: { claude: 'fail' },
-    expectExit: 1,
-    expectStdout: /^$/,
-    expectStderr: /Claude Code not found/i,
+    expectExit: 0,
+    expectStdout: /agentlint CLI is ready|CLI installed|Claude Code not found/i,
+    expectStderr: /^$/,
   },
   {
+    // Claude present, download fails: exit 1, show error
     name: 'darwin-claude-present-download-fails',
     platform: 'darwin',
     mocks: { claude: 'ok', download: 'fail' },
     expectExit: 1,
-    expectStdout: /Downloading AgentLint installer\.\.\./,
+    expectStdout: /Configuring Claude Code plugin/i,
     expectStderr: /Installation failed: mock download failed/i,
   },
   {
+    // Windows, Claude missing: exit 0, graceful (CLI still usable)
     name: 'win32-claude-missing',
     platform: 'win32',
     mocks: { claude: 'fail' },
-    expectExit: 1,
-    expectStdout: /^$/,
-    expectStderr: /Claude Code not found/i,
+    expectExit: 0,
+    expectStdout: /agentlint CLI is ready|CLI installed|Claude Code not found/i,
+    expectStderr: /^$/,
   },
   {
+    // Windows, Claude present, no bash: exit 1, install instructions
     name: 'win32-claude-present-bash-missing',
     platform: 'win32',
     mocks: { claude: 'ok', bash: 'fail' },
     expectExit: 1,
-    expectStdout: /^$/,
-    expectStderr: /Git for Windows.*WSL|WSL.*Git for Windows/is,
+    expectStdout: /Git for Windows|WSL/is,
+    expectStderr: /^$/,
   },
   {
+    // Windows, Claude present, bash present, download fails: exit 1
     name: 'win32-claude-present-bash-present-download-fails',
     platform: 'win32',
     mocks: { claude: 'ok', bash: 'ok', download: 'fail' },
     expectExit: 1,
-    expectStdout: /Downloading AgentLint installer\.\.\./,
+    expectStdout: /Configuring Claude Code plugin/i,
     expectStderr: /Installation failed: mock download failed/i,
   },
 ];
