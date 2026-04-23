@@ -27,7 +27,7 @@
 ## 安装
 
 ```bash
-npx agentlint-ai init
+npm install -g agentlint-ai && agentlint-ai init
 ```
 
 然后开一个新的 Claude Code session，运行：
@@ -37,12 +37,6 @@ npx agentlint-ai init
 ```
 
 就这样。AgentLint 会扫描你的 repo，从 8 个维度打分，告诉你哪里有问题，能自动修的直接修。
-
-**偏好全局安装？**
-
-```bash
-npm install -g agentlint-ai
-```
 
 **没有 Claude Code？** CLI 独立可用：
 

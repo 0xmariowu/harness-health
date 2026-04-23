@@ -27,7 +27,7 @@
 ## Install
 
 ```bash
-npx agentlint-ai init
+npm install -g agentlint-ai && agentlint-ai init
 ```
 
 Then start a new Claude Code session and run:
@@ -37,12 +37,6 @@ Then start a new Claude Code session and run:
 ```
 
 That's it. AgentLint scans your repo, scores it across 8 dimensions, shows exactly what's wrong, and fixes what it can.
-
-**Prefer a global install?**
-
-```bash
-npm install -g agentlint-ai
-```
 
 **No Claude Code?** The CLI works standalone:
 
