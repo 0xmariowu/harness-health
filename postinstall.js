@@ -60,7 +60,7 @@ function main() {
       console.log("  AgentLint requires bash on Windows. Install one of:");
       console.log("    - Git for Windows: https://git-scm.com/download/win");
       console.log("    - WSL: https://learn.microsoft.com/windows/wsl/install");
-      console.log("  Then re-run: npm install -g agentlint-ai");
+      console.log("  Then re-run: npx agentlint-ai");
       console.log();
       process.exit(1);
     }

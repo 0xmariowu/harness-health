@@ -27,7 +27,7 @@
 ## 安装
 
 ```bash
-npm install -g agentlint-ai && agentlint-ai init
+npx agentlint-ai
 ```
 
 然后开一个新的 Claude Code session，运行：
