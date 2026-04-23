@@ -21,12 +21,23 @@ Closes #<!-- issue number, if applicable -->
 - [ ] Tests pass locally
 - [ ] New/changed code has corresponding tests
 
-## Security impact
+## Security Impact
 
-- [ ] No new file system writes
-- [ ] No new shell command execution
-- [ ] No new network calls
-- [ ] N/A — docs/config only
+- New permissions or capabilities added? `Yes / No`
+- Secrets / tokens / API keys handling changed? `Yes / No`
+- New outbound network calls or external endpoints? `Yes / No`
+- New file system writes or shell command execution? `Yes / No`
+- If any Yes — risk and mitigation:
+
+## Root Cause (bug fix only — otherwise delete this section)
+
+- Root cause:
+- What guardrail was missing:
+
+## Evidence
+
+- [ ] Failing test / log before + passing after
+- [ ] Screenshot or trace
 
 ## Revert
 
