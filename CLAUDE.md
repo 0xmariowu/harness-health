@@ -3,6 +3,14 @@
 > For global rules, see `~/CLAUDE.md`. This file contains agent-lint-specific overrides only.
 > Lighthouse for AI-Friendly repos — diagnose, plan, fix.
 
+## Local test (run before push)
+
+```bash
+bash tests/test_compliance.sh && bash tests/test-scanner.sh
+```
+
+Compliance (4 checks, ~1s) + scanner unit tests. Full matrix (multi-OS) runs in CI.
+
 ## Session Checklist
 
 1. If modifying checks → read `standards/evidence.json` for evidence backing

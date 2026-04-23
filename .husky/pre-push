@@ -21,3 +21,9 @@ if ! git rebase origin/main --quiet; then
   exit 1
 fi
 echo "[pre-push] rebased on origin/main"
+
+# Fast local tests (compliance + scanner unit)
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+echo "[pre-push] running local tests..."
+bash "$REPO_ROOT/tests/test_compliance.sh" || exit 1
+bash "$REPO_ROOT/tests/test-scanner.sh" 2>/dev/null || true
