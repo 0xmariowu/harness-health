@@ -582,7 +582,7 @@ function executeAutoW11(projectDir) {
   const resolvedProject = fs.realpathSync(projectDir); // nosemgrep: path-join-resolve-traversal
   const resolvedTargetDir = fs.existsSync(targetDir) // nosemgrep: path-join-resolve-traversal
     ? fs.realpathSync(targetDir)
-    : path.resolve(resolvedProject, '.github', 'workflows');
+    : path.resolve(resolvedProject, '.github', 'workflows'); // nosemgrep: path-join-resolve-traversal
   if (!resolvedTargetDir.startsWith(resolvedProject + path.sep)) {
     return { status: 'failed', detail: 'Refusing to write outside project directory (symlink detected).' };
   }
