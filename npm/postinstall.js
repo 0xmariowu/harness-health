@@ -37,14 +37,19 @@ function download(url) {
 
 async function main() {
   try {
+    // Check if Claude Code is available — if not, CLI still works, plugin won't.
+    let hasClaudeCode = false;
     try {
       const claudeCheck = process.platform === "win32" ? "where claude" : "command -v claude";
       execSync(claudeCheck, { stdio: "ignore" });
+      hasClaudeCode = true;
     } catch {
-      console.error(
-        "\n  Claude Code not found. Install it first: https://claude.com/download\n"
+      console.log(
+        "\n  Note: Claude Code not found — agentlint CLI installed, but the /al plugin won't be registered.\n" +
+        "  To enable the Claude Code plugin: https://claude.com/download\n"
       );
-      process.exit(1);
+      // CLI commands (agentlint check / fix / setup) work without Claude Code.
+      return;
     }
 
     if (process.platform === "win32") {
