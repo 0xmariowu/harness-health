@@ -135,7 +135,7 @@ jobs:
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
           npm publish --access public
           rm -f .npmrc
-          echo "Published agent-lint@${VERSION} to npm"
+          echo "Published agentlint-ai@${VERSION} to npm"
 
       - name: Sync to website repo (agent-lint-simple-green)
         if: steps.check.outputs.exists == 'false'
@@ -216,5 +216,5 @@ jobs:
           {
             echo "## Released ${VERSION}"
             echo "- GitHub Release: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}"
-            echo "- npm: [agent-lint@${VERSION}](https://www.npmjs.com/package/agent-lint)"
+            echo "- npm: [agentlint-ai@${VERSION}](https://www.npmjs.com/package/agentlint-ai)"
           } >> "$GITHUB_STEP_SUMMARY"
