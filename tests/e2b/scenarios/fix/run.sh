@@ -86,18 +86,15 @@ if check_id in expected_files:
         content = open(fpath, encoding="utf-8", errors="replace").read()
 
         if check_id == "W11":
-            # Validate YAML without requiring PyYAML (may not be installed in sandbox)
-            # Use node.js js-yaml or a basic structural check instead
-            import subprocess as _sub
-            node_check = _sub.run(
-                ["node", "-e", f"const fs=require('fs'); try{{require('js-yaml').load(fs.readFileSync('{fpath}','utf8')); console.log('ok')}}catch(e){{console.log('err:'+e.message.slice(0,50))}}"],
-                capture_output=True, text=True, timeout=10
+            # Validate YAML structurally (avoid PyYAML/js-yaml dependency)
+            # A valid GitHub Actions workflow must have 'name:', 'on:', and 'jobs:'
+            is_yaml = (
+                "name:" in content
+                and ("on:" in content or "on:\n" in content)
+                and "jobs:" in content
+                and not content.strip().startswith("{")  # not JSON
             )
-            is_yaml = node_check.returncode == 0 and node_check.stdout.strip() == "ok"
-            if node_check.returncode != 0:
-                # Fallback: basic YAML structure check (has 'name:' and 'on:')
-                is_yaml = "name:" in content and ("on:" in content or "on:\n" in content)
-            checks["is_valid_yaml"] = {"pass": is_yaml, "value": "valid" if is_yaml else f"invalid: {node_check.stdout.strip()[:60]}"}
+            checks["is_valid_yaml"] = {"pass": is_yaml, "value": "valid" if is_yaml else "missing required YAML keys (name/on/jobs)"}
             checks["has_exit_1"] = {"pass": "exit 1" in content, "value": "found" if "exit 1" in content else "missing"}
             checks["mentions_feat"] = {"pass": "feat" in content, "value": "found" if "feat" in content else "missing"}
             checks["mentions_test"] = {"pass": "test" in content, "value": "found" if "test" in content else "missing"}

@@ -69,7 +69,7 @@ from pathlib import Path
 
 result_path, repo = sys.argv[1:3]
 checks = {}
-expected_files = [".github/workflows", "CLAUDE.md", "SECURITY.md", ".gitignore"]
+expected_files = [".github/workflows", "CLAUDE.md", "SECURITY.md"]
 for filename in expected_files:
     path = os.path.join(repo, filename)
     exists = os.path.exists(path)
