@@ -26,7 +26,25 @@
 
 ---
 
-AgentLint is a three-step toolkit for AI-native development:
+## Install
+
+```bash
+npm install -g agentlint-ai
+```
+
+Then start a new Claude Code session and run:
+
+```
+/al
+```
+
+AgentLint scans your projects, scores them on AI-friendliness, shows what's wrong, and fixes what it can — all in one command.
+
+> Built on analysis of 265 versions of Anthropic's Claude Code system prompt, thousands of real repos, and the academic research on instruction-following.
+
+## CLI commands
+
+Once installed, you can also use AgentLint from any shell:
 
 ```bash
 agentlint setup --lang python ~/Projects/my-repo   # bootstrap CI/hooks/templates
@@ -38,22 +56,6 @@ agentlint fix W11 --project-dir ~/Projects/my-repo # fix a specific check direct
 **setup** installs the full AI-native stack: 12 CI workflows, git hooks, CLAUDE.md template, plan format, compliance tests.  
 **check** finds what's broken — file structure, instruction quality, build setup, continuity, security.  
 **fix** applies the fixes automatically.
-
-> We analyzed 265 versions of Anthropic's Claude Code system prompt, documented the hard limits, audited thousands of real repos, and reviewed the academic research. The result: a single command that tells you exactly what your AI agent is struggling with and why.
-
-## Install
-
-```bash
-npm install -g agentlint-ai
-```
-
-Then start a new Claude Code session:
-
-```
-/al
-```
-
-That's it. AgentLint scans your projects, scores them, shows what's wrong, and fixes what it can.
 
 ### Platform requirements
 
