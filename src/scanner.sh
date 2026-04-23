@@ -1174,7 +1174,8 @@ EOF
     handoff_content="$(cat "$handoff_path" 2>/dev/null)" || handoff_content=""
     # Count lines with verify conditions: score/percentage+emoji, READY, PASS, verify:, assert
     local verify_count=0
-    verify_count="$(printf '%s' "$handoff_content" | grep -cE '(READY|PASS|verified|assert|verify:|[0-9]+/[0-9]+[[:space:]]*(✅|🟢)|[0-9]+\.[0-9]+/[0-9]+)' 2>/dev/null || echo 0)"
+    verify_count="$(printf '%s' "$handoff_content" | grep -cE '(READY|PASS|verified|assert|verify:|[0-9]+/[0-9]+[[:space:]]*(✅|🟢)|[0-9]+\.[0-9]+/[0-9]+)' 2>/dev/null || true)"
+    verify_count="${verify_count:-0}"
     if [ "$verify_count" -ge 2 ]; then
       emit_result "$project_name" "C6" "$verify_count" "2" "1" "${verify_count} verify condition(s) found in HANDOFF.md — next session can confirm readiness without re-running all checks"
     elif [ "$verify_count" -eq 1 ]; then
@@ -1339,6 +1340,7 @@ EOF
   # W9 — Release workflow validates version consistency
   local wf_dir="${project_dir}/.github/workflows"
   local w9_score="1"
+  local w9_measured='"no_release_workflow"'
   local w9_detail="No release workflow found (skip)"
   if [ -d "$wf_dir" ] && ! [ -L "$wf_dir" ]; then
     local release_wf=""
@@ -1356,17 +1358,20 @@ EOF
       fi
       if [ "$has_tag_extract" = true ] && [ "$has_version_compare" = true ]; then
         w9_score="1"
+        w9_measured='"tag_and_version"'
         w9_detail="Release workflow validates tag against source version file"
       elif [ "$has_tag_extract" = true ]; then
         w9_score="0.5"
+        w9_measured='"tag_only"'
         w9_detail="Release workflow checks tag format only — does not compare against source version file"
       else
         w9_score="0"
+        w9_measured='"no_validation"'
         w9_detail="Release workflow has no tag extraction or version validation — silent version drift possible"
       fi
     fi
   fi
-  emit_result "$project_name" "W9" "$w9_score" "null" "$w9_score" "$w9_detail"
+  emit_result "$project_name" "W9" "$w9_measured" "null" "$w9_score" "$w9_detail"
 
   # W10 — Test cost tiers defined (pytest markers, Python projects only)
   local pyproject="${project_dir}/pyproject.toml"
@@ -1383,7 +1388,8 @@ EOF
     else
       marker_source="$setup_cfg"
     fi
-    marker_count="$(grep -c '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*:' "$marker_source" 2>/dev/null || echo 0)"
+    marker_count="$(grep -c '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*:' "$marker_source" 2>/dev/null || true)"
+    marker_count="${marker_count:-0}"
     # More targeted: count markers under [tool.pytest.ini_options].markers or [pytest].markers
     if [ -f "$pyproject" ]; then
       # Extract markers block from pyproject.toml

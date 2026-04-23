@@ -577,6 +577,16 @@ function executeAutoW11(projectDir) {
     return { status: 'failed', detail: 'Template not found: templates/ci/test-required.yml' };
   }
 
+  // Guard against intermediate directory symlink escape before mkdirSync follows it.
+  // Use realpathSync for projectDir too to handle OS-level symlinks (e.g. /tmp → /private/tmp on macOS).
+  const resolvedProject = fs.realpathSync(projectDir); // nosemgrep: path-join-resolve-traversal
+  const resolvedTargetDir = fs.existsSync(targetDir) // nosemgrep: path-join-resolve-traversal
+    ? fs.realpathSync(targetDir)
+    : path.resolve(resolvedProject, '.github', 'workflows');
+  if (!resolvedTargetDir.startsWith(resolvedProject + path.sep)) {
+    return { status: 'failed', detail: 'Refusing to write outside project directory (symlink detected).' };
+  }
+
   try {
     const stat = fs.lstatSync(targetPath);
     if (stat.isSymbolicLink()) {
@@ -606,6 +616,14 @@ function executeAssistedH8(projectDir) {
 
   if (!fs.existsSync(hooksDir)) {
     return { status: 'guided', detail: 'No hooks/ directory found. Create hooks/ directory first, then run: cp templates/hooks/_shared.sh hooks/_shared.sh && source hooks/_shared.sh in your hook files.' };
+  }
+
+  // Guard against hooksDir being a symlink pointing outside project.
+  // Use realpathSync for projectDir too to handle OS-level symlinks (e.g. /tmp → /private/tmp on macOS).
+  const resolvedProject = fs.realpathSync(projectDir); // nosemgrep: path-join-resolve-traversal
+  const resolvedHooksDir = fs.realpathSync(hooksDir); // nosemgrep: path-join-resolve-traversal
+  if (!resolvedHooksDir.startsWith(resolvedProject + path.sep)) {
+    return { status: 'failed', detail: 'Refusing to write outside project directory (symlink detected in hooks/).' };
   }
 
   try {

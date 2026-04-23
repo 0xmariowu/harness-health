@@ -41,12 +41,13 @@ case "${1:-}" in
           path_args+=("$1")
           ;;
         *)
-          # Looks like a check ID if it matches uppercase letter + alphanumeric
-          if [[ "$1" =~ ^[A-Z][A-Z0-9-]+$ ]]; then
+          # Looks like a check ID (case-insensitive: w11, W11, S3, s3 all accepted)
+          upper="${1^^}"
+          if [[ "$upper" =~ ^[A-Z][A-Z0-9-]+$ ]]; then
             if [[ -n "$check_ids" ]]; then
-              check_ids="${check_ids},$1"
+              check_ids="${check_ids},$upper"
             else
-              check_ids="$1"
+              check_ids="$upper"
             fi
           else
             path_args+=("$1")
