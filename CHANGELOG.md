@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.9.2 (2026-04-23)
+
+- You can now install with `npm install -g @0xmariowu/agent-lint` even without Claude Code — the CLI works standalone, and the installer shows a branded ASCII logo with clear per-step progress
+- Better install UX: environment detection (Node, Claude Code, Cursor, Codex, Gemini, Windsurf), colored ✓/○ indicators, and a boxed "next steps" summary matching modern tool onboarding
+- 4 bugs found and fixed via E2B sandbox product testing:
+  - `agentlint check` pipeline failed without file argument (reporter.js now accepts stdin)
+  - Non-git directories now print a warning instead of silently continuing
+  - Symlink entry files get a clear "Refusing to modify symlink" message
+  - npm install failed when Claude Code wasn't installed (now exits 0 gracefully)
+- New comprehensive E2B test suite: 20 parallel sandboxes covering installation, check accuracy, fix E2E, report quality, edge cases, security
+
 ## v0.9.1 (2026-04-23)
 
 - You can now run `agentlint fix W11` (or any check ID) to fix a specific check directly — no more hunting for plan item numbers

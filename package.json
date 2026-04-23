@@ -1,7 +1,7 @@
 {
   "name": "agent-lint",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Setup, check, and fix your repo for AI-native development.",
   "license": "MIT",
   "repository": {
