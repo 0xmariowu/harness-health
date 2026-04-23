@@ -1,0 +1,55 @@
+name: Author Email Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-email:
+    name: Validate commit author emails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for non-noreply emails
+        run: |
+          FAIL=0
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+            RANGE="${BASE}..${HEAD}"
+          else
+            RANGE="HEAD~1..HEAD"
+          fi
+
+          while IFS= read -r line; do
+            SHA=$(echo "$line" | cut -d' ' -f1)
+            EMAIL=$(echo "$line" | cut -d' ' -f2)
+
+            # Allow: GitHub noreply, GitHub bots, empty (merge commits)
+            if [ -n "$EMAIL" ] && \
+               echo "$EMAIL" | grep -qvE '@users\.noreply\.github\.com$|@github\.com$|^noreply@github\.com$'; then
+              echo "::error::Commit ${SHA:0:7} has non-noreply email: $EMAIL"
+              echo "::error::Fix: git config user.email '<id>+<username>@users.noreply.github.com'"
+              FAIL=1
+            fi
+          done < <(git log --format="%H %ae" "$RANGE" 2>/dev/null || true)
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo ""
+            echo "One or more commits use a non-noreply email address."
+            echo "This leaks personal identity in public repo history."
+            echo ""
+            echo "To fix: git config user.email '<id>+<user>@users.noreply.github.com'"
+            echo "Then amend or rebase the offending commits."
+            exit 1
+          fi
+
+          echo "All commit emails are noreply — OK"

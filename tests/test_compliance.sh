@@ -38,8 +38,8 @@ fi
 # Exclude shell scripts (contain detection regexes), JSON/TOML/MD (docs/config),
 # .husky/ (hook scripts), scripts/ (scanner tools that legitimately reference /Users/).
 hits=$(git -C "$REPO_ROOT" ls-files \
-  | grep -vE "\.(sh|json|toml|md|yaml|yml|txt)$" \
-  | grep -vE "^(tests/|\.husky/|scripts/)" \
+  | grep -vE "\.(sh|json|toml|md|yaml|yml|txt|template)$" \
+  | grep -vE "^(tests/|\.husky/|scripts/|templates/)" \
   | xargs grep -l "/Users/" 2>/dev/null || true)
 if [ -z "$hits" ]; then
   ok "no personal paths in tracked source files"

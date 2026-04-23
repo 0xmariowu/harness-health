@@ -1,0 +1,33 @@
+code:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**'
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**'
+
+standards:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'standards/**'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'README.md'
+          - 'CLAUDE.md'
+
+plugin:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.claude-plugin/**'
+          - 'commands/**'
+          - 'skills/**'

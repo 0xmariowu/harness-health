@@ -1,6 +1,6 @@
 # AgentLint
 
-**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 49 checks across 8 dimensions, every one backed by data. Works across Claude Code, Codex, Cursor, Copilot, Gemini CLI, Windsurf, and Cline.
+**Your AI agent is only as good as your repo.** AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it. 53 checks across 8 dimensions, every one backed by data. Works across Claude Code, Codex, Cursor, Copilot, Gemini CLI, Windsurf, and Cline.
 
 > We analyzed 265 versions of Anthropic's Claude Code system prompt, documented the hard limits, audited thousands of real repos, and reviewed the academic research. The result: a single command that tells you exactly what your AI agent is struggling with and why.
 

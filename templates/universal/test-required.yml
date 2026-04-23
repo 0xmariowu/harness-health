@@ -1,0 +1,137 @@
+name: Test Required
+
+# Enforces "feature commit must be paired with a test commit" via
+# conventional-commits type inspection. Blocks merge when a feat(…) or
+# behavior-scoped fix(…) has no accompanying test(…) commit.
+#
+# Mechanism (not file-change-based): scans commit subjects in the PR
+# for feat(…) or fix(bootstrap|scripts|hooks|standards)(…). If any
+# present, requires a test(…) subject in the same PR. Explicit opt-out
+# via the PR template's "No tests needed because:" checkbox.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write  # needed for the warn-mode comment
+
+concurrency:
+  group: test-required-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Classify commits
+        id: classify
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Commit subjects in PR range. Empty range (edge case) = skip.
+          commits=$(git log --format="%s" "$BASE_SHA..$HEAD_SHA" 2>/dev/null || true)
+          if [ -z "$commits" ]; then
+            echo "No commits in PR range; skipping."
+            echo "result=skip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Explicit opt-out: PR body must have a checked box whose line
+          # contains "No tests needed because" AND a real justification
+          # after the "because" clause — specifically:
+          #   - reason does not start with `<!--` (i.e. not the default
+          #     template's placeholder comment)
+          #   - reason contains at least one alphabetic character
+          # PR_BODY is attacker-controlled (forks), so we pipe through
+          # grep/sed — never eval, never expand.
+          opt_line=$(printf '%s\n' "$PR_BODY" | grep -iE '^[[:space:]]*-[[:space:]]*\[[xX]\][[:space:]]+No tests needed because:' | head -1 || true)
+          if [ -n "$opt_line" ]; then
+            reason=$(printf '%s' "$opt_line" | sed -E 's/^[[:space:]]*-[[:space:]]*\[[xXX]\][[:space:]]+[Nn]o tests needed because:[[:space:]]*//')
+            if [ -n "$reason" ] \
+               && ! printf '%s' "$reason" | grep -qE '^<!--' \
+               && printf '%s' "$reason" | grep -qE '[A-Za-z]'; then
+              echo "Opt-out declared in PR body with real reason."
+              echo "result=opt_out" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Opt-out checkbox checked but reason is empty or is the default placeholder — ignoring."
+          fi
+
+          # Detect behavior-changing commits.
+          behavior_change=0
+          while IFS= read -r subject; do
+            case "$subject" in
+              feat\(*|feat:*)
+                behavior_change=1
+                ;;
+              fix\(bootstrap*|fix\(scripts*|fix\(hooks*|fix\(standards*)
+                behavior_change=1
+                ;;
+            esac
+          done <<< "$commits"
+
+          if [ "$behavior_change" = "0" ]; then
+            echo "No behavior-changing commits; test not required."
+            echo "result=not_required" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Require a test(...) commit in the same PR.
+          has_test=0
+          while IFS= read -r subject; do
+            case "$subject" in
+              test\(*|test:*)
+                has_test=1
+                ;;
+            esac
+          done <<< "$commits"
+
+          if [ "$has_test" = "1" ]; then
+            echo "Behavior change + test commit found. PASS."
+            echo "result=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "Behavior change WITHOUT test commit. WARN."
+            echo "result=warn" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment on fail
+        if: steps.classify.outputs.result == 'warn'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const marker = '<!-- test-required-warn -->';
+            const body = marker + '\n' +
+              '❌ **test-required**: this PR contains a `feat(...)` or behavior-scoped `fix(...)` commit but no accompanying `test(...)` commit.\n\n' +
+              'CLAUDE.md requires paired test commits. To resolve:\n' +
+              '- Add a separate `test(...)` commit covering the new behavior, **or**\n' +
+              '- Tick the "No tests needed because:" checkbox in the PR template with a stated reason.\n\n' +
+              '_This check **blocks merge**._';
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const existing = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const prior = existing.data.find(c => c.body && c.body.includes(marker));
+            if (prior) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: prior.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Gate
+        run: |
+          echo "result=${{ steps.classify.outputs.result }}"
+          if [ "${{ steps.classify.outputs.result }}" = "warn" ]; then
+            echo "FAIL: feature commit without test commit."
+            exit 1
+          fi

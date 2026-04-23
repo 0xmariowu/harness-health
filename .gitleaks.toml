@@ -33,4 +33,5 @@ paths = [
   '''docs/checks\.md$''',
   '''docs/scoring\.md$''',
   '''standards/evidence\.json$''',
+  '''^templates/''',
 ]

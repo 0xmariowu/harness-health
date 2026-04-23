@@ -1,0 +1,43 @@
+name: Auto-fix
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint auto-fix
+        run: npx eslint --fix 'src/**/*.ts' || true
+
+      - name: Prettier auto-format
+        run: npx prettier --write 'src/**/*.ts' '*.{json,md,yml}' || true
+
+      - name: Commit and push fixes
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet && exit 0
+          git add 'src/**/*.ts' '*.json' '*.md' '*.yml' '*.yaml'
+          git commit -m "style: auto-fix lint and format"
+          git push origin "HEAD:$HEAD_REF"

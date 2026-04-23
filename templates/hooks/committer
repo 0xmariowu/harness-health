@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2059
+# committer — scoped atomic commit tool
+# Usage: scripts/committer [--dry-run] [-f|--force] "<message>" <file...>
+#        scripts/committer [--dry-run] --all-new "<message>"
+# Ensures each commit contains only files the caller asked for — either the
+# files listed as args, or (with --all-new) every currently-untracked file.
+# --all-new implies --force so bootstrap-scale commits don't trip the
+# size/mix warnings.
+# Env vars:
+#   VIBEKIT_QUALITY_CHECK — shell command run before commit (e.g., 'npm run check'). Skipped if unset.
+
+set -euo pipefail
+
+RED='\033[0;31m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'
+DIM='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+
+die()        { printf "${RED}error:${NC} %s\n" "$*" >&2; exit 1; }
+warn()       { printf "${YELLOW}warning:${NC} %s\n" "$*" >&2; }
+info()       { printf "${GREEN}ok:${NC} %s\n" "$*"; }
+
+# die_format — emit a 4-part error (What / Rule / Fix / See) and exit 1.
+# See docs/rules-style.md §3.12 — every hook/script error answers
+# What failed, the Rule being enforced, the concrete Fix, and a See-pointer.
+die_format() {
+  local what="$1" rule="$2" fix="$3" see="$4"
+  printf "${RED}error:${NC} %s\n" "$what" >&2
+  printf "  ${BOLD}Rule:${NC} %s\n" "$rule" >&2
+  printf "  ${BOLD}Fix:${NC}  %s\n" "$fix" >&2
+  printf "  ${BOLD}See:${NC}  %s\n" "$see" >&2
+  exit 1
+}
+
+die_usage() { usage; die_format "$@"; }
+
+usage() {
+  cat <<'EOF' >&2
+usage:
+  scripts/committer "<message>" <file...>      commit the listed files only
+  scripts/committer --all-new "<message>"      commit every untracked file
+                                               (first commit after bootstrap)
+  scripts/committer --dry-run ...              preview without committing
+  scripts/committer -f|--force ...             suppress size/mix warnings
+
+examples:
+  scripts/committer "feat: add login handler" src/auth.ts tests/auth.test.ts
+  scripts/committer --all-new "chore: bootstrap vibekit"
+EOF
+}
+
+# --- Parse flags (order-independent) ---
+DRY_RUN=false; FORCE=false; ALL_NEW=false; ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run)       DRY_RUN=true ;;
+    -f|--force)      FORCE=true ;;
+    --all-new)       ALL_NEW=true; FORCE=true ;;
+    -h|--help)       usage; exit 0 ;;
+    *)               ARGS+=("$arg") ;;
+  esac
+done
+
+# Pre-flight: every code path below touches git. Fail loudly now so we don't
+# mis-attribute a git failure as "no files to commit" later.
+git rev-parse --git-dir >/dev/null 2>&1 || die_format \
+  "not inside a git repository" \
+  "committer only operates inside a git working tree" \
+  "cd into your project repo root (or run 'git init' first) and retry" \
+  "scripts/committer --help · docs/rules-style.md §3.12"
+
+if [[ "$ALL_NEW" == true ]]; then
+  [[ ${#ARGS[@]} -ne 1 ]] && die_usage \
+    "--all-new takes exactly one argument: the commit message" \
+    "--all-new auto-stages every untracked file; it takes a message, not file paths" \
+    'scripts/committer --all-new "chore: bootstrap"' \
+    "scripts/committer --help"
+  MSG="${ARGS[0]}"
+  # Untracked files only. Modified-but-tracked files are user's in-flight work
+  # and are intentionally NOT staged — prevents bootstrap rerun from sweeping
+  # up unrelated changes. NUL-delimited read so filenames with newlines or
+  # backslashes survive; `while read` (not `mapfile`) for bash 3.2 (macOS).
+  FILES=()
+  while IFS= read -r -d '' untracked; do
+    FILES+=("$untracked")
+  done < <(git ls-files -z --others --exclude-standard)
+  [[ ${#FILES[@]} -eq 0 ]] && die_format \
+    "no untracked files to commit — nothing to do" \
+    "--all-new commits only untracked files; modified-but-tracked files are intentionally skipped" \
+    "check 'git status'; stage tracked modifications with an explicit file list (scripts/committer \"<msg>\" <file>...) instead" \
+    "scripts/committer --help"
+else
+  [[ ${#ARGS[@]} -lt 2 ]] && die_usage \
+    "need a commit message and at least one file" \
+    "committer requires explicit scope: a message plus one or more file paths" \
+    'scripts/committer "feat: add login" src/auth.ts  (or use --all-new for the first bootstrap commit)' \
+    "scripts/committer --help"
+  MSG="${ARGS[0]}"; FILES=("${ARGS[@]:1}")
+fi
+
+[[ -z "$MSG" ]] && die_format \
+  "commit message cannot be empty" \
+  "conventional-commit format requires a non-empty subject" \
+  'scripts/committer "feat: <description>" <file>...' \
+  "configs/commitlint.config.cjs · docs/rules-style.md §3.1"
+
+# Guard against swapped args: single word with file-like extension
+if [[ "$MSG" != *" "* ]] && [[ "$MSG" =~ \.(ts|js|md|json|sh)$ || "$MSG" == */* ]]; then
+  die_format \
+    "first argument looks like a file path — put the commit message first" \
+    "argument order is: message (quoted), then files" \
+    'scripts/committer "<message>" <file>...' \
+    "scripts/committer --help"
+fi
+
+# --- Block dangerous paths ---
+for file in "${FILES[@]}"; do
+  [[ "$file" == "." ]] && die_usage \
+    "refusing to stage '.' (the whole working tree)" \
+    "atomic-commit rule forbids sweep-staging; every commit lists exactly the files it touches" \
+    "list files explicitly: scripts/committer \"<msg>\" <file>... · or use --all-new for the first bootstrap commit" \
+    "docs/rules-style.md §3.6 · CLAUDE.md Commit Rules"
+  if [[ "$file" == .env* ]] || [[ "$(basename "$file")" == .env* ]]; then
+    die_format \
+      "refusing to stage '$file' — .env files are blocked" \
+      ".env / credential files never enter git; secrets go in ~/.config/ai-secrets.env and are referenced by name" \
+      "add '$file' to .gitignore; move any secret to ~/.config/ai-secrets.env; reference with \$VAR_NAME in code" \
+      "docs/ship-boundary.md NEVER tier · ~/CLAUDE.md Secrets"
+  fi
+  [[ "$file" == ".git" || "$file" == .git/* ]] && die_format \
+    "refusing to stage '$file' — .git/ internals are blocked" \
+    ".git/ is git's own storage; committing pieces of it corrupts the repo" \
+    "if you meant to add a hook, put it under hooks/ (or .husky/) and stage that path instead" \
+    "docs/ship-boundary.md · git --help"
+  [[ "$file" == *node_modules* ]] && die_format \
+    "refusing to stage '$file' — node_modules/ is blocked" \
+    "installed dependencies are regenerated from the lockfile; they never ship in source" \
+    "ensure node_modules/ is in .gitignore; commit only package.json + lockfile" \
+    "configs/node/.gitignore · configs/ts/.gitignore"
+  # File must exist in working tree or git index (handles deletions)
+  if [[ ! -e "$file" ]] && ! git ls-files --error-unmatch "$file" &>/dev/null; then
+    die_format \
+      "file not found: $file" \
+      "every staged file must exist in the working tree or git index" \
+      "check spelling with 'git status'; ensure you're in the repo root; unstage typos" \
+      "scripts/committer --help"
+  fi
+done
+
+# --- Wait for git lock (up to 5s) ---
+LOCK="$(git rev-parse --git-dir)/index.lock"
+if [[ -f "$LOCK" ]]; then
+  printf "${DIM}waiting for git lock...${NC}\n"
+  for i in $(seq 1 10); do
+    [[ ! -f "$LOCK" ]] && break
+    sleep 0.5
+    [[ $i -eq 10 ]] && die_format \
+      "index.lock still present after 5s" \
+      "git holds an exclusive lock during index writes; committer waits up to 5s for it" \
+      "find the holder with 'lsof \$(git rev-parse --git-dir)/index.lock', stop that process, then retry" \
+      "git-index.lock behavior · parallel-agent coordination (use git worktree, not shared index)"
+  done
+fi
+
+# --- Clean slate: unstage everything, then stage only our files ---
+git restore --staged :/ 2>/dev/null || true
+git add -- "${FILES[@]}"
+
+if git diff --cached --quiet; then
+  die_format \
+    "no changes staged — files may already match HEAD" \
+    "committer refuses empty commits; staged files must differ from HEAD" \
+    "preview with 'git diff HEAD -- <file>...'; if intentional, there's nothing to commit" \
+    "scripts/committer --dry-run"
+fi
+
+# --- Smart warnings (suppressed with -f) ---
+if [[ "$FORCE" == false ]]; then
+  HAS_SRC=false; HAS_TEST=false
+  for f in "${FILES[@]}"; do
+    [[ "$f" == src/* ]]   && HAS_SRC=true
+    [[ "$f" == tests/* ]] && HAS_TEST=true
+  done
+
+  if $HAS_SRC && $HAS_TEST; then
+    die_format \
+      "mixed concerns: src/ and tests/ staged in the same commit" \
+      "atomic-commit rule keeps source and test diffs separate so reviewers can verify tests cover the source change" \
+      "commit src/ first (e.g. feat:), then tests/ next (test:); pass -f to override when you have a real reason" \
+      "CLAUDE.md Commit Rules · docs/rules-style.md §3.6"
+  fi
+
+  W=()
+  [[ ${#FILES[@]} -gt 5 ]] && W+=("${#FILES[@]} files in one commit — is this one logical change?")
+  DIFF_LINES=$(git diff --cached --numstat | awk '{s+=$1+$2} END {print s+0}')
+  [[ "$DIFF_LINES" -gt 300 ]] && W+=("${DIFF_LINES} lines changed — consider splitting")
+
+  for w in "${W[@]+"${W[@]}"}"; do warn "$w"; done
+  (( ${#W[@]} > 0 )) && warn "use -f to suppress these warnings"
+fi
+
+# --- Dry run: show diff stats then bail ---
+if [[ "$DRY_RUN" == true ]]; then
+  printf "${BOLD}dry run — would commit:${NC}\n"
+  printf "${DIM}message:${NC} %s\n\n" "$MSG"
+  git diff --cached --stat
+  git restore --staged :/ 2>/dev/null || true
+  exit 0
+fi
+
+# --- Pre-commit quality check ---
+if [ -n "${VIBEKIT_QUALITY_CHECK:-}" ]; then
+  printf "${DIM}running quality checks...${NC}\n"
+  if ! bash -c "$VIBEKIT_QUALITY_CHECK"; then
+    die_format \
+      "quality check failed — fix issues before committing" \
+      "\$VIBEKIT_QUALITY_CHECK must exit 0 before the commit is recorded" \
+      "run '$VIBEKIT_QUALITY_CHECK' manually to see the actual failure; fix the code (don't silence the check), then retry" \
+      "VIBEKIT_QUALITY_CHECK env var documented in committer preamble · CLAUDE.md 'fix code not config'"
+  fi
+  info "quality checks passed"
+fi
+
+# --- Commit ---
+VIBEKIT_COMMITTER_ACTIVE=1 git commit -m "$MSG"
+info "committed \"$MSG\" with ${#FILES[@]} file(s)"

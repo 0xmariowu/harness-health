@@ -5,15 +5,15 @@
 <h1 align="center">AgentLint</h1>
 
 <p align="center">
-  <strong>Your AI agent is only as good as your repo.</strong><br>
-  49 checks. 8 dimensions. Works across Claude Code, Codex, Cursor, Copilot, Gemini, Windsurf, Cline.
+  <strong>Setup, check, and fix your repo for AI-native development.</strong><br>
+  53 checks. 8 dimensions. Works across Claude Code, Codex, Cursor, Copilot, Gemini, Windsurf, Cline.
 </p>
 
 <p align="center">
   <a href="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml"><img src="https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/0xmariowu/agent-lint/releases"><img src="https://img.shields.io/github/v/release/0xmariowu/agent-lint" alt="Release"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="#what-it-checks"><img src="https://img.shields.io/badge/checks-49-00b48c" alt="Checks"></a>
+  <a href="#what-it-checks"><img src="https://img.shields.io/badge/checks-53-00b48c" alt="Checks"></a>
 </p>
 
 <p align="center">
@@ -26,7 +26,17 @@
 
 ---
 
-AgentLint finds what's broken — file structure, instruction quality, build setup, session continuity, security posture — and fixes it.
+AgentLint is a three-step toolkit for AI-native development:
+
+```bash
+agentlint setup --lang python ~/Projects/my-repo   # bootstrap CI/hooks/templates
+agentlint check --project-dir ~/Projects/my-repo   # diagnose (49 checks, 8 dimensions)
+agentlint fix   --project-dir ~/Projects/my-repo   # auto-fix issues found
+```
+
+**setup** installs the full AI-native stack: 12 CI workflows, git hooks, CLAUDE.md template, plan format, compliance tests.  
+**check** finds what's broken — file structure, instruction quality, build setup, continuity, security.  
+**fix** applies the fixes automatically.
 
 > We analyzed 265 versions of Anthropic's Claude Code system prompt, documented the hard limits, audited thousands of real repos, and reviewed the academic research. The result: a single command that tells you exactly what your AI agent is struggling with and why.
 

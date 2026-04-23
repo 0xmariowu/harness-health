@@ -1,0 +1,20 @@
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      // Ratchet: autoUpdate bumps thresholds when coverage improves.
+      // Starting values are low; the first `vitest run --coverage` will
+      // lift them to whatever the project currently covers.
+      thresholds: {
+        autoUpdate: true,
+        lines: 0,
+        functions: 0,
+        branches: 0,
+        statements: 0,
+      },
+    },
+  },
+});

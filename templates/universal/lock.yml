@@ -1,0 +1,57 @@
+name: Lock Threads
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const thresholdDays = 30;
+            const cutoff = Date.now() - thresholdDays * 24 * 60 * 60 * 1000;
+
+            const params = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              per_page: 100,
+            };
+
+            const items = await github.paginate(github.rest.issues.listForRepo, params);
+
+            for (const item of items) {
+              if (item.locked) {
+                continue;
+              }
+
+              const updatedAt = Date.parse(item.updated_at);
+              if (!Number.isFinite(updatedAt)) {
+                core.warning(`Could not parse updated_at for item #${item.number}. Skipping.`);
+                continue;
+              }
+
+              if (updatedAt > cutoff) {
+                continue;
+              }
+
+              try {
+                await github.rest.issues.lock({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: item.number,
+                  lock_reason: 'resolved',
+                });
+                const kind = item.pull_request ? 'PR' : 'Issue';
+                core.info(`Locked ${kind} #${item.number} (updated ${item.updated_at}).`);
+              } catch (error) {
+                core.warning(`Failed to lock #${item.number}: ${error.message}`);
+              }
+            }

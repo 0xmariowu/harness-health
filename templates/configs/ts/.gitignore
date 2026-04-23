@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug / logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Cache
+.eslintcache
+.tsbuildinfo
+
+# Ship-boundary LOCAL tier (see standards/ship-boundary.json · module m4)
+/HANDOFF.md
+/.claude/
+/experience/
+/docs/reports/
+/.ship-boundary-deny.local

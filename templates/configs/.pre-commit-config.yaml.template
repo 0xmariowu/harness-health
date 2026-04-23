@@ -1,0 +1,70 @@
+# VibeKit pre-commit config template.
+#
+# Python projects: this IS the commit-gate — no husky, no commitlint needed.
+#   pip install pre-commit && pre-commit install --install-hooks
+# TS / node projects: this is an additional safety layer on top of husky.
+#   pre-commit install --install-hooks   (optional)
+#
+# Run manually:
+#   pre-commit run --all-files
+
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  # Basic file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Conventional Commits message format (replaces commitlint for Python repos;
+  # safe overlap for TS repos that also have husky + commitlint installed).
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+
+  # Python linting + formatting (no-op on non-Python files — hook is lazily
+  # downloaded only when .py files change).
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Entropy-based secret detection (complements gitleaks pattern matching)
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: '^(.*\.lock$|package-lock\.json$)'
+
+  # Shell script linting
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
+    hooks:
+      - id: shellcheck
+        args: [--severity=error]
+
+  # GitHub Actions linting
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.10
+    hooks:
+      - id: actionlint
+
+  # GitHub Actions security audit (catches workflow-level issues gitleaks doesn't see)
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.22.0
+    hooks:
+      - id: zizmor
+        args: [--persona=regular, --min-severity=medium, --min-confidence=medium]

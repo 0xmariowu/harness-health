@@ -1,0 +1,38 @@
+# pyproject.toml — VibeKit Python project template.
+# Customize [project] metadata; the [tool.*] sections below are the generic
+# defaults downstream projects tend to converge on — edit them only with cause.
+
+[project]
+name = "__PROJECT_NAME__"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# Start tight and relax only with reason. E/F are pycodestyle+pyflakes;
+# I enforces import ordering; W catches whitespace bugs that shellcheck misses
+# in heredocs.
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+# asyncio_mode=auto removes @pytest.mark.asyncio boilerplate from every async test.
+asyncio_mode = "auto"
+
+# Markers partition the suite along two axes: what it needs (network, real_llm)
+# and how costly it is (smoke, slow, perf). CI runs `-m "not network and not slow"`
+# by default; nightly runs everything.
+markers = [
+  "smoke: fast sanity checks that must pass on every PR",
+  "slow: > 1s per test — excluded from default CI run",
+  "perf: performance benchmarks, run on demand",
+  "network: requires outbound network (excluded from default CI run)",
+  "real_llm: hits a real LLM API (excluded from default CI run)",
+]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.11"
+reportMissingImports = "warning"

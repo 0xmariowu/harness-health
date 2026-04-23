@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+reports/
+
+# Ship-boundary LOCAL tier (see standards/ship-boundary.json · module m4)
+/HANDOFF.md
+/.claude/
+/experience/
+/docs/reports/
+/.ship-boundary-deny.local

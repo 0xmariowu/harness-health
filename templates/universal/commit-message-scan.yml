@@ -1,0 +1,116 @@
+name: Commit Message Scan
+
+# Closes the C.2 enforcement gap: tracked-file scanners never read commit
+# messages, so private information leaking into commit subjects or bodies
+# historically slipped through. This workflow scans every PR's commit range
+# against the same NEVER-tier patterns ship-boundary.json enforces for
+# file content, plus an optional per-project extension from
+# .ship-boundary-deny.local.
+#
+# Scope: commit messages only. File content is covered by hygiene.yml +
+# gitleaks.yml + semgrep.yml + trivy.yml.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: commit-message-scan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Scan commit messages in PR range
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Concatenate all commit subjects + bodies in the PR range.
+          # Format: %s (subject) + newline + %b (body) + NUL separator between commits.
+          MESSAGES=$(git log --format='%s%n%b%n%x00' "$BASE_SHA..$HEAD_SHA" || true)
+          if [ -z "$MESSAGES" ]; then
+            echo "No commits in PR range; skipping."
+            exit 0
+          fi
+
+          echo "$MESSAGES" > /tmp/pr-messages.txt
+          echo "=== PR message characters: $(wc -c < /tmp/pr-messages.txt) ==="
+
+          FAIL=0
+
+          # SB-N-02: categorical codename shape — case-insensitive match,
+          # allowlist "VibeKit" (the product itself is public by design).
+          # Pattern intentionally narrow to avoid false positives on
+          # common public product names; project-specific exact matches
+          # come from .ship-boundary-deny.local below.
+          CODENAME_HITS=$(grep -oE '\b[A-Z][a-z]+(OS|Kit|Memory|Labs?|Corp|Inc)\b' /tmp/pr-messages.txt | grep -vxE 'VibeKit' | sort -u || true)
+          if [ -n "$CODENAME_HITS" ]; then
+            echo "::warning::SB-N-02 (B.1 · internal-projects) codename-shaped tokens in commit messages:"
+            echo "$CODENAME_HITS" | awk '{print "  - " $0}'
+            # SB-N-02 is advisory, do not fail — but surface.
+          fi
+
+          # SB-N-03: personal paths (/Users/<name>/ or /home/<name>/)
+          if grep -qE '/Users/[a-zA-Z0-9_-]+/|/home/[a-zA-Z0-9_-]+/' /tmp/pr-messages.txt; then
+            echo "::error::SB-N-03 (B.3 · personal-paths) detected in commit messages — use \$HOME or repo-relative paths when describing changes."
+            grep -nE '/Users/[a-zA-Z0-9_-]+/|/home/[a-zA-Z0-9_-]+/' /tmp/pr-messages.txt | head -10
+            FAIL=1
+          fi
+
+          # SB-N-04: inline API key shapes
+          if grep -qE '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AIza[0-9A-Za-z_-]{35})' /tmp/pr-messages.txt; then
+            echo "::error::SB-N-04 (B.2 · credentials) inline API key shape detected in commit messages."
+            FAIL=1
+          fi
+
+          # SB-N-05: scrub phrasing
+          if grep -qiE '(previously private|dropped the .*? (reference|identifier|name|path|codename|mention)|removed \S+ reference)' /tmp/pr-messages.txt; then
+            echo "::error::SB-N-05 (C.3 · scrub-phrasing) past-tense removal phrasing detected. Describe current state instead of what was removed."
+            grep -niE '(previously private|dropped the .*? (reference|identifier|name|path|codename|mention)|removed \S+ reference)' /tmp/pr-messages.txt | head -5
+            FAIL=1
+          fi
+
+          # SB-N-06: machine-derived hostnames
+          if grep -qE '\b[a-z][a-z0-9-]+\.ts\.net\b|\b[a-z][a-z0-9-]+\.tailscale\.[a-z]+\b' /tmp/pr-messages.txt; then
+            echo "::error::SB-N-06 (A.2 · machine-identity) tailnet hostname detected in commit messages."
+            grep -nE '\b[a-z][a-z0-9-]+\.ts\.net\b|\b[a-z][a-z0-9-]+\.tailscale\.[a-z]+\b' /tmp/pr-messages.txt | head -5
+            FAIL=1
+          fi
+
+          # Project-specific extension: if HEAD has .ship-boundary-deny.local,
+          # treat each non-comment non-blank line as a literal substring to forbid.
+          # (Note: deny-file should be gitignored by the baseline, so this should
+          # normally be a no-op at CI time. The check is defensive.)
+          if git cat-file -e "$HEAD_SHA:.ship-boundary-deny.local" 2>/dev/null; then
+            echo "::warning::.ship-boundary-deny.local is tracked in HEAD — that file is supposed to be .gitignored (LOCAL tier SB-L-05)."
+            git cat-file blob "$HEAD_SHA:.ship-boundary-deny.local" > /tmp/deny.txt
+            while IFS= read -r pattern; do
+              [ -z "$pattern" ] && continue
+              [ "${pattern:0:1}" = "#" ] && continue
+              if grep -qF "$pattern" /tmp/pr-messages.txt; then
+                echo "::error::Deny-file pattern matched in commit messages: $pattern"
+                FAIL=1
+              fi
+            done < /tmp/deny.txt
+          fi
+
+          if [ "$FAIL" = "1" ]; then
+            echo ""
+            echo "::error::Commit-message scan FAILED. Fix: amend offending commits (git rebase -i + reword) before pushing again."
+            echo "Reference: configs/privacy-taxonomy.md for what counts as private, standards/ship-boundary.json for the full NEVER rules."
+            exit 1
+          fi
+
+          echo "All scans passed."

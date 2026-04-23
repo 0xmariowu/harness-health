@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag format
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag format: $TAG (expected vX.Y.Z)"
+            exit 1
+          fi
+
+      - name: Validate tag matches source version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Try package.json
+          if [ -f package.json ]; then
+            PKG_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+            if [ -n "$PKG_VERSION" ] && [ "$PKG_VERSION" != "undefined" ]; then
+              if [ "$VERSION" != "$PKG_VERSION" ]; then
+                echo "::error::Tag v$VERSION does not match package.json version $PKG_VERSION"
+                exit 1
+              fi
+              echo "Validated: tag matches package.json ($VERSION)"
+              exit 0
+            fi
+          fi
+
+          # Try pyproject.toml
+          if [ -f pyproject.toml ]; then
+            PY_VERSION=$(python3 -c "
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              d = tomllib.load(f)
+          print(d.get('project', {}).get('version', ''))
+          " 2>/dev/null || echo "")
+            if [ -n "$PY_VERSION" ]; then
+              if [ "$VERSION" != "$PY_VERSION" ]; then
+                echo "::error::Tag v$VERSION does not match pyproject.toml version $PY_VERSION"
+                exit 1
+              fi
+              echo "Validated: tag matches pyproject.toml ($VERSION)"
+              exit 0
+            fi
+          fi
+
+          echo "::warning::No version file found — skipping version match validation"
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Escape dots for awk regex (1.2.3 -> 1\.2\.3)
+          SAFE_VERSION="${VERSION//./\\.}"
+          NOTES=""
+          if [ -f CHANGELOG.md ]; then
+            # Match "## vX.Y.Z" or "## X.Y.Z" optionally followed by space+anything.
+            # Stop at the next "## v?X.Y.Z" heading (either style).
+            NOTES=$(awk "/^## v?${SAFE_VERSION}([[:space:]]|$)/{found=1; next} /^## v?[0-9]/{if(found) exit} found" CHANGELOG.md | awk 'NF{p=1} p')
+          fi
+          if [ -n "$NOTES" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "$NOTES" > /tmp/release-notes.md
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          REPO_NAME="${{ github.event.repository.name }}"
+          if [ "${{ steps.changelog.outputs.found }}" == "true" ]; then
+            gh release create "$TAG" --title "${REPO_NAME} ${VERSION}" --notes-file /tmp/release-notes.md
+          else
+            gh release create "$TAG" --title "${REPO_NAME} ${VERSION}" --generate-notes
+          fi
+
+      - name: Comment on closed issues referenced in CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          SAFE_VERSION="${VERSION//./\\.}"
+
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::warning::CHANGELOG.md not found; skipping issue notification"
+            exit 0
+          fi
+
+          # Match both "## X.Y.Z" and "## vX.Y.Z" CHANGELOG heading styles.
+          SECTION=$(awk "/^## v?${SAFE_VERSION}([[:space:]]|$)/{f=1;next} /^## v?[0-9]/{f=0} f" CHANGELOG.md)
+          if [ -z "$SECTION" ]; then
+            echo "No CHANGELOG section for ${VERSION}; skipping issue notification"
+            exit 0
+          fi
+
+          ISSUES=$(printf '%s\n' "$SECTION" | grep -oE '#[0-9]+' | sort -u | tr -d '#')
+          if [ -z "$ISSUES" ]; then
+            echo "No issues referenced in ${VERSION} CHANGELOG; nothing to notify"
+            exit 0
+          fi
+
+          RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}"
+          BODY=$(printf '%s\n\n%s\n' \
+            "Shipped in [${VERSION}](${RELEASE_URL})." \
+            "If anything here regressed or you hit a follow-up issue, reopen this or file a new one.")
+
+          for num in $ISSUES; do
+            TYPE=$(gh api "repos/${{ github.repository }}/issues/${num}" --jq 'if .pull_request then "pr" else "issue" end' 2>/dev/null || echo "missing")
+            case "$TYPE" in
+              issue)
+                echo "Commenting on #${num}"
+                gh issue comment "$num" --repo "${{ github.repository }}" --body "$BODY" \
+                  || echo "::warning::Failed to post comment on #${num}"
+                ;;
+              pr)
+                echo "Skipping #${num} (PR, not an issue)"
+                ;;
+              missing)
+                echo "::warning::Cannot resolve #${num}; skipping"
+                ;;
+            esac
+          done
+
+      - name: Summary
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          {
+            echo "## Released ${VERSION}"
+            echo "- GitHub Release: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}"
+          } >> "$GITHUB_STEP_SUMMARY"

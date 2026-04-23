@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## v0.9.0 (2026-04-23)
+
+### New: `agentlint setup` — AI-native project bootstrap
+
+You can now bootstrap any repo with a full AI-native development stack in one command:
+
+```bash
+agentlint setup --lang python ~/Projects/my-repo
+agentlint setup --lang ts --visibility public ~/Projects/my-repo
+```
+
+Installs 12 universal CI workflows (gitleaks, semgrep, trivy, test-required, pr-lint, release, and more), language-specific CI (CodeQL, cross-platform matrix), git hooks (author identity, PII scan, staged-file lint, conventional commits, pre-push rebase), and file templates (CLAUDE.md, plan.md, compliance_check.sh, HANDOFF.md).
+
+This merges VibeKit's bootstrap capability directly into AgentLint. The full lifecycle is now: **`agentlint setup` → `agentlint check` → `agentlint fix`**.
+
+### New: `agentlint` unified CLI
+
+You can now use `agentlint` as a single entry point:
+- `agentlint setup` — bootstrap (new)
+- `agentlint check` — diagnose (existing, now accessible via unified CLI)
+- `agentlint fix` — auto-fix (existing, now accessible via unified CLI)
+
+### Fixes
+
+- weights: W7/W8/H7/S9 checks now correctly factor into the total score (were scanned but weighted zero in v0.8.6)
+
 ## v0.8.6 (2026-04-23)
 
 ### New checks (4)

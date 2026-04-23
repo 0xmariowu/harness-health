@@ -1,0 +1,21 @@
+name: Labeler
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: none
+  pull-requests: write
+
+concurrency:
+  group: labeler-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@634933edcd8ababfe52f92936142cc22ac488b1b  # v6.0.1
+        with:
+          configuration-path: .github/labeler.yml

@@ -1,0 +1,9 @@
+# Project-wide ShellCheck defaults.
+# Warning-level catches bugs without blocking on minor style nits.
+severity=warning
+
+# Dialect: every script in this repo starts with `#!/usr/bin/env bash`.
+shell=bash
+
+# Follow sourced files so shared helpers (_shared.sh, _shared-push.sh) get checked.
+external-sources=true

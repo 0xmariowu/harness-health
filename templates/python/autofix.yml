@@ -1,0 +1,42 @@
+name: Auto-fix
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  autofix:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.11'
+
+      - name: Install ruff
+        run: pip install 'ruff>=0.5.0'
+
+      - name: Ruff auto-fix
+        run: ruff check --fix . || true
+
+      - name: Ruff auto-format
+        run: ruff format . || true
+
+      - name: Commit and push fixes
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet && exit 0
+          git add '*.py'
+          git commit -m "style: auto-fix lint and format"
+          git push origin "HEAD:$HEAD_REF"

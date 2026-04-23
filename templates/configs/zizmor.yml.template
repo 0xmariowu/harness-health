@@ -1,0 +1,20 @@
+# VibeKit zizmor configuration template.
+# See https://docs.zizmor.sh/configuration/
+#
+# Rule suppression discipline: each disabled rule gets a one-line reason.
+# Enable rules progressively as the project matures.
+
+rules:
+  # Disable unpinned-uses — SHA pinning is a deliberate migration; don't
+  # block routine PRs until the project commits to the switch.
+  unpinned-uses:
+    disable: true
+
+  # Disable excessive-permissions — adding explicit permissions blocks
+  # requires reviewing each workflow's needs. Enable once workflows are audited.
+  excessive-permissions:
+    disable: true
+
+  # Disable artipacked (persist-credentials) — low confidence finding.
+  artipacked:
+    disable: true
