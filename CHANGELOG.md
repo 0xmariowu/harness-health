@@ -2,7 +2,19 @@
 
 ## Unreleased
 
+## v0.8.6 (2026-04-23)
+
+### New checks (4)
+
+- **W7** You can now see when `CLAUDE.md` is missing a documented local fast test command — AI agents need a single runnable command (e.g. `pytest tests/unit/` or `npm test`) to verify before pushing.
+- **W8** You can now detect Node.js projects where `package.json` has no `scripts.test` entry — `npm test` silently fails with "missing script" when agents try to run it.
+- **H7** You can now detect gate workflows (`test-required`, `*-check`, etc.) that always `exit 0` — warn-only gates never block merge despite appearing to enforce rules.
+- **S9** You can now detect personal email addresses in git history — PII leak in public commit history that survives even after source code is cleaned.
+
+### Fixes
+
 - ci: fix codex-autofix-dispatch marker mismatch — loop-prevention guard searched `codex-autofix-dispatch:` but write-block emitted `copilot-autofix-dispatch:`, so repeat CI failures on the same PR head spammed fresh `@copilot please fix` comments. Unified both to `copilot-autofix-dispatch:`.
+- npm: add `scripts.test` to `package.json` — `npm test` now works as the canonical local test entry point.
 
 ## v0.8.5 (2026-04-19)
 
