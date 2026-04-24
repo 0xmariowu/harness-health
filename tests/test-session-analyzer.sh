@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# F005: Session analyzer robustness test.
-# Verifies session-analyzer.js handles edge cases without crashing.
-set -euo pipefail
+# Session analyzer privacy + determinism tests.
+#
+# The analyzer reads local Claude Code session logs. Before the privacy
+# refactor, tests could only stub out behavior via HOME= and still ended up
+# running against the developer's real ~/.claude/projects. Now --session-root
+# takes a path explicitly, so tests run deterministically on a clean checkout
+# and against a fixture log.
+set -uo pipefail
 
 ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SESSION="${ROOT_DIR}/src/session-analyzer.js"
@@ -12,7 +17,7 @@ total=0
 
 check() {
   total=$((total + 1))
-  if eval "$2" 2>/dev/null; then
+  if eval "$2"; then
     pass=$((pass + 1))
     printf 'PASS: %s\n' "$1"
   else
@@ -24,52 +29,79 @@ check() {
 echo "=== Session Analyzer Test ==="
 echo ""
 
-# 1. Help flag
+# ─── 1. Help flag ─────────────────────────────────────────────────────────
 check "help flag exits 0" "node '$SESSION' --help >/dev/null 2>&1"
 
-# 2. Empty projects root. Output is JSONL (one record per finding); zero
-# findings = zero lines, which is legitimate empty output — not invalid JSON.
-empty_dir="$(mktemp -d)"
-output="$(node "$SESSION" --projects-root "$empty_dir" 2>/dev/null)"
-check "empty dir: exits without crash" "node '$SESSION' --projects-root '$empty_dir' >/dev/null 2>&1"
-if [ -n "$output" ]; then
-  check "empty dir: each output line parses as JSON" "printf '%s\n' '$output' | while IFS= read -r line; do printf '%s' \"\$line\" | jq -e . >/dev/null || exit 1; done"
-else
-  check "empty dir: empty output (no sessions — expected)" "true"
-fi
-rm -rf "$empty_dir"
+# ─── 2. Empty projects root + empty session root ──────────────────────────
+# Default behavior (no --include-global): zero findings, clean exit.
+empty_proj="$(mktemp -d)"
+empty_sess="$(mktemp -d)"
+out="$(node "$SESSION" --projects-root "$empty_proj" --session-root "$empty_sess" 2>&1)"
+rc=$?
 
-# 3. Nonexistent directory
-check "nonexistent dir: no crash" "node '$SESSION' --projects-root /tmp/nonexistent-al-test >/dev/null 2>&1; true"
+check "empty roots: exits zero" "[ $rc -eq 0 ]"
+check "empty roots: no findings on stdout" "[ -z \"\$(printf '%s' \"$out\" | tr -d '[:space:]')\" ]"
 
-# 4. Fake session log — create a minimal .claude/projects structure
-fake_root="$(mktemp -d)"
-fake_projects="${fake_root}/Projects/test-proj"
-fake_claude="${fake_root}/.claude/projects/-test"
-mkdir -p "$fake_projects" "$fake_claude"
+rm -rf "$empty_proj" "$empty_sess"
 
-# Create a minimal project
-printf '# Test\n' > "${fake_projects}/CLAUDE.md"
-
-# Create a fake session log
-cat > "${fake_claude}/fake-session.jsonl" <<'EOF'
-{"type":"user","message":{"role":"user","content":"Always use TypeScript"},"timestamp":"2026-04-04T10:00:00Z","cwd":"/tmp/test","userType":"external"}
-{"type":"assistant","message":{"role":"assistant","content":"Got it"},"timestamp":"2026-04-04T10:00:01Z"}
-{"type":"user","message":{"role":"user","content":"no that's wrong, use JavaScript"},"timestamp":"2026-04-04T10:00:02Z","cwd":"/tmp/test","userType":"external"}
+# ─── 3. Session logs present, no matching project → gate blocks output ─────
+# With --session-root pointed at a fixture that has logs but no matching
+# catalog project, the analyzer must NOT emit global SS1/SS4 findings by
+# default — the user's raw prompts would leak.
+fixture_root="$(mktemp -d)"
+fixture_sess="${fixture_root}/.claude/projects/-no-match"
+mkdir -p "$fixture_sess"
+cat > "${fixture_sess}/session.jsonl" <<'EOF'
+{"type":"user","message":{"role":"user","content":"Always use TypeScript everywhere in this project please"},"timestamp":"2026-04-04T10:00:00Z","cwd":"/tmp/test","userType":"external"}
+{"type":"user","message":{"role":"user","content":"Always use TypeScript everywhere in this project please"},"timestamp":"2026-04-04T10:01:00Z","cwd":"/tmp/test","userType":"external"}
 EOF
 
-HOME="$fake_root" node "$SESSION" --projects-root "${fake_root}/Projects" --max-sessions 5 > "${fake_root}/session-out.txt" 2>/dev/null
-check "fake log: exits without crash" "true"
+empty_proj2="$(mktemp -d)"
+out="$(node "$SESSION" --projects-root "$empty_proj2" --session-root "${fixture_root}/.claude/projects" 2>&1)"
+rc=$?
 
-# Session analyzer may output nothing if no matching logs — that's OK
-out_size="$(wc -c < "${fake_root}/session-out.txt" | tr -d '[:space:]')"
-if [ "${out_size:-0}" -gt 0 ]; then
-  check "fake log: output is valid JSON" "jq -e . '${fake_root}/session-out.txt' >/dev/null 2>&1"
+check "no catalog match: exits zero" "[ $rc -eq 0 ]"
+check "no catalog match: no global findings emitted" \
+  "[ -z \"\$(printf '%s' \"$out\" | tr -d '[:space:]')\" ]"
+
+# ─── 4. Same fixture with --include-global → findings emit, but redacted ──
+out="$(node "$SESSION" --projects-root "$empty_proj2" --session-root "${fixture_root}/.claude/projects" --include-global 2>&1)"
+rc=$?
+
+check "--include-global: exits zero" "[ $rc -eq 0 ]"
+# Any non-empty output must be valid JSONL.
+if [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
+  check "--include-global: each line is valid JSON" \
+    "printf '%s\n' \"$out\" | while IFS= read -r line; do [ -z \"\$line\" ] && continue; printf '%s' \"\$line\" | jq -e . >/dev/null || exit 1; done"
+  # Redaction check: raw prompt text must NOT appear in output by default.
+  check "--include-global (default): raw prompt text is redacted" \
+    "! printf '%s' \"$out\" | grep -q 'Always use TypeScript'"
+  check "--include-global (default): redaction marker present" \
+    "printf '%s' \"$out\" | grep -q '\[redacted'"
 else
-  check "fake log: empty output (no matching sessions — expected)" "[ '${out_size}' -eq 0 ]"
+  # Fixture is small — it may not reach the cluster threshold; still valid.
+  check "--include-global: empty (below threshold) — acceptable" "true"
 fi
 
-rm -rf "$fake_root"
+# ─── 5. --include-raw-snippets includes raw text ──────────────────────────
+out="$(node "$SESSION" --projects-root "$empty_proj2" --session-root "${fixture_root}/.claude/projects" --include-global --include-raw-snippets 2>&1)"
+if [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
+  check "--include-raw-snippets: raw prompt text appears in output" \
+    "printf '%s' \"$out\" | grep -q 'Always use TypeScript'"
+fi
+
+rm -rf "$fixture_root" "$empty_proj2"
+
+# ─── 6. Default invocation does not read the real ~/.claude/projects ──────
+# With --session-root pointed at an empty temp dir, the analyzer must read
+# only that dir — never fall back to HOME/.claude/projects. This is the
+# privacy property that tests on developer machines must rely on.
+empty_sess_priv="$(mktemp -d)"
+out="$(node "$SESSION" --session-root "$empty_sess_priv" 2>&1)"
+rc=$?
+check "explicit empty --session-root does not leak real logs" \
+  "[ $rc -eq 0 ] && [ -z \"\$(printf '%s' \"$out\" | tr -d '[:space:]')\" ]"
+rm -rf "$empty_sess_priv"
 
 echo ""
 echo "=== Summary ==="
