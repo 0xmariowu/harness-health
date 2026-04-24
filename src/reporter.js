@@ -32,6 +32,9 @@ function isObject(value) {
 }
 
 function bar(score, max, width = 20) {
+  if (score == null || !Number.isFinite(score)) {
+    return '\u2591'.repeat(width);
+  }
   const filled = Math.round((score / max) * width);
   return '\u2588'.repeat(filled) + '\u2591'.repeat(width - filled);
 }
@@ -39,14 +42,16 @@ function bar(score, max, width = 20) {
 function generateTerminalSummary(scores) {
   const lines = [];
   lines.push('');
-  lines.push(`\x1b[1m\u{1F3E5} AgentLint \u2014 Score: ${scores.total_score}/100\x1b[0m`);
+  const scopeSuffix = scores.score_scope === 'core' ? ' (core)' : '';
+  lines.push(`\x1b[1m\u{1F3E5} AgentLint \u2014 Score: ${scores.total_score}/100${scopeSuffix}\x1b[0m`);
   lines.push('');
 
   const dims = scores.dimensions || {};
   for (const [name, dim] of Object.entries(dims)) {
     const label = name.charAt(0).toUpperCase() + name.slice(1);
     const padded = label.padEnd(16);
-    lines.push(`  ${padded} ${bar(dim.score, dim.max)}  ${dim.score}/${dim.max}`);
+    const scoreLabel = dim.status === 'not_run' ? 'n/a' : `${dim.score}/${dim.max}`;
+    lines.push(`  ${padded} ${bar(dim.score, dim.max)}  ${scoreLabel}`);
   }
 
   if (scores.by_project && Object.keys(scores.by_project).length > 1) {
@@ -56,6 +61,10 @@ function generateTerminalSummary(scores) {
       .map(([name, dims]) => {
         let total = 0, weightSum = 0;
         for (const dim of Object.values(dims)) {
+          // Skip not_run dimensions — including them in the denominator would
+          // drag the per-project score down even though no evidence was
+          // gathered. Matches the contract in scorer.js calculateTotalScore.
+          if (!dim || dim.status !== 'run' || dim.score == null) continue;
           total += dim.score * dim.weight;
           weightSum += dim.weight;
         }
@@ -85,7 +94,8 @@ function generateMarkdownReport(scores, plan, date) {
   lines.push('| Dimension | Score | Max |');
   lines.push('|-----------|-------|-----|');
   for (const [name, dim] of Object.entries(dims)) {
-    lines.push(`| ${name} | ${dim.score} | ${dim.max} |`);
+    const shown = dim.status === 'not_run' ? 'n/a' : dim.score;
+    lines.push(`| ${name} | ${shown} | ${dim.max} |`);
   }
   lines.push('');
 
@@ -95,7 +105,8 @@ function generateMarkdownReport(scores, plan, date) {
     for (const [project, projectDims] of Object.entries(scores.by_project)) {
       lines.push(`### ${project}`);
       for (const [dimName, dim] of Object.entries(projectDims)) {
-        lines.push(`**${dimName}**: ${dim.score}/${dim.max}`);
+        const shown = dim.status === 'not_run' ? 'n/a' : `${dim.score}/${dim.max}`;
+        lines.push(`**${dimName}**: ${shown}`);
         for (const check of dim.checks || []) {
           const icon = check.score >= 0.8 ? '\u2713' : check.score >= 0.5 ? '\u26A0' : '\u2717';
           lines.push(`- ${icon} ${check.check_id}: ${check.name} \u2014 ${check.detail || ''}`);
@@ -551,8 +562,9 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
   for (const name of dimNames) {
     const dim = dims[name];
     const label = name.charAt(0).toUpperCase() + name.slice(1);
-    const pct = Math.round((dim.score / dim.max) * 100);
-    const color = dimColor(dim.score, dim.max);
+    const notRun = dim.status === 'not_run' || dim.score == null;
+    const pct = notRun ? 0 : Math.round((dim.score / dim.max) * 100);
+    const color = notRun ? '#9AA0A6' : dimColor(dim.score, dim.max);
     const checks = checksByDim[name] || [];
     const dFails = checks.filter(c => c.score < 0.5).length;
     const dWarns = checks.filter(c => c.score >= 0.5 && c.score < 0.8).length;
@@ -560,13 +572,17 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
     // Before ghost bar + delta
     let prevBarHtml = '';
     let deltaHtml = '<span class="delta-spacer"></span>';
-    if (hasBefore) {
-      const bd = (beforeScores.dimensions || {})[name] || { score: 0, max: dim.max };
-      const prevPct = Math.round((bd.score / bd.max) * 100);
-      prevBarHtml = `<div class="dim-bar-ghost" style="width:${prevPct}%"></div>`;
-      const diff = dim.score - bd.score;
-      if (diff > 0) deltaHtml = `<span class="delta-pill delta-up">+${diff}</span>`;
-      else if (diff < 0) deltaHtml = `<span class="delta-pill delta-down">${diff}</span>`;
+    // Skip delta when either side didn't run — `null - 8 = -8` in JS and would
+    // render a bogus negative delta for a dimension that was never measured.
+    if (hasBefore && !notRun) {
+      const bd = (beforeScores.dimensions || {})[name] || { score: 0, max: dim.max, status: 'run' };
+      if (bd.status !== 'not_run' && bd.score != null) {
+        const prevPct = Math.round((bd.score / bd.max) * 100);
+        prevBarHtml = `<div class="dim-bar-ghost" style="width:${prevPct}%"></div>`;
+        const diff = dim.score - bd.score;
+        if (diff > 0) deltaHtml = `<span class="delta-pill delta-up">+${diff}</span>`;
+        else if (diff < 0) deltaHtml = `<span class="delta-pill delta-down">${diff}</span>`;
+      }
     }
 
     // Issue count pills
@@ -596,14 +612,19 @@ function generateHtmlReport(scores, beforeScores, plan, date) {
         </details>`;
     }
 
+    const scoreLabel = notRun ? 'n/a' : String(dim.score);
+    const maxLabel = notRun ? '' : `<span class="dim-max">/${dim.max}</span>`;
+    const issuesLabel = notRun
+      ? '<span class="issue-pill issue-warn" title="Optional analyzer — opt-in">opt-in</span>'
+      : issuePills;
     dimRows += `<details class="dim">
       <summary class="dim-row">
         <span class="dim-label">${label}</span>
         <div class="dim-bar">${prevBarHtml}<div class="dim-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-        <span class="dim-score" style="color:${color}">${dim.score}</span>
-        <span class="dim-max">/${dim.max}</span>
+        <span class="dim-score" style="color:${color}">${scoreLabel}</span>
+        ${maxLabel}
         ${deltaHtml}
-        <div class="dim-issues">${issuePills}</div>
+        <div class="dim-issues">${issuesLabel}</div>
       </summary>
       <div class="dim-checks">${checkItems}</div>
     </details>`;
