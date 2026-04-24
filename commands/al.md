@@ -182,36 +182,39 @@ covered more than one project, pick exactly one repo for this fix run —
 users can re-run `/al` against other projects afterwards.
 
 ```bash
-UNIQUE_PROJECTS="$(jq -r '.project' "$RUN_DIR/scan.jsonl" | sort -u)"
-PROJECT_COUNT="$(printf '%s\n' "$UNIQUE_PROJECTS" | grep -c .)"
+# project_path is the canonical identity (avoids basename collisions
+# like org1/app vs org2/app). Fall back to `.project` only for legacy
+# JSONL records that predate the project_path schema.
+UNIQUE_PATHS="$(jq -r '.project_path // .project' "$RUN_DIR/scan.jsonl" | sort -u)"
+PROJECT_COUNT="$(printf '%s\n' "$UNIQUE_PATHS" | grep -c .)"
 ```
 
-If `PROJECT_COUNT` equals `1`: use that project automatically, set
-`SELECTED_PROJECT="$UNIQUE_PROJECTS"`, skip AskUserQuestion.
+If `PROJECT_COUNT` equals `1`: use that path automatically, set
+`SELECTED_PATH="$UNIQUE_PATHS"`, skip AskUserQuestion.
 
-If `PROJECT_COUNT` is greater than `1`: AskUserQuestion with the unique
-project list as options (one option per project basename, ordered by
-the number of findings attached to that project — most-findings first).
-Record the user's pick in `SELECTED_PROJECT`.
-
-Resolve `SELECTED_PROJECT` (a basename) back to its absolute path by
-re-scanning `PROJECTS_ROOT` for its `.git` directory. The scanner's
-discover logic uses `maxdepth 4`, so mirror that here:
+If `PROJECT_COUNT` is greater than `1`: AskUserQuestion with **one
+option per absolute path**. Label each option with the basename plus
+a short parent-dir suffix for disambiguation so colliding basenames
+stay distinguishable (e.g. `app (org1/app)` vs `app (org2/app)`).
+Record the user's pick in `SELECTED_PATH` (absolute).
 
 ```bash
-PROJECT_DIR="$(find "$PROJECTS_ROOT" -maxdepth 4 -type d -name '.git' 2>/dev/null \
-  | while IFS= read -r gd; do \
-      p="$(dirname "$gd")"; \
-      [ "$(basename "$p")" = "$SELECTED_PROJECT" ] && printf '%s\n' "$p" && break; \
-    done | head -1)"
-if [ -z "$PROJECT_DIR" ]; then
-  echo "Error: cannot resolve project '$SELECTED_PROJECT' under '$PROJECTS_ROOT'" >&2
+PROJECT_DIR="$SELECTED_PATH"
+SELECTED_PROJECT="$(basename "$SELECTED_PATH")"
+if [ ! -d "$PROJECT_DIR" ]; then
+  echo "Error: selected project path does not exist: $PROJECT_DIR" >&2
   exit 1
 fi
 ```
 
-Then narrow the plan to items that touch the selected project so
-`fixer.js` only sees work it can actually perform.
+No `find` + basename match — that was the prior footgun: two repos
+with the same basename made the resolver pick whichever came back
+first from the walk and the fix was applied to the wrong repo.
+
+Then narrow the plan to items that touch the selected project **by
+path**, not basename. `plan-generator.js` items carry `project_path`
+already; the filter prefers it and falls back to basename only for
+legacy records without a path.
 
 `plan-generator.js` emits two parallel structures: the top-level
 `items` array (flat, one entry per project+check, consumed by
@@ -222,12 +225,18 @@ another project's fix to `$PROJECT_DIR` — a real data-corruption risk
 for mutating checks (F5, I5, W11).
 
 ```bash
-jq --arg p "$SELECTED_PROJECT" '
-  .items |= map(select(.project == $p)) |
+jq --arg pp "$SELECTED_PATH" --arg p "$SELECTED_PROJECT" '
+  .items |= map(select(
+    (.project_path // null) == $pp
+    or (.project_path == null and .project == $p)
+  )) |
   .grouped |= (
     to_entries
     | map(
-        .value.items |= map(select(.projects | index($p))) |
+        .value.items |= map(select(
+          ((.project_paths // []) | index($pp) != null)
+          or (((.project_paths // []) | length) == 0 and ((.projects // []) | index($p) != null))
+        )) |
         .value.count = (.value.items | length)
       )
     | from_entries
@@ -235,6 +244,11 @@ jq --arg p "$SELECTED_PROJECT" '
   .total_items = (.items | length)
 ' "$RUN_DIR/plan.json" > "$RUN_DIR/plan.filtered.json"
 ```
+
+The `.project_path == $pp` comparator is the canonical selector; the
+basename fallback keeps legacy records (pre-project_path scorer
+output, extended analyzers that haven't been upgraded yet) working
+during the migration window.
 
 The filter uses `.project == $p` (single string) on top-level items
 and `.projects | index($p)` (array membership) on grouped merged items

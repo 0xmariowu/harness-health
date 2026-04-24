@@ -418,17 +418,47 @@ function main() {
         byCheck[item.check_id] = {
           ...item,
           projects: [item.project],
+          // project_paths parallels projects so /al Step 5c (and any other
+          // consumer) can filter grouped items by absolute path, not just
+          // by basename. Without this, colliding basenames like org1/app
+          // + org2/app collapse in the grouped view and the user picks
+          // the wrong repo.
+          project_paths: [item.project_path || null],
+          per_project: [{
+            project: item.project,
+            project_path: item.project_path || null,
+            measured_value: item.measured_value,
+            description: item.description,
+          }],
           item_ids: [item.id],
-          per_project: [{ project: item.project, measured_value: item.measured_value, description: item.description }],
           project_count: 1,
         };
       } else {
         const merged = byCheck[item.check_id];
         merged.projects.push(item.project);
+        merged.project_paths.push(item.project_path || null);
         merged.item_ids.push(item.id);
-        merged.per_project.push({ project: item.project, measured_value: item.measured_value, description: item.description });
+        merged.per_project.push({
+          project: item.project,
+          project_path: item.project_path || null,
+          measured_value: item.measured_value,
+          description: item.description,
+        });
         merged.project_count++;
-        merged.project = merged.projects.join(', ');
+        // Display label prefers path-tail (e.g. "org1/app") when the same
+        // basename appears more than once in the merge; otherwise use the
+        // basename alone. Avoids the "app, app" ambiguity.
+        const basenameCounts = merged.projects.reduce((acc, p) => {
+          acc[p] = (acc[p] || 0) + 1; return acc;
+        }, {});
+        const labels = merged.projects.map((p, i) => {
+          if (basenameCounts[p] <= 1) return p;
+          const pp = merged.project_paths[i];
+          if (!pp) return p;
+          const parts = pp.replace(/\/+$/, '').split('/').filter(Boolean);
+          return parts.length >= 2 ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}` : p;
+        });
+        merged.project = labels.join(', ');
 
         // Build description based on check type
         if (SUMMABLE_CHECKS.has(item.check_id)) {
