@@ -365,15 +365,21 @@ function referenceExists(projectDir, candidate) {
   if (!looksLikeReference(normalized)) return true;
 
   const raw = normalized;
-  if (path.isAbsolute(raw)) {
-    return fs.existsSync(raw);
-  }
-
   const normalizedPath = raw.replace(/\\/g, '/');
-  return (
-    fs.existsSync(path.join(projectDir, normalizedPath)) || // nosemgrep: path-join-resolve-traversal
-    fs.existsSync(path.join(process.cwd(), normalizedPath)) // nosemgrep: path-join-resolve-traversal
-  );
+
+  // Align with scanner.sh F5 semantics (src/scanner.sh:390-406):
+  //   - absolute paths are never considered valid repo references
+  //     (they leak developer-specific paths and are not portable)
+  //   - parent-dir traversal is rejected (prevents "../../../etc/passwd"
+  //     patterns from resolving just because the fixer happens to run
+  //     from a shell where those paths exist)
+  //   - only files inside projectDir count; don't probe process.cwd(),
+  //     scanner doesn't either and doing so produces different results
+  //     depending on where fixer is invoked from.
+  if (path.isAbsolute(raw)) return false;
+  if (/(^|\/)\.\.(\/|$)/.test(normalizedPath)) return false;
+
+  return fs.existsSync(path.join(projectDir, normalizedPath)); // nosemgrep: path-join-resolve-traversal
 }
 
 function removeLinesWithBrokenReferences(filePath, projectDir) {
