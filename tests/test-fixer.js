@@ -48,11 +48,23 @@ function runFixer(planItems, projectDir, selectedIds) {
     input: planJson,
   });
 
-  if (result.status !== 0) {
+  // Fixer exits 1 when any executed item has status: 'failed' (so CI
+  // doesn't mistake a "no plan item found" / "file already exists" report
+  // for success). Parse first, then fail only if the output itself is
+  // unparseable — tests that deliberately exercise failed-status paths
+  // need the parsed output.
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch (_e) {
+    throw new Error(`fixer exited ${result.status}, unparseable stdout: ${result.stderr}`);
+  }
+  const anyFailed = Array.isArray(parsed.executed)
+    && parsed.executed.some((e) => e && e.status === 'failed');
+  if (result.status !== 0 && !anyFailed) {
     throw new Error(`fixer exited ${result.status}: ${result.stderr}`);
   }
-
-  return JSON.parse(result.stdout);
+  return parsed;
 }
 
 // --- Auto-fix F5: remove broken references ---

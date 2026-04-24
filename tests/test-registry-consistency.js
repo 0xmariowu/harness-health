@@ -527,5 +527,27 @@ runTest('terminal reporter shows (core+extended) suffix when extended dims ran',
     'reporter.js terminal path must branch on score_scope === "core+extended" and output " (core+extended)"');
 });
 
+runTest('fixer.js exits non-zero when any executed item reports failure', () => {
+  // Previously run() always process-exited 0, so CI scripts treated a
+  // `{"status":"failed","detail":"No plan item found for check ID: Z9"}`
+  // report as success and proceeded to a "verify" stage assuming the
+  // fix landed. Exit 1 on any failed item.
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'fixer.js'), 'utf8');
+  assert.match(src, /executed\.some\(\(e\)\s*=>\s*e\s*&&\s*e\.status\s*===\s*['"]failed['"]\)/,
+    'fixer.js must check executed[] for failed status');
+  assert.match(src, /if\s*\(anyFailed\)\s*process\.exit\(1\)/,
+    'fixer.js must process.exit(1) when any executed item failed');
+});
+
+runTest('setup.sh --protect fails loudly and only claims protection when applied', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'setup.sh'), 'utf8');
+  assert.match(src, /PROTECT_APPLIED=false/,
+    'setup.sh must introduce a PROTECT_APPLIED flag (defaults false)');
+  assert.match(src, /die "--protect requested but/,
+    'setup.sh must die loud when protect.sh is missing, not silently skip');
+  assert.match(src, /\$PROTECT_APPLIED["]?\s*==\s*["]?true[\s\S]{0,120}branch protection/,
+    'setup.sh summary must gate the branch-protection bullet on PROTECT_APPLIED');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

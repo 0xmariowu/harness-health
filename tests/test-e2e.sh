@@ -504,9 +504,12 @@ else
 fi
 
 # fixer with invalid item ID
+# fixer now exits 1 when any executed item has status "failed" (see src/fixer.js).
+# Use `|| true` so `set -e` + newer bash's errexit-in-command-substitution does
+# not abort the script before we inspect the JSON output.
 invalid_fixer="$(echo '{"items":[{"id":1,"check_id":"F5","fix_type":"auto"}]}' | node "${FIXER}" \
   --project-dir "${PROJECTS}/project-alpha" \
-  --items "999" 2>/dev/null)"
+  --items "999" 2>/dev/null || true)"
 if echo "${invalid_fixer}" | jq -e '.executed[0].status == "failed"' >/dev/null 2>&1; then
   pass "fixer handles invalid item ID gracefully"
 else

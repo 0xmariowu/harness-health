@@ -673,15 +673,25 @@ else
 fi
 
 # --- 6. Branch protection (optional) ---
+PROTECT_APPLIED=false
 if [[ "$PROTECT" == true ]]; then
   printf "\n${BOLD}Setting up branch protection...${NC}\n"
+  protect_script="$TEMPLATE_DIR/scripts/protect.sh"
+  if [[ ! -x "$protect_script" ]]; then
+    # Fail loud on a missing helper — previously `|| warn` swallowed this
+    # silently and the final summary still claimed branch protection had
+    # been set. That's a false functional promise: users who passed
+    # --protect never got what they asked for.
+    die "--protect requested but $protect_script is missing; cannot set branch protection"
+  fi
   # Pass the owner we already detected so protect.sh doesn't re-query gh.
   protect_args=(--repo "$PROJECT_NAME" --lang "$LANG")
   [[ -n "$AUTO_OWNER" ]] && protect_args+=(--owner "$AUTO_OWNER")
-  # Best-effort: protect.sh warns + exits 0 on missing auth/repo, so bootstrap
-  # shouldn't abort here. The `|| true` guards against any unforeseen exit.
-  "$TEMPLATE_DIR/scripts/protect.sh" "${protect_args[@]}" || \
+  if "$protect_script" "${protect_args[@]}"; then
+    PROTECT_APPLIED=true
+  else
     warn "branch protection setup skipped (see message above)"
+  fi
 fi
 
 # --- 7. Summary ---
@@ -712,7 +722,7 @@ fi
 printf "  • CODEOWNERS, PR template, issue templates, SECURITY.md\n"
 printf "  • release workflow (tag v* → GitHub Release)\n"
 printf "  • docs/ship-boundary.md (file-provenance ship/local/never rules)\n"
-if [[ "$PROTECT" == true ]]; then
+if [[ "$PROTECT_APPLIED" == true ]]; then
   printf "  • branch protection (required status checks on main)\n"
 fi
 if [[ -z "$AUTO_OWNER" ]]; then

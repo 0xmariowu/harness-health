@@ -857,6 +857,15 @@ function run() {
   }
 
   process.stdout.write(JSON.stringify({ executed, backup_dir: backupDir }, null, 2) + '\n');
+
+  // Exit non-zero when any executed item reports failure. Previously the
+  // process always exited 0, so CI scripts / local callers treated a
+  // report like `{"status":"failed","detail":"No plan item found for
+  // check ID: Z9"}` as success. Agent-driven workflows (`/al`, automated
+  // fix-then-verify pipelines) then moved on to the next stage under
+  // the assumption the fix worked.
+  const anyFailed = executed.some((e) => e && e.status === 'failed');
+  if (anyFailed) process.exit(1);
 }
 
 run();
