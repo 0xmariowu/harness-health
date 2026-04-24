@@ -66,21 +66,43 @@ jobs:
             exit 1
           fi
 
-          # Every number adjacent to "check" or "dimension" in the user-
-          # facing docs must match release-metadata. Historical CHANGELOGs
-          # are excluded because old entries legitimately reference older
-          # counts.
+          # Derive core/extended counts from evidence.json so the drift
+          # check tolerates legitimate core/extended/total phrasings like
+          # "51 core checks + 7 extended" alongside the total count.
+          # Without this, any `N dimensions` that doesn't equal ACTUAL_DIMS
+          # was flagged as stale — including the correct "6 core dimensions"
+          # phrasing every live doc uses. See post-remediation-deep-review
+          # P0-4.
+          CORE_CHECKS=$(python3 -c "
+          import json
+          ev = json.load(open('standards/evidence.json'))['checks']
+          print(sum(1 for c in ev.values() if c.get('scope') == 'core'))
+          ")
+          EXT_CHECKS=$(python3 -c "
+          import json
+          ev = json.load(open('standards/evidence.json'))['checks']
+          print(sum(1 for c in ev.values() if c.get('scope') == 'extended'))
+          ")
+          CORE_DIMS=6
+          EXT_DIMS=2
+
+          ALLOWED_CHECKS="$ACTUAL_CHECKS|$CORE_CHECKS|$EXT_CHECKS"
+          ALLOWED_DIMS="$ACTUAL_DIMS|$CORE_DIMS|$EXT_DIMS"
+
+          echo "Allowed check counts near the word 'check[s]': $ALLOWED_CHECKS"
+          echo "Allowed dim counts near the word 'dimension[s]': $ALLOWED_DIMS"
+
           drift=0
           for f in README.md docs/content/intro.md; do
             [ -f "$f" ] || continue
-            bad_checks=$(grep -oE "[0-9]+ check[s]?[^a-zA-Z0-9]" "$f" | grep -oE "^[0-9]+" | sort -u | grep -vx "$ACTUAL_CHECKS" || true)
-            bad_dims=$(grep -oE "[0-9]+ dimension[s]?[^a-zA-Z0-9]" "$f" | grep -oE "^[0-9]+" | sort -u | grep -vx "$ACTUAL_DIMS" || true)
+            bad_checks=$(grep -oE "[0-9]+ check[s]?[^a-zA-Z0-9]" "$f" | grep -oE "^[0-9]+" | sort -u | grep -vxE "$ALLOWED_CHECKS" || true)
+            bad_dims=$(grep -oE "[0-9]+ dimension[s]?[^a-zA-Z0-9]" "$f" | grep -oE "^[0-9]+" | sort -u | grep -vxE "$ALLOWED_DIMS" || true)
             if [ -n "$bad_checks" ]; then
-              echo "::error::$f has stale check count(s): $bad_checks (expected $ACTUAL_CHECKS)"
+              echo "::error::$f has stale check count(s): $bad_checks (allowed: $ALLOWED_CHECKS)"
               drift=1
             fi
             if [ -n "$bad_dims" ]; then
-              echo "::error::$f has stale dimension count(s): $bad_dims (expected $ACTUAL_DIMS)"
+              echo "::error::$f has stale dimension count(s): $bad_dims (allowed: $ALLOWED_DIMS)"
               drift=1
             fi
           done
@@ -89,7 +111,7 @@ jobs:
             exit 1
           fi
 
-          echo "Validated: $ACTUAL_CHECKS checks, $ACTUAL_DIMS dimensions (metadata + README + intro in sync)"
+          echo "Validated: $ACTUAL_CHECKS total ($CORE_CHECKS core + $EXT_CHECKS extended), $ACTUAL_DIMS dimensions"
 
       - name: Extract changelog for this version
         if: steps.check.outputs.exists == 'false'
