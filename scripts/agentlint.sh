@@ -95,17 +95,43 @@ case "${1:-}" in
     # --sarif-include-all) that the GitHub Action already exposed. Unknown
     # flags reach the scanner and fail loudly there — the transactional
     # pipeline (P0-1) guarantees no fake score report leaks to stdout.
+    #
+    # Two target modes:
+    #   (default)                     scan current directory `.`
+    #   --project-dir PATH            scan that single repo
+    #   --all [--projects-root PATH]  multi-project auto-discovery
+    #                                 (scanner's PROJECTS_ROOT env-var path)
+    #
+    # Before this flag existed, `agentlint check` with no target silently
+    # fell through to scanner's auto-discovery of `~/Projects`, which
+    # surprised users running inside unrelated repos.
     scanner_args=()
     reporter_args=()
+    has_project_dir=0
+    want_all=0
+    projects_root=""
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --project-dir)
           require_value "$1" "${2-}"
+          has_project_dir=1
           scanner_args+=("$1" "$2")
           shift
           ;;
         --project-dir=*)
+          has_project_dir=1
           scanner_args+=("$1")
+          ;;
+        --all)
+          want_all=1
+          ;;
+        --projects-root)
+          require_value "$1" "${2-}"
+          projects_root="$2"
+          shift
+          ;;
+        --projects-root=*)
+          projects_root="${1#--projects-root=}"
           ;;
         --format|--output-dir|--fail-below|--before)
           require_value "$1" "${2-}"
@@ -121,6 +147,24 @@ case "${1:-}" in
       esac
       shift
     done
+
+    if [[ "$want_all" -eq 1 && "$has_project_dir" -eq 1 ]]; then
+      echo "agentlint: --all and --project-dir are mutually exclusive" >&2
+      exit 1
+    fi
+
+    if [[ "$want_all" -eq 1 ]]; then
+      # Multi-project auto-discovery. scanner reads PROJECTS_ROOT from env
+      # (not --project-dir; that's single-project semantics).
+      if [[ -n "$projects_root" ]]; then
+        export PROJECTS_ROOT="$projects_root"
+      fi
+    elif [[ "$has_project_dir" -eq 0 ]]; then
+      # Single-project default: current directory. Matches README examples
+      # and what `fix` already does.
+      scanner_args+=("--project-dir" ".")
+    fi
+
     run_scan "${scanner_args[@]+"${scanner_args[@]}"}" || exit $?
     node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
       | node "${SCRIPT_DIR}/../src/reporter.js" "${reporter_args[@]+"${reporter_args[@]}"}"
@@ -198,7 +242,11 @@ Commands:
           agentlint setup --lang <ts|python|node> [--visibility public|private] <path>
 
   check   Diagnose your repo's AI-friendliness (51 core checks + 7 opt-in)
-          agentlint check [--project-dir <path>]
+          agentlint check                          # scan current directory
+          agentlint check --project-dir <path>     # scan one specific repo
+          agentlint check --all                    # multi-project discovery
+                          [--projects-root <path>] # (default: ~/Projects)
+          Reporter flags (any mode):
                           [--format <terminal|md|jsonl|html|sarif|all>]
                           [--output-dir <path>]      # used when format != terminal
                           [--fail-below <0-100>]     # exit non-zero below threshold
@@ -212,7 +260,9 @@ Commands:
 
 Examples:
   agentlint setup --lang python ~/Projects/my-repo
+  agentlint check                              # current repo
   agentlint check --project-dir ~/Projects/my-repo
+  agentlint check --all --projects-root ~/Projects
   agentlint fix   --project-dir ~/Projects/my-repo
 EOF
     ;;
