@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/al-scanner-test.XXXXXX")"
 WITH_PROJECT="${TEMP_ROOT}/with-claude"

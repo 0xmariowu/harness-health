@@ -3,7 +3,7 @@
 # Simulates: fresh machine, git clone, run full pipeline.
 set -euo pipefail
 
-ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "Building Docker test image..."
 docker build -t al-e2e -f "${ROOT_DIR}/tests/Dockerfile.e2e" "${ROOT_DIR}"
