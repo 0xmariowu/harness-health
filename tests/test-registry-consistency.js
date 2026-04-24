@@ -144,5 +144,21 @@ runTest('every check dimension is defined in weights.json', () => {
   }
 });
 
+runTest('accuracy compare-results.js derives ALL_CHECKS from evidence.json', () => {
+  // Guard against a hardcoded ALL_CHECKS array that silently drifts from
+  // evidence.json. Must read evidence.json at runtime and filter to
+  // scope === "core" (extended dims come from other analyzers).
+  const src = fs.readFileSync(
+    path.join(ROOT, 'tests', 'accuracy', 'compare-results.js'),
+    'utf8',
+  );
+  assert.match(src, /evidence\.json/,
+    'compare-results.js must reference evidence.json as the check source');
+  assert.match(src, /scope\s*===\s*['"]core['"]/,
+    'compare-results.js must filter to scope === "core"');
+  assert.doesNotMatch(src, /const ALL_CHECKS\s*=\s*\[\s*['"]F1['"]/,
+    'compare-results.js must not re-hardcode ALL_CHECKS — derive from evidence.json');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
