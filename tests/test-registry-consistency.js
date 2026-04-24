@@ -379,5 +379,20 @@ runTest('/al Deep conversion uses per-project file names, not shared literals', 
     'Deep conversion must use per-project file names like "${P}.d1-ai.json"');
 });
 
+runTest('deep-analyzer --format-result validates --check against D1/D2/D3', () => {
+  // Previously `expectedKey && !Array.isArray(...)` — when --check was
+  // missing or anything other than D1/D2/D3, expectedKey was undefined
+  // and the whole condition short-circuited false, letting invalid
+  // checks like D4 / d1 / garbage produce empty output with exit 0.
+  // Validate the check id up front with an explicit allowlist.
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'deep-analyzer.js'), 'utf8');
+  assert.match(src, /VALID_CHECK_IDS\s*=\s*new Set\(\[['"]D1['"],\s*['"]D2['"],\s*['"]D3['"]\]\)/,
+    'deep-analyzer.js must define a VALID_CHECK_IDS allowlist');
+  assert.match(src, /!VALID_CHECK_IDS\.has\(checkId\)/,
+    'deep-analyzer.js must reject check IDs outside the allowlist before formatting');
+  assert.doesNotMatch(src, /const checkId = args\[args\.indexOf\('--check'\) \+ 1\] \|\| 'D1'/,
+    'deep-analyzer.js must not default missing --check to D1 (hides the bug)');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
