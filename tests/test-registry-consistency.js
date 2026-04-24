@@ -240,5 +240,23 @@ runTest('/al filter narrows top-level items, not just grouped display', () => {
     'al.md must also filter the grouped display tree for UI consistency');
 });
 
+runTest('action.yml fails closed on plan-generator errors and invalid fail-below', () => {
+  // Two historical footguns in action.yml:
+  //   1. `plan-generator.js 2>/dev/null || echo '{"items":[]}' > ...` silently
+  //      converted any plan-generator failure (malformed scores, crash) into
+  //      a fake empty plan — CI stayed green despite a real product failure.
+  //   2. `[ "${AL_FAIL_BELOW}" -gt 0 ]` with non-integer values like "abc" or
+  //      "60.5" emits "integer expression expected" to stderr and then the
+  //      comparison evaluates to false — silently accepting invalid input.
+  //      `101` also passed though docs say range is 0-100.
+  const yml = fs.readFileSync(path.join(ROOT, 'action.yml'), 'utf8');
+  assert.doesNotMatch(yml, /plan-generator\.js.*2>\/dev\/null.*\|\|/,
+    'action.yml must not swallow plan-generator stderr + fall back to empty plan');
+  assert.match(yml, /AgentLint plan generation failed[\s\S]{0,200}exit 1/,
+    'action.yml plan step must emit an error + exit 1 on plan-generator failure');
+  assert.match(yml, /\/\^\(100\|\[1-9\]\?\[0-9\]\)\$\//,
+    'action.yml Threshold check must validate fail-below against the 0-100 integer regex');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
