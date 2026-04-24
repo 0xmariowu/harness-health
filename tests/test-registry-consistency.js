@@ -639,5 +639,26 @@ runTest('README documents the postinstall design choice (v1.x)', () => {
     'README_CN.md must show the --ignore-scripts escape hatch');
 });
 
+runTest('accuracy workflow fails closed on missing corpus + scanner failures', () => {
+  // Prior behavior: `found=false` + `if found == 'true'` skip chain turned
+  // a missing corpus into a green no-op, and `scanner.sh ... 2>/dev/null
+  // || true` swallowed per-repo scanner crashes. PRs that touched scanner
+  // rules could land with accuracy effectively unchecked.
+  const yml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'accuracy.yml'), 'utf8');
+  assert.doesNotMatch(yml, /found=false[\s\S]{0,50}outputs/,
+    'accuracy workflow must not silently skip on missing corpus — fail the job instead');
+  // Actual scanner loop (not the explanatory comment block) must not swallow
+  // failures. Find the run block and assert no active `|| true` on scanner.
+  const scannerStep = yml.slice(yml.indexOf('Run scanner on all repos'));
+  // Allow `|| true` only inside comment lines (leading `#` after indent).
+  const activeOrTrue = scannerStep
+    .split(/\r?\n/)
+    .some((ln) => ln.includes('|| true') && !ln.trimStart().startsWith('#'));
+  assert.ok(!activeOrTrue,
+    'accuracy workflow scanner loop must not swallow per-repo failures with `|| true`');
+  assert.match(yml, /Scanner failed on \$fails\/\$total repos/,
+    'accuracy workflow must report per-repo failure count and fail beyond a threshold');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
