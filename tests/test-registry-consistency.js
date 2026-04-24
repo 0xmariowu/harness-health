@@ -313,5 +313,20 @@ runTest('fixer.js F5 reference resolution aligns with scanner semantics', () => 
     'referenceExists must not probe process.cwd() — scanner stays inside projectDir only');
 });
 
+runTest('agentlint doctor command exists and checks required deps', () => {
+  // Fresh users can install successfully then fail on first scan with a
+  // missing dependency. Doctor surfaces the problem upfront: `node 20+`,
+  // `bash`, `jq`, `git`, with platform-specific install hints.
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'agentlint.sh'), 'utf8');
+  assert.match(src, /^\s*doctor\)\s*$/m,
+    'agentlint.sh must dispatch a `doctor` subcommand');
+  for (const dep of ['node', 'bash', 'jq', 'git']) {
+    assert.match(src, new RegExp(`check_dep\\s+${dep}\\b`),
+      `agentlint doctor must check for ${dep}`);
+  }
+  assert.match(src, /node_major.*-lt\s+20/,
+    'agentlint doctor must enforce Node 20+ (package.json engines contract)');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

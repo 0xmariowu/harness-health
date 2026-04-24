@@ -4,8 +4,8 @@
 # Usage:
 #   agentlint setup --lang <ts|python|node> [options] <project-path>
 #   agentlint check [--project-dir PATH]
-#   agentlint fix   [--project-dir PATH]
-#   agentlint fix <CHECK_ID> [--project-dir PATH]
+#   agentlint fix   <CHECK_ID> [--project-dir PATH]
+#   agentlint doctor
 #   agentlint help
 
 set -euo pipefail
@@ -253,6 +253,61 @@ USAGE
       || python3 -c "import json; print(json.load(open('$_DIR/../package.json'))['version'])" 2>/dev/null \
       || echo "unknown"
     ;;
+  doctor)
+    # Environment preflight: agentlint check silently fails without jq on
+    # macOS (brew doesn't ship it by default) and silently fails without
+    # bash ≥ 4 on Windows without WSL/Git Bash. doctor lists every required
+    # dependency, its state, and platform-specific install hints. No scan
+    # runs; just diagnostic output. Exit 1 if any required dep is missing.
+    missing=0
+    platform="$(uname -s 2>/dev/null || echo unknown)"
+    printf 'AgentLint doctor — environment preflight\n\n'
+
+    check_dep() {
+      local name="$1"
+      local version_cmd="$2"
+      local hint_mac="$3"
+      local hint_linux="$4"
+      local hint_win="$5"
+      if command -v "$name" >/dev/null 2>&1; then
+        local ver
+        ver="$(eval "$version_cmd" 2>/dev/null | head -1 || echo "version unknown")"
+        printf '  \033[32m✓\033[0m %-8s  %s\n' "$name" "$ver"
+      else
+        missing=$((missing + 1))
+        printf '  \033[31m✗\033[0m %-8s  not found on PATH\n' "$name"
+        case "$platform" in
+          Darwin) printf '            install: %s\n' "$hint_mac" ;;
+          Linux)  printf '            install: %s\n' "$hint_linux" ;;
+          MINGW*|MSYS*|CYGWIN*) printf '            install: %s\n' "$hint_win" ;;
+          *)      printf '            install: %s\n' "$hint_linux" ;;
+        esac
+      fi
+    }
+
+    check_dep node   'node --version'   'brew install node'        'sudo apt-get install -y nodejs'      'https://nodejs.org'
+    check_dep bash   'bash --version'   'brew install bash'        'sudo apt-get install -y bash'        'install Git for Windows or WSL'
+    check_dep jq     'jq --version'     'brew install jq'          'sudo apt-get install -y jq'          'choco install jq'
+    check_dep git    'git --version'    'xcode-select --install'   'sudo apt-get install -y git'         'https://git-scm.com'
+
+    # Node version must be >= 20 (see package.json engines).
+    if command -v node >/dev/null 2>&1; then
+      node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+      if [ "${node_major:-0}" -lt 20 ]; then
+        missing=$((missing + 1))
+        printf '  \033[31m✗\033[0m node      version %s is below the required Node 20+\n' "$node_major"
+        printf '            upgrade: %s\n' "see nodejs.org or nvm"
+      fi
+    fi
+
+    printf '\n'
+    if [ "$missing" -eq 0 ]; then
+      printf '\033[32mAll required dependencies present.\033[0m\n'
+      exit 0
+    fi
+    printf '\033[31m%d missing dependency(ies). Install the listed packages and re-run.\033[0m\n' "$missing"
+    exit 1
+    ;;
   help|--help|-h|"")
     cat <<'EOF'
 agentlint — AI-native development toolkit
@@ -273,8 +328,11 @@ Commands:
                           [--before <scores.json>]   # HTML delta vs a previous run
 
   fix     Auto-fix issues found by check
-          agentlint fix [--project-dir <path>]
           agentlint fix <CHECK_ID>  Fix a specific check directly (e.g. agentlint fix W11)
+          agentlint fix <CHECK_ID> --project-dir <path>
+
+  doctor  Preflight check — verify node 20+, bash, jq, git are on PATH
+          agentlint doctor                         # exits 0 if all present
 
   help    Show this help
 
