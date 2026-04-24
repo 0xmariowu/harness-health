@@ -203,23 +203,39 @@ Add results to the fix plan as `guided` items in the 🟡 medium section.
 
 ## Session Analysis (if selected in Step 1)
 
+**Privacy note before running**: session analysis reads your local Claude
+Code session logs at `~/.claude/projects/`. By default, the analyzer
+**redacts** raw prompt text in its output (replaces it with a short hash
++ length + occurrence count) so findings are safe to paste into issues,
+reports, or shared files. Pass `--include-raw-snippets` if you want to
+see the original text locally. Confirm with the user before enabling
+raw-snippet mode, especially if the report will leave their machine.
+
 After Step 4, before Step 5:
 
 ```bash
-node "$AL_DIR/src/session-analyzer.js" --max-sessions 30 > /tmp/al-session.jsonl
+node "$AL_DIR/src/session-analyzer.js" \
+  --projects-root "$PROJECTS_ROOT" \
+  --session-root ~/.claude/projects \
+  --max-sessions 30 \
+  > /tmp/al-session.jsonl
 ```
 
-Present findings inline:
-```
-📊 Session Analysis (30 sessions):
+If the user opted into raw snippets:
 
-💡 Should be in your CLAUDE.md:
-  1. "don't modify lockfile" — you said it 7 times
-  2. "use scripts/committer" — you said it 5 times
-
-⚠️ Rules that may not be working:
-  1. "Don't stage the entire repo" — 13 potential violations in 3 sessions
+```bash
+node "$AL_DIR/src/session-analyzer.js" \
+  --projects-root "$PROJECTS_ROOT" \
+  --session-root ~/.claude/projects \
+  --max-sessions 30 \
+  --include-raw-snippets \
+  > /tmp/al-session.jsonl
 ```
+
+Present findings inline. With default redaction, the `instruction` and
+`rule` fields show `[redacted <N>ch #<hash>]` — the hash is stable, so
+users can still see "this instruction came up 7 times" without the
+prompt itself appearing.
 
 Session findings become fix items:
 - Repeated instructions → `guided` (review + add rule to CLAUDE.md manually)
