@@ -87,7 +87,8 @@ function generateMarkdownReport(scores, plan, date) {
   const lines = [];
   lines.push(`# AgentLint Report \u2014 ${date}`);
   lines.push('');
-  lines.push(`## Score: ${scores.total_score}/100`);
+  const mdScopeSuffix = scores.score_scope === 'core+extended' ? ' (core+extended)' : ' (core)';
+  lines.push(`## Score: ${scores.total_score}/100${mdScopeSuffix}`);
   lines.push('');
 
   const dims = scores.dimensions || {};
@@ -700,7 +701,8 @@ body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;ma
 .hero-ver{font-size:11px;font-family:var(--mono);color:#9ca3af;background:#e5e7eb;padding:2px 8px;border-radius:8px;margin-left:10px}
 .hero-meta{font-size:12px;color:#9ca3af}
 .hero-gauge{position:relative;width:220px;height:148px;margin:0 auto}
-.hero-gauge-num{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:60px;font-weight:500;color:#111827;line-height:1;letter-spacing:-3px}
+.hero-gauge-num{position:absolute;bottom:16px;left:0;right:0;text-align:center;font-size:60px;font-weight:500;color:#111827;line-height:1;letter-spacing:-3px}
+.hero-gauge-scope{position:absolute;bottom:-4px;left:0;right:0;text-align:center;font-size:11px;font-weight:500;color:#6b7280;letter-spacing:0.5px;text-transform:lowercase}
 .hero-stats{text-align:center;margin-top:2px;font-size:13px}
 .stats-sep{color:#9ca3af;margin:0 6px}
 .hero-pills{display:flex;justify-content:center;gap:10px;margin-top:20px}
@@ -777,6 +779,7 @@ body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;ma
     <div class="hero-gauge">
       ${gaugeSvg}
       <div class="hero-gauge-num">${totalScore}</div>
+      <div class="hero-gauge-scope" title="score_scope — which dimensions the total covers">${scores.score_scope === 'core+extended' ? 'core + extended' : '(core)'}</div>
     </div>
     ${statsLine}
     ${heroPills}
@@ -801,28 +804,49 @@ body{background:#f9fafb;color:#374151;font-family:var(--font);line-height:1.5;ma
 }
 
 function main() {
-  const args = process.argv.slice(2);
-  const flagValueIndices = new Set();
+  // Accept both space-separated (`--format html`) and equals (`--format=html`)
+  // forms. Previously only the space form was parsed, so agentlint.sh passing
+  // `--format=html` from its own `--flag=*` branch silently produced terminal
+  // output instead of HTML (docs/post-remediation-deep-review.md Medium #3).
+  const rawArgs = process.argv.slice(2);
   const flagsWithValues = new Set(['--plan', '--output-dir', '--format', '--before', '--fail-below']);
-  for (let i = 0; i < args.length - 1; i += 1) {
-    if (flagsWithValues.has(args[i])) {
+  const flagValues = {};
+  const flagValueIndices = new Set();
+  for (let i = 0; i < rawArgs.length; i += 1) {
+    const a = rawArgs[i];
+    const eq = a.indexOf('=');
+    if (a.startsWith('--') && eq > 0 && flagsWithValues.has(a.slice(0, eq))) {
+      flagValues[a.slice(0, eq)] = a.slice(eq + 1);
+      continue;
+    }
+    if (flagsWithValues.has(a)) {
+      const val = rawArgs[i + 1];
+      if (val === undefined || val.startsWith('--')) {
+        process.stderr.write(`reporter.js: ${a} requires a value\n`);
+        process.exit(1);
+      }
+      flagValues[a] = val;
       flagValueIndices.add(i + 1);
+      i += 1;
     }
   }
-  const scoresFile = args.find((arg, index) => !arg.startsWith('--') && !flagValueIndices.has(index));
-  const planFile = args.find((a, i) => args[i - 1] === '--plan');
-  const outputDir = args.find((a, i) => args[i - 1] === '--output-dir') || null;
-  const format = args.find((a, i) => args[i - 1] === '--format') || 'terminal';
-  const failBelowPresent = args.includes('--fail-below');
-  const failBelowRaw = args.find((a, i) => args[i - 1] === '--fail-below');
-  const sarifIncludeAll = args.includes('--sarif-include-all');
+  const scoresFile = rawArgs.find((arg, index) => {
+    if (arg.startsWith('--')) return false;
+    return !flagValueIndices.has(index);
+  });
+  const planFile = flagValues['--plan'];
+  const outputDir = flagValues['--output-dir'] || null;
+  const format = flagValues['--format'] || 'terminal';
+  const failBelowPresent = '--fail-below' in flagValues;
+  const failBelowRaw = flagValues['--fail-below'];
+  const sarifIncludeAll = rawArgs.includes('--sarif-include-all');
   const validFormats = ['terminal', 'md', 'jsonl', 'html', 'sarif', 'all'];
   if (!validFormats.includes(format)) {
     process.stderr.write(`reporter.js: unknown --format '${format}'. Valid: ${validFormats.join(', ')}\n`);
     process.exit(1);
   }
 
-  const beforeFile = args.find((a, i) => args[i - 1] === '--before');
+  const beforeFile = flagValues['--before'];
 
   // Accept scores from stdin when no file argument given (e.g. pipeline: scorer.js | reporter.js)
   let scores;
