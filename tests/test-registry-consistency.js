@@ -293,5 +293,25 @@ runTest('setup.sh validates flag values and is non-destructive by default', () =
     'setup.sh must document a --force flag to allow explicit overwrite');
 });
 
+runTest('fixer.js F5 reference resolution aligns with scanner semantics', () => {
+  // Scanner rejects absolute paths and `..` traversal for F5 references
+  // (src/scanner.sh:390-406). Fixer used to accept absolute paths whenever
+  // the host filesystem had a match, and it also probed process.cwd().
+  // Drift between scanner and fixer meant an absolute home-directory
+  // reference could be "broken" to the scanner but "present" to the fixer
+  // — bad for portability and for checks that mutate entry files.
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'fixer.js'), 'utf8');
+  const fn = src.slice(
+    src.indexOf('function referenceExists'),
+    src.indexOf('function removeLinesWithBrokenReferences'),
+  );
+  assert.match(fn, /path\.isAbsolute\(raw\)\)\s*return\s*false/,
+    'referenceExists must reject absolute paths (scanner alignment)');
+  assert.match(fn, /\.\./,
+    'referenceExists must reject parent-dir traversal (scanner alignment)');
+  assert.doesNotMatch(fn, /fs\.existsSync\(path\.join\(process\.cwd/,
+    'referenceExists must not probe process.cwd() — scanner stays inside projectDir only');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
