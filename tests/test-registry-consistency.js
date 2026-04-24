@@ -275,5 +275,23 @@ runTest('agentlint fix without a check id fails fast with a product-level messag
     'agentlint.sh must not invoke fixer.js without --checks or --items');
 });
 
+runTest('setup.sh validates flag values and is non-destructive by default', () => {
+  // `agentlint setup --lang` (no value) used to trip `$2: unbound variable`
+  // under `set -euo pipefail` — a confusing shell error for a user mistake.
+  // Also: CODEOWNERS, PR template, and ISSUE_TEMPLATE used to be copied
+  // unconditionally, silently overwriting existing files in the target repo.
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'setup.sh'), 'utf8');
+  assert.match(src, /require_value\s*\(\)\s*{/,
+    'setup.sh must define a require_value helper that checks flag values');
+  assert.match(src, /agentlint setup: \$flag requires a value/,
+    'setup.sh require_value must emit a product-level message');
+  assert.match(src, /require_value --lang /,
+    'setup.sh --lang branch must call require_value');
+  assert.match(src, /copy_guarded/,
+    'setup.sh must use copy_guarded (or equivalent) to avoid overwriting existing files by default');
+  assert.match(src, /--force/,
+    'setup.sh must document a --force flag to allow explicit overwrite');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
