@@ -15,6 +15,56 @@ set -euo pipefail
 _SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "$_SELF")" && pwd)"
 
+# ─── Transactional scan helper ─────────────────────────────────────────────
+# Runs src/scanner.sh with the given args and captures stdout/stderr to temp
+# files. Returns the scanner's exit code. Callers MUST check the exit code
+# and bail before piping into scorer/reporter — otherwise a scanner failure
+# will leak a fake "Score: 0/100" report to stdout (scorer accepts empty
+# input). See docs/comprehensive-remediation-plan.md §P0-1.
+#
+# Sets globals:
+#   _AL_SCAN_OUT — path to captured stdout (JSONL when scanner succeeded)
+#   _AL_SCAN_ERR — path to captured stderr
+_AL_TMPDIR=""
+
+_al_cleanup() {
+  if [[ -n "${_AL_TMPDIR}" && -d "${_AL_TMPDIR}" ]]; then
+    rm -rf "${_AL_TMPDIR}" 2>/dev/null || true
+  fi
+}
+trap _al_cleanup EXIT
+
+run_scan() {
+  _AL_TMPDIR="$(mktemp -d -t agentlint-XXXXXX)"
+  _AL_SCAN_OUT="${_AL_TMPDIR}/scan.jsonl"
+  _AL_SCAN_ERR="${_AL_TMPDIR}/scan.err"
+
+  # Don't let pipefail kill us here — we want to inspect the exit code.
+  set +e
+  bash "${SCRIPT_DIR}/../src/scanner.sh" "$@" \
+    >"${_AL_SCAN_OUT}" 2>"${_AL_SCAN_ERR}"
+  local rc=$?
+  set -e
+
+  if [[ "$rc" -ne 0 ]]; then
+    # Scanner failed — forward its stderr so the user sees the real error,
+    # not a fabricated score report.
+    if [[ -s "${_AL_SCAN_ERR}" ]]; then
+      cat "${_AL_SCAN_ERR}" >&2
+    else
+      echo "agentlint: scanner exited with status ${rc}" >&2
+    fi
+    return "$rc"
+  fi
+
+  if [[ ! -s "${_AL_SCAN_OUT}" ]]; then
+    echo "agentlint: scanner produced no output" >&2
+    return 1
+  fi
+
+  return 0
+}
+
 case "${1:-}" in
   init)
     shift
@@ -26,9 +76,9 @@ case "${1:-}" in
     ;;
   check)
     shift
-    exec bash "$SCRIPT_DIR/../src/scanner.sh" "$@" \
-      | node "$SCRIPT_DIR/../src/scorer.js" \
-      | node "$SCRIPT_DIR/../src/reporter.js"
+    run_scan "$@" || exit $?
+    node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
+      | node "${SCRIPT_DIR}/../src/reporter.js"
     ;;
   fix)
     shift
@@ -72,16 +122,16 @@ case "${1:-}" in
       path_args+=("--project-dir" ".")
     fi
 
+    run_scan "${path_args[@]}" || exit $?
+
     if [[ -n "$check_ids" ]]; then
-      exec bash "$SCRIPT_DIR/../src/scanner.sh" "${path_args[@]}" \
-        | node "$SCRIPT_DIR/../src/scorer.js" \
-        | node "$SCRIPT_DIR/../src/plan-generator.js" \
-        | node "$SCRIPT_DIR/../src/fixer.js" --checks "$check_ids" "${path_args[@]}"
+      node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
+        | node "${SCRIPT_DIR}/../src/plan-generator.js" \
+        | node "${SCRIPT_DIR}/../src/fixer.js" --checks "$check_ids" "${path_args[@]}"
     else
-      exec bash "$SCRIPT_DIR/../src/scanner.sh" "${path_args[@]}" \
-        | node "$SCRIPT_DIR/../src/scorer.js" \
-        | node "$SCRIPT_DIR/../src/plan-generator.js" \
-        | node "$SCRIPT_DIR/../src/fixer.js" "${path_args[@]}"
+      node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
+        | node "${SCRIPT_DIR}/../src/plan-generator.js" \
+        | node "${SCRIPT_DIR}/../src/fixer.js" "${path_args[@]}"
     fi
     ;;
   version|--version|-v)

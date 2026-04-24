@@ -32,16 +32,29 @@ jobs:
 
       - name: Verify outputs
         shell: bash
+        env:
+          AL_SCORE: ${{ steps.lint.outputs.score }}
+          AL_SCOPE: ${{ steps.lint.outputs.score-scope }}
+          AL_FINDABILITY: ${{ steps.lint.outputs.findability }}
+          AL_INSTRUCTIONS: ${{ steps.lint.outputs.instructions }}
+          AL_WORKABILITY: ${{ steps.lint.outputs.workability }}
+          AL_CONTINUITY: ${{ steps.lint.outputs.continuity }}
+          AL_SAFETY: ${{ steps.lint.outputs.safety }}
+          AL_HARNESS: ${{ steps.lint.outputs.harness }}
         run: |
-          echo "Score: ${{ steps.lint.outputs.score }}"
-          echo "Findability: ${{ steps.lint.outputs.findability }}"
-          echo "Instructions: ${{ steps.lint.outputs.instructions }}"
-          echo "Workability: ${{ steps.lint.outputs.workability }}"
-          echo "Continuity: ${{ steps.lint.outputs.continuity }}"
-          echo "Safety: ${{ steps.lint.outputs.safety }}"
-          echo "Harness: ${{ steps.lint.outputs.harness }}"
-          # All outputs should be numeric and non-empty
-          for val in "${{ steps.lint.outputs.score }}" "${{ steps.lint.outputs.findability }}" "${{ steps.lint.outputs.harness }}"; do
+          echo "Score: ${AL_SCORE}"
+          echo "Scope: ${AL_SCOPE}"
+          echo "Findability: ${AL_FINDABILITY}"
+          echo "Instructions: ${AL_INSTRUCTIONS}"
+          echo "Workability: ${AL_WORKABILITY}"
+          echo "Continuity: ${AL_CONTINUITY}"
+          echo "Safety: ${AL_SAFETY}"
+          echo "Harness: ${AL_HARNESS}"
+
+          # Numeric outputs must be non-empty integers.
+          for val in "${AL_SCORE}" "${AL_FINDABILITY}" "${AL_INSTRUCTIONS}" \
+                     "${AL_WORKABILITY}" "${AL_CONTINUITY}" "${AL_SAFETY}" \
+                     "${AL_HARNESS}"; do
             if [ -z "$val" ]; then
               echo "::error::Empty output detected"
               exit 1
@@ -51,4 +64,15 @@ jobs:
               exit 1
             fi
           done
-          echo "All outputs populated and numeric"
+
+          # score-scope must be exactly "core" in the default Action run.
+          # Deep/Session analyzers require an AI sub-agent and local Claude
+          # Code session logs — neither available in CI. If this ever flips
+          # to "core+extended", the Action grew a side-effect that lets
+          # extended dims run in CI, which would be a product regression.
+          if [ "${AL_SCOPE}" != "core" ]; then
+            echo "::error::score-scope must be 'core' in CI, got '${AL_SCOPE}'"
+            exit 1
+          fi
+
+          echo "All outputs populated, numeric, and score-scope=core"

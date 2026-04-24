@@ -80,10 +80,10 @@ runs:
         SCOPE=$(node -e "const s=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); process.stdout.write(String(s.score_scope ?? 'core'))" "${RUNNER_TEMP}/al-scores.json")
         echo "score=${SCORE}" >> "${GITHUB_OUTPUT}"
         echo "score-scope=${SCOPE}" >> "${GITHUB_OUTPUT}"
-        # Core dimensions only — Deep/Session don't run in CI (no AI sub-agent,
-        # no local Claude Code session logs). Emit score=0 with an explicit
-        # note for any dim whose status is `not_run` so CI consumers aren't
-        # surprised by a missing output.
+        # Emit the 6 core dimension scores as Action outputs. Deep/Session
+        # are deliberately not exposed — they cannot run in CI (no AI
+        # sub-agent, no local Claude Code session logs), so adding them as
+        # outputs would force consumers to handle a value that is always 0.
         for dim in findability instructions workability continuity safety harness; do
           DIM_SCORE=$(node -e "const s=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); const d=s.dimensions?.[process.argv[2]]; process.stdout.write(String(d?.score ?? 0))" "${RUNNER_TEMP}/al-scores.json" "${dim}")
           echo "${dim}=${DIM_SCORE}" >> "${GITHUB_OUTPUT}"

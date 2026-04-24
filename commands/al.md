@@ -49,7 +49,7 @@ Press Enter → uses `~/Projects`. Save to `${CLAUDE_PLUGIN_DATA}/config.json`. 
 
 ```bash
 AL_DIR="${CLAUDE_PLUGIN_ROOT}"
-bash "$AL_DIR/src/scanner.sh" > /tmp/al-scan.jsonl
+bash "$AL_DIR/src/scanner.sh" --project-dir "$PROJECTS_ROOT" > /tmp/al-scan.jsonl
 node "$AL_DIR/src/scorer.js" /tmp/al-scan.jsonl > /tmp/al-scores.json
 ```
 
@@ -153,7 +153,7 @@ Present results:
 
 Re-run scanner + scorer:
 ```bash
-bash "$AL_DIR/src/scanner.sh" > /tmp/al-verify.jsonl
+bash "$AL_DIR/src/scanner.sh" --project-dir "$PROJECTS_ROOT" > /tmp/al-verify.jsonl
 node "$AL_DIR/src/scorer.js" /tmp/al-verify.jsonl > /tmp/al-verify-scores.json
 ```
 
@@ -222,8 +222,14 @@ Present findings inline:
 ```
 
 Session findings become fix items:
-- Repeated instructions → `assisted` type (add rule to CLAUDE.md)
-- Ignored rules → `guided` type (review rule wording)
+- Repeated instructions → `guided` (review + add rule to CLAUDE.md manually)
+- Ignored rules → `guided` (review rule wording)
+
+Session/Deep findings are always `guided` today — the fixer has no SS/D
+handlers. `plan-generator.js` reads `fix_type` from evidence.json, which
+has `null` for SS/D checks, so they surface as text recipes rather than
+false "assisted" promises. See `src/fixer.js` for the current handler
+set.
 
 ---
 
@@ -231,7 +237,7 @@ Session findings become fix items:
 
 | Step | Interaction | Default |
 |------|------------|---------|
-| 1. Module selection | AskUserQuestion | First 4 checked, Enter to accept |
+| 1. Module selection | AskUserQuestion | All 6 core checked (Deep/Session opt-in), Enter to accept |
 | 2. Init (first run) | AskUserQuestion | default dir, Enter to accept |
 | 3. Scan + Score | None | Automatic |
 | 4. Show scores | None | Automatic |
