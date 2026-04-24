@@ -274,4 +274,22 @@ PY
     ;;
 esac
 
+# Make the scenario itself exit non-zero when any check in result.json has
+# pass=false. Previously the scenario wrote result.json and exited 0
+# regardless, so the E2B orchestrator saw a PARTIAL and the CI gate passed
+# anyway. See docs/post-remediation-deep-review.md High #1.
+if [ -f "$result_file" ]; then
+  failures="$(python3 -c "
+import json, sys
+r = json.load(open('$result_file'))
+bad = [k for k, v in (r.get('checks') or {}).items() if v.get('pass') is False]
+if bad:
+    print('FAIL: ' + ', '.join(bad))
+    sys.exit(1)
+" 2>&1)" || {
+    echo "[reports-run] Failing checks: $failures" >&2
+    exit 1
+  }
+fi
+
 echo "[reports-run] Done."
