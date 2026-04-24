@@ -14,18 +14,22 @@ REPO_PATH="/tmp/synthetic-repos/$REPO_NAME"
 scored_file="$OUTPUT_PATH/scored.json"
 
 echo "[reports-run] Running agentlint check on $REPO_PATH..."
-bash /tmp/agentlint-src/src/scanner.sh --project-dir "$REPO_PATH" 2>/dev/null \
-  | node /tmp/agentlint-src/src/scorer.js >"$scored_file" 2>/dev/null || true
-node /tmp/agentlint-src/src/reporter.js "$scored_file" --format all --output-dir "$OUTPUT_PATH/reports" 2>/dev/null || true
-
-bash /tmp/agentlint-src/src/scanner.sh --project-dir "$REPO_PATH" 2>/dev/null \
-  > "$OUTPUT_PATH/scanner.jsonl" || true
+# These three steps MUST succeed. Previously each line ended in `|| true`,
+# which masked scanner/scorer/reporter crashes and let downstream assertions
+# run against empty files — letting real regressions pass silently.
+bash /tmp/agentlint-src/src/scanner.sh --project-dir "$REPO_PATH" 2>"$OUTPUT_PATH/scanner.err" \
+  > "$OUTPUT_PATH/scanner.jsonl"
+node /tmp/agentlint-src/src/scorer.js "$OUTPUT_PATH/scanner.jsonl" \
+  > "$scored_file" 2>"$OUTPUT_PATH/scorer.err"
+node /tmp/agentlint-src/src/reporter.js "$scored_file" \
+  --format all --output-dir "$OUTPUT_PATH/reports" 2>"$OUTPUT_PATH/reporter.err"
 
 case "$SCENARIO_TYPE" in
   report-html)
     python3 - "$result_file" "$OUTPUT_PATH/reports" "$scored_file" <<'PY'
 import json
 import os
+import re
 import sys
 
 result_file, reports_dir, scored_file = sys.argv[1:4]
@@ -40,6 +44,32 @@ if os.path.isdir(reports_dir):
 
 checks["html_file_exists"] = {"pass": html_file is not None, "value": html_file or "not found"}
 
+# --- Scorer contract assertions: core dims ran, Deep/Session did not. ---
+try:
+    scored = json.load(open(scored_file, encoding="utf-8"))
+    scope = scored.get("score_scope")
+    dims = scored.get("dimensions", {})
+
+    checks["score_scope_is_core"] = {
+        "pass": scope == "core",
+        "value": f"got {scope!r}, expected 'core'",
+    }
+    for dim_name in ("deep", "session"):
+        d = dims.get(dim_name, {})
+        status_ok = d.get("status") == "not_run"
+        score_ok = d.get("score") is None
+        checks[f"{dim_name}_status_not_run"] = {
+            "pass": status_ok,
+            "value": f"status={d.get('status')!r}",
+        }
+        checks[f"{dim_name}_score_null"] = {
+            "pass": score_ok,
+            "value": f"score={d.get('score')!r}",
+        }
+except Exception as exc:
+    checks["scored_json_parsed"] = {"pass": False, "value": str(exc)}
+
+# --- HTML-level assertions. ---
 if html_file:
     content = open(html_file, encoding="utf-8", errors="replace").read()
 
@@ -48,13 +78,32 @@ if html_file:
         present = dim.lower() in content.lower()
         checks[f"dim_{dim}"] = {"pass": present, "value": "found" if present else "missing"}
 
-    try:
-        scored = json.load(open(scored_file, encoding="utf-8"))
-        total = scored.get("total_score", 0)
-        score_str = str(int(round(total)))
-        checks["score_in_html"] = {"pass": score_str in content, "value": f"looking for {score_str}"}
-    except Exception as exc:
-        checks["score_in_html"] = {"pass": False, "value": str(exc)}
+    # Score line should include the "(core)" scope suffix — it's how users know
+    # the total reflects only the 6 core dims.
+    checks["html_shows_core_suffix"] = {
+        "pass": "(core)" in content or "core+extended" in content,
+        "value": "found" if "(core)" in content else "missing '(core)' suffix",
+    }
+
+    # Deep/Session must render as n/a — a regression to `Deep ... 0/10` would
+    # mean reporter reverted to the pre-v1.1 null-polluting behavior.
+    # Match `Deep` followed within 200 chars (same row) by `0/10` or `0 /10`.
+    bad_deep = re.search(
+        r'dim-label"\s*>\s*Deep\s*</span>[\s\S]{0,400}?\b0\s*/\s*10\b',
+        content,
+    )
+    bad_session = re.search(
+        r'dim-label"\s*>\s*Session\s*</span>[\s\S]{0,400}?\b0\s*/\s*10\b',
+        content,
+    )
+    checks["html_deep_not_zero_of_ten"] = {
+        "pass": bad_deep is None,
+        "value": "regression: Deep row shows 0/10" if bad_deep else "ok",
+    }
+    checks["html_session_not_zero_of_ten"] = {
+        "pass": bad_session is None,
+        "value": "regression: Session row shows 0/10" if bad_session else "ok",
+    }
 
     checks["valid_html_structure"] = {
         "pass": "<html" in content.lower() and "<body" in content.lower(),
@@ -111,16 +160,26 @@ if sarif_file:
 
         rules = sarif.get("runs", [{}])[0].get("tool", {}).get("driver", {}).get("rules", [])
         rule_ids = {rule.get("id") for rule in rules}
-        checks["rule_count"] = {"pass": len(rules) >= 40, "value": len(rules)}
+        # Exact match — previously `>= 40` and `>= 80% overlap` let real
+        # drift slip through. If SARIF misses even one check, we want to
+        # know, not silently accept it.
+        checks["rule_count_exact"] = {
+            "pass": len(rules) == 58,
+            "value": f"{len(rules)} rules (expected exactly 58)",
+        }
 
         if os.path.exists(evidence_file):
             evidence = json.load(open(evidence_file, encoding="utf-8"))
             evidence_ids = set(evidence.get("checks", {}).keys())
-            overlap = rule_ids & evidence_ids
-            overlap_pct = len(overlap) / max(len(evidence_ids), 1)
-            checks["rule_ids_match"] = {
-                "pass": overlap_pct >= 0.8,
-                "value": f"{len(overlap)}/{len(evidence_ids)} ({overlap_pct:.0%})",
+            only_in_sarif = rule_ids - evidence_ids
+            only_in_evidence = evidence_ids - rule_ids
+            checks["rule_ids_exact_match_evidence"] = {
+                "pass": not only_in_sarif and not only_in_evidence,
+                "value": (
+                    f"SARIF-only: {sorted(only_in_sarif)}; evidence-only: {sorted(only_in_evidence)}"
+                    if only_in_sarif or only_in_evidence
+                    else "exact match"
+                ),
             }
 
     except json.JSONDecodeError as exc:

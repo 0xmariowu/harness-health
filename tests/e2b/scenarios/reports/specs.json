@@ -5,13 +5,14 @@
       "layer": "reports",
       "scenario_type": "report-html",
       "node_version": "20",
-      "description": "HTML report: all 8 dimensions in DOM, scores match JSONL",
+      "description": "HTML report: 6 core dimensions scored, Deep/Session render n/a, score_scope=core",
       "timeout": 180,
       "use_synthetic": true,
       "repo_name": "well-configured",
       "expected": {
         "dimensions_in_html": ["findability", "instructions", "workability", "continuity", "safety", "harness"],
-        "score_match_tolerance": 1.0,
+        "score_scope": "core",
+        "extended_not_run": true,
         "valid_html": true
       }
     },
@@ -20,14 +21,14 @@
       "layer": "reports",
       "scenario_type": "report-sarif",
       "node_version": "20",
-      "description": "SARIF 2.1.0 schema valid, 58 rule IDs match evidence.json",
+      "description": "SARIF 2.1.0: exactly 58 rule IDs matching evidence.json exactly",
       "timeout": 180,
       "use_synthetic": true,
       "repo_name": "well-configured",
       "expected": {
         "schema_valid": true,
-        "rule_count": 58,
-        "rule_ids_match_evidence": true
+        "rule_count_exact": 58,
+        "rule_ids_exact_match_evidence": true
       }
     },
     {
