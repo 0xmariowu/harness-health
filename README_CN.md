@@ -27,14 +27,10 @@
 ## 安装
 
 ```bash
-npx agentlint-ai
+npx agentlint-ai init
 ```
 
-或者用 curl：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/0xmariowu/agent-lint/main/scripts/install-user.sh | bash
-```
+会看到 logo、按模式列出的隐私说明、绿色 ✓/○ 环境检查。可以重复跑，幂等。
 
 然后开一个新的 Claude Code session，运行：
 
@@ -43,6 +39,10 @@ curl -fsSL https://raw.githubusercontent.com/0xmariowu/agent-lint/main/scripts/i
 ```
 
 就这样。AgentLint 会扫描你的 repo，从 6 个核心维度打分（Deep / Session 两个扩展维度可选开启），告诉你哪里有问题，能自动修的直接修。
+
+**其它安装路径**（npm 全局、curl、企业 / CI 无副作用模式）：看 **[INSTALL.md](./INSTALL.md)** —— 标准安装参考，写得短小专供 AI agent 直接读。
+
+**关于 `npm install -g` 的一个提醒**：npm 9+ 默认屏蔽 `postinstall` 的 stdout，所以 `npm install -g agentlint-ai` 跑完你看不到 logo 和环境检查。用上面的 `npx agentlint-ai init`，或者给 npm 命令加 `--foreground-scripts`。完整原因见 [INSTALL.md](./INSTALL.md)。
 
 **没有 Claude Code？** CLI 独立可用：
 
@@ -320,6 +320,21 @@ claude plugin update agent-lint@agent-lint
 | `/al` + Session（opt-in）| 你机器上的 `~/.claude/projects/` 日志 | 本地分析。输出默认脱敏，原文片段需要 `--include-raw-snippets` |
 
 只有 Deep 模式会把文件内容传出你的机器，而且必须在 Claude Code 里显式 opt-in 才会跑。默认 scan 产出的一切（`Score: NN/100 (core)` 输出、JSONL、SARIF、GitHub Action 标注）全都来自磁盘上的 pattern 检查，不打 API。
+</details>
+
+<details>
+<summary><strong><code>npm install</code> 会在 node_modules 之外写东西吗？</strong></summary>
+
+**会，故意的。**`npm install -g agentlint-ai` 跑的 `postinstall` 脚本检测到有 Claude Code 时会自动在 `~/.claude/` 注册 `/al` 插件。这是有意的 UX 决定——AgentLint 是 Claude Code 原生工具，"装完即可 /al" 是用户期望。
+
+如果这个设计不合适（企业安全审查、沙箱 runner、只读 `$HOME`），用无副作用路径：
+
+```bash
+npm install -g --ignore-scripts agentlint-ai
+agentlint-ai init   # 显式 opt-in，你想要 /al 才跑
+```
+
+完整安装方式见 [INSTALL.md](./INSTALL.md)。将来 v2.0 可能会把这个默认翻过来 —— `agentlint-ai init` 变成显式命令，`postinstall` 不再动 ~/.claude。欢迎反馈。
 </details>
 
 <details>
