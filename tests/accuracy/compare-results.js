@@ -9,20 +9,24 @@
 //
 // Scanner output: JSONL from scanner.sh (one line per check per repo)
 // Labels: tests/accuracy/labels-full.jsonl
+//
+// Check universe: derived from standards/evidence.json at runtime, filtered
+// to scope === "core". Extended dimensions (deep, session) are produced by
+// deep-analyzer.js / session-analyzer.js — not scanner.sh — so they do not
+// belong in this deterministic accuracy pipeline. Any check with no labels
+// in labels-full.jsonl is reported under "Missing ground truth" so the
+// label-rebuild gap stays visible.
 
 const fs = require('fs');
 const path = require('path');
 
 const LABELS_PATH = path.join(__dirname, 'labels-full.jsonl');
+const EVIDENCE_PATH = path.join(__dirname, '..', '..', 'standards', 'evidence.json');
 
-const ALL_CHECKS = [
-  'F1','F2','F3','F4','F5','F6','F7','F8','F9',
-  'I1','I2','I3','I4','I5','I6','I7','I8',
-  'W1','W2','W3','W4','W5','W6',
-  'C1','C2','C3','C4','C5',
-  'S1','S2','S3','S4','S5','S6','S7','S8',
-  'H1','H2','H3','H4','H5','H6',
-];
+const EVIDENCE = JSON.parse(fs.readFileSync(EVIDENCE_PATH, 'utf8'));
+const ALL_CHECKS = Object.keys(EVIDENCE.checks)
+  .filter((id) => EVIDENCE.checks[id].scope === 'core')
+  .sort();
 
 // Parse args
 const args = process.argv.slice(2);
@@ -189,7 +193,20 @@ const overallAcc = (totalTP + totalFP + totalFN + totalTN) > 0 ? (totalTP + tota
 console.log('-'.repeat(72));
 console.log(`${'TOTAL'.padEnd(7)} ${String(totalTP).padStart(5)} ${String(totalFP).padStart(5)} ${String(totalFN).padStart(5)} ${String(totalTN).padStart(5)} ${''.padStart(5)} ${(overallPrec*100).toFixed(1).padStart(6)}% ${(overallRec*100).toFixed(1).padStart(6)}% ${(overallF1*100).toFixed(1).padStart(6)}% ${(overallAcc*100).toFixed(1).padStart(6)}%`);
 
+const missingGroundTruth = ALL_CHECKS.filter((check) => results[check].total === 0);
+console.log('\nMissing ground truth:');
+if (missingGroundTruth.length === 0) {
+  console.log('  None.');
+} else {
+  console.log(
+    `  ${missingGroundTruth.length} check(s) have 0 labeled repos in labels-full.jsonl ` +
+    '- accuracy unmeasurable until labels are rebuilt:'
+  );
+  console.log(`  ${missingGroundTruth.join(', ')}`);
+}
+
 const lowNWarnings = ALL_CHECKS
+  .filter((check) => results[check].total > 0)
   .map(check => ({ check, result: results[check] }))
   .filter(({ result }) =>
     result.accuracy_ci_low !== null &&
