@@ -181,13 +181,33 @@ Clean up temp files.
 
 ## AI Deep Analysis (if selected in Step 1)
 
-After Step 4, before Step 5, for each project with an entry file:
+Runs AFTER Step 3 (core scan) and BEFORE Step 4 (scoring). Deep findings
+are merged into the scorer via JSONL so they flow through the same
+scorer → plan-generator → reporter pipeline as core checks — no manual
+"inject into the plan" step. Score scope becomes `core+extended` only
+after these JSONL records exist.
+
+### The merge flow
+
+```text
+core scan JSONL  (from /tmp/al-scan.jsonl)
++ deep-analyzer JSONL (D1, D2, D3 — from the flow below)
++ session-analyzer JSONL (SS1-SS4, if Session also selected)
+→ cat into combined.jsonl
+→ scorer.js  (produces core+extended score)
+→ plan-generator.js
+→ reporter / fixer
+```
+
+### Step-by-step
+
+1. Generate Deep prompt tasks for each project:
 
 ```bash
 tasks=$(node "$AL_DIR/src/deep-analyzer.js" --project-dir "$PROJECT_DIR/my-project")
 ```
 
-For each task, spawn a subagent (model: sonnet):
+2. For each task in `tasks`, spawn a sonnet subagent with the prompt:
 
 ```
 Read this file and answer three questions. Be strict — only flag clear issues.
@@ -196,10 +216,45 @@ Read this file and answer three questions. Be strict — only flag clear issues.
 2. DEAD WEIGHT: Are there rules the AI would follow without being told?
 3. VAGUE RULES: Are there rules too abstract to act on?
 
+Respond with JSON only. Expected keys by check:
+  D1 → { "contradictions": [ {rule_a, rule_b, explanation} ... ] }
+  D2 → { "dead_weight":     [ {rule, explanation} ... ] }
+  D3 → { "vague_rules":     [ {rule, explanation} ... ] }
+
 File: {path}
 ```
 
-Add results to the fix plan as `guided` items in the 🟡 medium section.
+3. Save each subagent's JSON output to `/tmp/al-d{1,2,3}-ai.json`.
+
+4. Convert each AI response to scorer-compatible JSONL:
+
+```bash
+node "$AL_DIR/src/deep-analyzer.js" --format-result --project my-project --check D1 < /tmp/al-d1-ai.json >> /tmp/al-deep.jsonl
+node "$AL_DIR/src/deep-analyzer.js" --format-result --project my-project --check D2 < /tmp/al-d2-ai.json >> /tmp/al-deep.jsonl
+node "$AL_DIR/src/deep-analyzer.js" --format-result --project my-project --check D3 < /tmp/al-d3-ai.json >> /tmp/al-deep.jsonl
+```
+
+If AI output is malformed or missing the required key, `--format-result`
+exits non-zero — don't silently drop findings. Fix the prompt or retry
+rather than scoring without that check.
+
+5. Merge into the scoring pipeline:
+
+```bash
+cat /tmp/al-scan.jsonl /tmp/al-deep.jsonl /tmp/al-session.jsonl 2>/dev/null \
+  > /tmp/al-combined.jsonl
+
+node "$AL_DIR/src/scorer.js" /tmp/al-combined.jsonl > /tmp/al-scores.json
+node "$AL_DIR/src/plan-generator.js" /tmp/al-scores.json > /tmp/al-plan.json
+```
+
+The scorer sees real Deep/Session evidence, flips `score_scope` to
+`core+extended`, and plan-generator produces `guided` items for each
+finding via the shared fix registry (`null` fix_type → guided fallback).
+
+No manual plan injection. No virtual "assisted" promises. Reporter and
+fixer consume the combined plan exactly as they would for a pure-core
+scan.
 
 ## Session Analysis (if selected in Step 1)
 
