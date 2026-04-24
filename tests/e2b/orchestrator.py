@@ -277,6 +277,10 @@ def main() -> None:
                         help="Install from npm registry instead of local tarball (e.g. agentlint-ai)")
     parser.add_argument("--from-npx", default=None, metavar="PACKAGE",
                         help="Test npx init flow: run 'npx PACKAGE', capture output, then install -g (e.g. agentlint-ai)")
+    parser.add_argument("--allow-partial", action="store_true",
+                        help="Exit 0 on PARTIAL outcomes (soft-pass). Default treats PARTIAL "
+                             "as failure; only set this for exploratory / scheduled runs where "
+                             "degraded success is expected.")
     args = parser.parse_args()
     
     if args.e2b_api_key:
@@ -367,8 +371,17 @@ def main() -> None:
     print(f"Results: {run_dir}/SUMMARY.json")
     print(f"{'='*60}")
     
-    # Exit 1 if any FAIL or ERROR
-    fail_count = summary["counts"].get("FAIL", 0) + summary["counts"].get("ERROR", 0)
+    # Exit 1 on any FAIL, ERROR, or PARTIAL by default. PARTIAL means a
+    # scenario passed some but not all of its checks — for release gates
+    # that's a regression, not a soft warning. Use --allow-partial to
+    # opt into the old soft-pass behavior for exploratory runs.
+    counts = summary["counts"]
+    fail_count = counts.get("FAIL", 0) + counts.get("ERROR", 0)
+    partial_count = counts.get("PARTIAL", 0)
+    if not args.allow_partial:
+        fail_count += partial_count
+    elif partial_count > 0:
+        print(f"Note: {partial_count} PARTIAL outcome(s) tolerated via --allow-partial")
     sys.exit(1 if fail_count > 0 else 0)
 
 

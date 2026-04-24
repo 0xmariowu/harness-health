@@ -110,6 +110,11 @@ jobs:
           path: tests/e2b/results/
 
       - name: Check for failures
+        # Release gate: FAIL, ERROR, and PARTIAL all fail this job. PARTIAL
+        # means some checks inside a scenario failed — that's a regression
+        # for a release gate, not a soft warning. Exploratory / scheduled
+        # runs can invoke orchestrator.py --allow-partial directly; this
+        # workflow does not.
         run: |
           python3 -c "
           import json, sys, glob
@@ -121,13 +126,15 @@ jobs:
 
           total_fail = 0
           total_error = 0
+          total_partial = 0
           for s_path in summaries:
-              d = json.load(open(s_path))
-              total_fail += d.get('counts', {}).get('FAIL', 0)
-              total_error += d.get('counts', {}).get('ERROR', 0)
+              counts = json.load(open(s_path)).get('counts', {})
+              total_fail += counts.get('FAIL', 0)
+              total_error += counts.get('ERROR', 0)
+              total_partial += counts.get('PARTIAL', 0)
 
-          print(f'FAIL: {total_fail}, ERROR: {total_error}')
-          if total_fail > 0 or total_error > 0:
+          print(f'FAIL: {total_fail}, ERROR: {total_error}, PARTIAL: {total_partial}')
+          if total_fail > 0 or total_error > 0 or total_partial > 0:
               print('E2B gate: FAILED')
               sys.exit(1)
           else:

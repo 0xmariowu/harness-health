@@ -211,5 +211,18 @@ runTest('commands/al.md resolves $PROJECT_DIR before fixer.js invocation', () =>
     'to drive the resolution');
 });
 
+runTest('E2B orchestrator and workflow gate treat PARTIAL as failure by default', () => {
+  // Without this, an E2B scenario passing only 80% of its checks returned
+  // PARTIAL and the release gate shrugged — letting degraded behavior ship.
+  // Default must fail on PARTIAL; exploratory runs opt out via
+  // orchestrator.py --allow-partial.
+  const orch = fs.readFileSync(path.join(ROOT, 'tests', 'e2b', 'orchestrator.py'), 'utf8');
+  const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'e2b-comprehensive.yml'), 'utf8');
+  assert.match(orch, /if not args\.allow_partial:\s+fail_count \+= partial_count/,
+    'orchestrator.py must count PARTIAL toward failure by default (--allow-partial opts out)');
+  assert.match(wf, /total_partial\s*>\s*0/,
+    'e2b-comprehensive.yml release gate must fail when total_partial > 0');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
