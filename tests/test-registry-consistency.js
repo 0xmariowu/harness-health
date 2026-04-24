@@ -418,5 +418,22 @@ runTest('session-analyzer emits "ran, no issue" sentinels so scope flips on clea
     'sentinel records must carry a recognizable "no issues" detail string');
 });
 
+runTest('scanner + scorer + plan-generator bucket by project_path (not basename)', () => {
+  // Same-basename repos under different parent dirs (e.g. org1/app +
+  // org2/app) used to collide into one bucket end-to-end. Every layer
+  // of the pipeline must propagate project_path or the collision
+  // returns silently — data corruption risk for mutating fixes.
+  const scanner = fs.readFileSync(path.join(ROOT, 'src', 'scanner.sh'), 'utf8');
+  const scorer = fs.readFileSync(path.join(ROOT, 'src', 'scorer.js'), 'utf8');
+  const planGen = fs.readFileSync(path.join(ROOT, 'src', 'plan-generator.js'), 'utf8');
+
+  assert.match(scanner, /project_path:\s*\$project_path/,
+    'scanner.sh emit_result must include a project_path field in every JSONL record');
+  assert.match(scorer, /const pathKey = record\.project_path/,
+    'scorer.js mergeRecord must key byProject on project_path (basename fallback only)');
+  assert.match(planGen, /dedupeProject = normalized\.project_path \|\| normalized\.project/,
+    'plan-generator.js dedupe key must use project_path when available');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
