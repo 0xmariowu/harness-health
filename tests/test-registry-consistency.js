@@ -461,5 +461,21 @@ runTest('plan-generator grouped items carry project_paths array', () => {
     'plan-generator.js mergeItems must append to project_paths when merging');
 });
 
+runTest('deep-analyzer emits project_path + accepts --project-path flag', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'deep-analyzer.js'), 'utf8');
+  assert.match(src, /project_path:\s*projectPath/,
+    'deep-analyzer formatResultAsJsonl must include project_path in emitted records');
+  assert.match(src, /indexOf\('--project-path'\)/,
+    'deep-analyzer must parse --project-path flag');
+});
+
+runTest('session-analyzer loadProjectCatalog walks nested repos (maxdepth 4)', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'session-analyzer.js'), 'utf8');
+  assert.match(src, /MAX_DEPTH\s*=\s*4/,
+    'session-analyzer must walk up to 4 levels deep to match scanner.sh');
+  assert.match(src, /function walk\(dir, depth\)/,
+    'session-analyzer must use a recursive walker rather than a single readdirSync');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

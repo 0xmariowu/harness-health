@@ -236,17 +236,57 @@ function loadProjectCatalog(projectsRoot) {
     return catalog;
   }
 
-  let entries;
+  // Walk up to 4 levels deep to match scanner.sh's discover_projects
+  // (`find ... -maxdepth 4 -name .git`). A one-level readdir missed
+  // nested layouts like $PROJECTS_ROOT/org1/app — Session silently
+  // skipped them even though the scanner found them, leaving the two
+  // analyzers out of sync on what projects exist.
+  const MAX_DEPTH = 4;
+  const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'vendor', '__pycache__']);
+  const projectDirs = [];
+  function walk(dir, depth) {
+    if (depth > MAX_DEPTH) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (_error) {
+      return;
+    }
+    // A dir containing a `.git` file/dir IS the project — don't descend further.
+    const hasGit = entries.some((e) => e.name === '.git');
+    if (hasGit) {
+      projectDirs.push(dir);
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.isSymbolicLink()) continue;
+      if (SKIP_DIRS.has(entry.name)) continue;
+      walk(path.join(dir, entry.name), depth + 1); // nosemgrep: path-join-resolve-traversal
+    }
+  }
+
+  let rootEntries;
   try {
-    entries = fs.readdirSync(projectsRoot, { withFileTypes: true });
+    rootEntries = fs.readdirSync(projectsRoot, { withFileTypes: true });
   } catch (error) {
     process.stderr.write(`WARN: cannot read projects root ${projectsRoot}: ${error.message}\n`);
     return catalog;
   }
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const projectDir = path.join(projectsRoot, entry.name); // nosemgrep: path-join-resolve-traversal
+  // Root itself might be a project too (PROJECTS_ROOT pointed at a single repo).
+  if (rootEntries.some((e) => e.name === '.git')) {
+    projectDirs.push(projectsRoot);
+  } else {
+    for (const entry of rootEntries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.isSymbolicLink()) continue;
+      if (SKIP_DIRS.has(entry.name)) continue;
+      walk(path.join(projectsRoot, entry.name), 1); // nosemgrep: path-join-resolve-traversal
+    }
+  }
+
+  for (const projectDir of projectDirs) {
     const claudePath = path.join(projectDir, 'CLAUDE.md'); // nosemgrep: path-join-resolve-traversal
     const agentsPath = path.join(projectDir, 'AGENTS.md'); // nosemgrep: path-join-resolve-traversal
     // Reject symlinked entry files — they can leak arbitrary host files
@@ -263,7 +303,7 @@ function loadProjectCatalog(projectsRoot) {
     const rules = splitProjectRules(entryFile);
     if (!rules.length) continue;
 
-    const basename = entry.name;
+    const basename = path.basename(projectDir);
     const aliases = new Set([
       sanitizeKey(projectDir),
       sanitizeKey(basename),

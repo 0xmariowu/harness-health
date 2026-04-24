@@ -152,13 +152,14 @@ function generateTasks(projectDir) {
   };
 }
 
-function formatResultAsJsonl(projectName, checkId, checkName, aiResult) {
+function formatResultAsJsonl(projectName, projectPath, checkId, checkName, aiResult) {
   const items = [];
 
   if (checkId === 'D1' && aiResult.contradictions) {
     const count = aiResult.contradictions.length;
     items.push(JSON.stringify({
       project: projectName,
+      project_path: projectPath || null,
       dimension: 'deep',
       check_id: 'D1',
       name: 'Contradictory rules',
@@ -176,6 +177,7 @@ function formatResultAsJsonl(projectName, checkId, checkName, aiResult) {
     const count = aiResult.dead_weight.length;
     items.push(JSON.stringify({
       project: projectName,
+      project_path: projectPath || null,
       dimension: 'deep',
       check_id: 'D2',
       name: 'Dead-weight rules',
@@ -193,6 +195,7 @@ function formatResultAsJsonl(projectName, checkId, checkName, aiResult) {
     const count = aiResult.vague_rules.length;
     items.push(JSON.stringify({
       project: projectName,
+      project_path: projectPath || null,
       dimension: 'deep',
       check_id: 'D3',
       name: 'Vague rules',
@@ -234,6 +237,12 @@ function main() {
     }
     const projectIdx = args.indexOf('--project');
     const project = projectIdx >= 0 ? args[projectIdx + 1] : 'unknown';
+    // project_path carries the absolute repo dir so downstream scorer +
+    // plan-generator can disambiguate same-basename repos (org1/app vs
+    // org2/app). Optional — legacy callers that don't pass it get null
+    // in the emitted records, which matches pre-project_path behavior.
+    const projectPathIdx = args.indexOf('--project-path');
+    const projectPath = projectPathIdx >= 0 ? args[projectPathIdx + 1] : null;
     const checkName = PROMPTS[checkId]?.name || checkId;
     const input = fs.readFileSync(0, 'utf8');
     let result;
@@ -256,7 +265,7 @@ function main() {
       );
       process.exit(1);
     }
-    const lines = formatResultAsJsonl(project, checkId, checkName, result);
+    const lines = formatResultAsJsonl(project, projectPath, checkId, checkName, result);
     lines.forEach((l) => process.stdout.write(l + '\n'));
     return;
   }
