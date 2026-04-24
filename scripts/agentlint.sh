@@ -35,9 +35,11 @@ case "${1:-}" in
     # Separate check IDs (e.g. W11, S1) from path flags (e.g. --project-dir)
     check_ids=""
     path_args=()
+    has_project_dir=0
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --project-dir|--project-dir=*)
+          has_project_dir=1
           path_args+=("$1")
           if [[ "$1" == "--project-dir" ]]; then
             shift
@@ -49,7 +51,8 @@ case "${1:-}" in
           ;;
         *)
           # Looks like a check ID (case-insensitive: w11, W11, S3, s3 all accepted)
-          upper="${1^^}"
+          # Use `tr` for uppercase — `${1^^}` is Bash 4+ and fails on macOS Bash 3.2.
+          upper="$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')"
           if [[ "$upper" =~ ^[A-Z][A-Z0-9-]+$ ]]; then
             if [[ -n "$check_ids" ]]; then
               check_ids="${check_ids},$upper"
@@ -63,6 +66,11 @@ case "${1:-}" in
       esac
       shift
     done
+
+    # Default --project-dir to current directory if not specified
+    if [[ "$has_project_dir" -eq 0 ]]; then
+      path_args+=("--project-dir" ".")
+    fi
 
     if [[ -n "$check_ids" ]]; then
       exec bash "$SCRIPT_DIR/../src/scanner.sh" "${path_args[@]}" \

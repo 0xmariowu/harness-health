@@ -52,6 +52,6 @@
   },
   "scripts": {
     "postinstall": "node postinstall.js",
-    "test": "bash tests/test_compliance.sh && bash tests/test-scanner.sh"
+    "test": "bash tests/test_compliance.sh && bash tests/test-scanner.sh && bash tests/test-cli-wrapper.sh"
   }
 }
