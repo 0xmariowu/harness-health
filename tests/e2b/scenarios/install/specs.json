@@ -85,6 +85,48 @@
         ],
         "claude_md_has_no_placeholder": true
       }
+    },
+    {
+      "id": "S21-npx-init-node20",
+      "layer": "install",
+      "scenario_type": "npx-init",
+      "node_version": "20",
+      "description": "npx agentlint-ai shows logo + tagline + env detection on Node 20",
+      "timeout": 120,
+      "use_synthetic": false,
+      "expected": {
+        "logo_present": true,
+        "tagline_present": true,
+        "no_crash": true
+      }
+    },
+    {
+      "id": "S22-npx-init-node22",
+      "layer": "install",
+      "scenario_type": "npx-init",
+      "node_version": "22",
+      "description": "npx agentlint-ai shows logo + tagline + env detection on Node 22",
+      "timeout": 120,
+      "use_synthetic": false,
+      "expected": {
+        "logo_present": true,
+        "tagline_present": true,
+        "no_crash": true
+      }
+    },
+    {
+      "id": "S23-npx-init-node18",
+      "layer": "install",
+      "scenario_type": "npx-init",
+      "node_version": "18",
+      "description": "npx agentlint-ai shows logo + tagline on Node 18 (minimum supported)",
+      "timeout": 120,
+      "use_synthetic": false,
+      "expected": {
+        "logo_present": true,
+        "tagline_present": true,
+        "no_crash": true
+      }
     }
   ]
 }

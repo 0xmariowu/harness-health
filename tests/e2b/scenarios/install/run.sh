@@ -121,6 +121,32 @@ PY
     rm -rf "$tmp_repo"
     ;;
 
+  npx-init)
+    # Verify npx agentlint-ai init screen output (written by sandbox_setup.sh FROM_NPX mode)
+    npx_output_file="/tmp/npx-init-output.txt"
+    cp "$npx_output_file" "$OUTPUT_PATH/npx-init.txt" 2>/dev/null || true
+
+    python3 - "$result_file" "$npx_output_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+result_path, npx_path = sys.argv[1:3]
+output = Path(npx_path).read_text(errors="replace") if Path(npx_path).exists() else ""
+
+checks = {
+    "npx_produced_output":  {"pass": len(output) > 50,                                  "value": f"{len(output)} chars"},
+    "logo_present":         {"pass": "AGENTLINT" in output or "AgentLint" in output,     "value": "ok" if "AgentLint" in output else "missing"},
+    "tagline_present":      {"pass": "linter for your agent harness" in output,          "value": "ok" if "linter for your agent harness" in output else "missing"},
+    "version_shown":        {"pass": "v1." in output,                                    "value": "ok" if "v1." in output else "missing"},
+    "no_crash":             {"pass": "Error:" not in output and "Traceback" not in output,"value": "ok" if "Error:" not in output else "crashed"},
+    "env_detection_ran":    {"pass": "agentlint CLI" in output or "Detecting" in output, "value": "ok" if "Detecting" in output else "missing"},
+}
+Path(result_path).write_text(json.dumps({"checks": checks, "data": {"output_len": len(output)}}, indent=2))
+print("Checks:", {k: v["pass"] for k, v in checks.items()})
+PY
+    ;;
+
   *)
     echo "[error] Unknown install scenario type: $SCENARIO_TYPE" >&2
     echo '{"checks": {}, "error": "unknown scenario type"}' >"$result_file"

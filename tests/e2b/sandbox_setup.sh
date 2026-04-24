@@ -8,6 +8,7 @@ set -uo pipefail
 NODE_VERSION="${NODE_VERSION:-20}"
 AGENTLINT_TAR="${AGENTLINT_TAR:-/tmp/agentlint.tar.gz}"
 FROM_NPM="${FROM_NPM:-}"  # if set, install this package name from npm registry
+FROM_NPX="${FROM_NPX:-}"  # if set, run npx <package> to test init UI, then also install -g for scenarios
 
 echo "[setup] Node: $(node --version 2>/dev/null || echo missing), npm: $(npm --version 2>/dev/null || echo missing), git: $(git --version 2>/dev/null || echo missing)"
 
@@ -33,7 +34,21 @@ echo "[setup] Node: $(node --version), npm: $(npm --version)"
 # Install agentlint — either from npm registry or from uploaded tarball
 rm -rf /tmp/agentlint-src 2>/dev/null || true
 
-if [ -n "$FROM_NPM" ]; then
+if [ -n "$FROM_NPX" ]; then
+  echo "[setup] Testing npx init flow for $FROM_NPX..."
+  # Capture full output — this is what the user sees on a fresh machine
+  npx "$FROM_NPX" > /tmp/npx-init-output.txt 2>&1 || true
+  echo "[setup] npx output ($(wc -l < /tmp/npx-init-output.txt) lines):"
+  head -10 /tmp/npx-init-output.txt
+  # Also install globally so the rest of the scenarios (check/fix/report) work
+  echo "[setup] Installing $FROM_NPX globally for scenario scripts..."
+  npm install -g "$FROM_NPX" --no-fund 2>&1 | tail -3 || true
+  NPM_ROOT="$(npm root -g 2>/dev/null || echo /usr/lib/node_modules)"
+  INSTALL_DIR="$NPM_ROOT/agentlint-ai"
+  [ -d "$INSTALL_DIR" ] || INSTALL_DIR="$NPM_ROOT/${FROM_NPX}"
+  ln -s "$INSTALL_DIR" /tmp/agentlint-src
+  echo "[setup] npx-mode: agentlint-src -> $INSTALL_DIR"
+elif [ -n "$FROM_NPM" ]; then
   echo "[setup] Installing $FROM_NPM from npm registry..."
   npm install -g "$FROM_NPM" --no-fund 2>&1 | tail -5 || true
   NPM_ROOT="$(npm root -g 2>/dev/null || echo /usr/lib/node_modules)"

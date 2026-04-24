@@ -81,7 +81,7 @@ def build_agentlint_tarball() -> bytes:
         return data
 
 
-def run_one(spec: dict, tarball_bytes: bytes, run_dir: Path, dry_run: bool = False, from_npm: str = "") -> dict:
+def run_one(spec: dict, tarball_bytes: bytes, run_dir: Path, dry_run: bool = False, from_npm: str = "", from_npx: str = "") -> dict:
     """Run a single scenario in an E2B sandbox. Returns result dict."""
     scenario_id = spec["id"]
     layer = spec["layer"]
@@ -121,8 +121,8 @@ def run_one(spec: dict, tarball_bytes: bytes, run_dir: Path, dry_run: bool = Fal
     try:
         # E2B SDK v2: use Sandbox.create() — picks up E2B_API_KEY from env
         with Sandbox.create(timeout=timeout + 60) as sbx:
-            # Upload agentlint source (skip in npm-mode — install from registry instead)
-            if not from_npm:
+            # Upload agentlint source (skip in npm/npx-mode — install from registry instead)
+            if not from_npm and not from_npx:
                 sbx.files.write("/tmp/agentlint.tar.gz", tarball_bytes)
             
             # Set env vars from spec
@@ -132,7 +132,9 @@ def run_one(spec: dict, tarball_bytes: bytes, run_dir: Path, dry_run: bool = Fal
                 "SCENARIO_TYPE": spec.get("scenario_type", layer),
                 "OUTPUT_PATH": "/tmp/scenario-output",
             }
-            if from_npm:
+            if from_npx:
+                envs["FROM_NPX"] = from_npx
+            elif from_npm:
                 envs["FROM_NPM"] = from_npm
             if "repo_name" in spec:
                 envs["REPO_NAME"] = spec["repo_name"]
@@ -273,14 +275,21 @@ def main() -> None:
                         help="E2B API key (default: $E2B_API_KEY)")
     parser.add_argument("--from-npm", default=None, metavar="PACKAGE",
                         help="Install from npm registry instead of local tarball (e.g. agentlint-ai)")
+    parser.add_argument("--from-npx", default=None, metavar="PACKAGE",
+                        help="Test npx init flow: run 'npx PACKAGE', capture output, then install -g (e.g. agentlint-ai)")
     args = parser.parse_args()
     
     if args.e2b_api_key:
         os.environ["E2B_API_KEY"] = args.e2b_api_key
     
     layers = LAYER_ORDER if args.layer == "all" else [args.layer]
-    npm_suffix = f"-npm-{args.from_npm.replace('/', '-')}" if args.from_npm else ""
-    run_id = args.run_id or f"{datetime.utcnow().strftime('%Y-%m-%d')}-{args.layer}{npm_suffix}"
+    if args.from_npx:
+        pkg_suffix = f"-npx-{args.from_npx.replace('/', '-')}"
+    elif args.from_npm:
+        pkg_suffix = f"-npm-{args.from_npm.replace('/', '-')}"
+    else:
+        pkg_suffix = ""
+    run_id = args.run_id or f"{datetime.utcnow().strftime('%Y-%m-%d')}-{args.layer}{pkg_suffix}"
     run_dir = RESULTS_DIR / run_id
     
     # Collect all scenarios
@@ -294,10 +303,16 @@ def main() -> None:
         except FileNotFoundError as e:
             print(f"[warn] {e}", file=sys.stderr)
     
+    # Filter: npx-init scenarios only run in npx-mode; skip them otherwise
+    if args.from_npx:
+        all_scenarios = [s for s in all_scenarios if s.get("scenario_type") == "npx-init"]
+    else:
+        all_scenarios = [s for s in all_scenarios if s.get("scenario_type") != "npx-init"]
+
     if not all_scenarios:
         print("No scenarios found.", file=sys.stderr)
         sys.exit(1)
-    
+
     print(f"Run ID: {run_id}")
     print(f"Scenarios: {len(all_scenarios)} across layers: {layers}")
     print(f"Concurrency: {args.concurrency}")
@@ -307,9 +322,13 @@ def main() -> None:
             print(f"  {s['id']} ({s['layer']})")
         sys.exit(0)
     
-    # Build tarball (skip in npm-mode)
+    # Build tarball (skip in npm/npx-mode)
     from_npm = args.from_npm or ""
-    if from_npm:
+    from_npx = args.from_npx or ""
+    if from_npx:
+        print(f"[orchestrator] npx-mode: will run 'npx {from_npx}' and capture output in each sandbox")
+        tarball_bytes = b""
+    elif from_npm:
         print(f"[orchestrator] npm-mode: will install {from_npm!r} from registry in each sandbox")
         tarball_bytes = b""
     else:
@@ -323,7 +342,7 @@ def main() -> None:
 
     with ThreadPoolExecutor(max_workers=min(args.concurrency, len(all_scenarios))) as executor:
         futures = {
-            executor.submit(run_one, spec, tarball_bytes, run_dir, args.dry_run, from_npm): spec
+            executor.submit(run_one, spec, tarball_bytes, run_dir, args.dry_run, from_npm, from_npx): spec
             for spec in all_scenarios
         }
         for future in as_completed(futures):
