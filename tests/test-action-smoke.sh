@@ -58,13 +58,38 @@ test_action_references_existing_scripts() {
 }
 
 test_action_declares_outputs() {
-  # Must declare score + all 6 dimensions
-  for field in "score" "findability" "instructions" "workability" "continuity" "safety" "harness"; do
+  # Must declare score, score-scope, and all 6 core dimensions
+  for field in "score" "score-scope" "findability" "instructions" "workability" "continuity" "safety" "harness"; do
     if ! grep -qE "^\s+${field}:" "${ACTION_FILE}"; then
       TEST_ERROR="action.yml missing output: ${field}"
       return 1
     fi
   done
+}
+
+test_action_does_not_expose_extended_dimensions() {
+  # Deep and Session can't run in CI (no AI sub-agent, no local Claude Code
+  # session logs), so they must not appear as Action outputs. Exposing them
+  # would encourage users to gate CI on scores that are always 0.
+  for field in "deep" "session"; do
+    if grep -qE "^\s+${field}:\s*$" "${ACTION_FILE}"; then
+      TEST_ERROR="action.yml exposes extended dimension '${field}' as an output — it cannot run in CI"
+      return 1
+    fi
+  done
+}
+
+test_action_description_reflects_core_extended() {
+  # Description must NOT claim "42 checks" or "6 dimensions" as the whole product.
+  if grep -qE "42 (evidence-backed )?checks|42 checks" "${ACTION_FILE}"; then
+    TEST_ERROR="action.yml description still says '42 checks' — outdated"
+    return 1
+  fi
+  # Description must mention core dimensions count (51) or the word 'core'.
+  if ! grep -qE "(51|core)" "${ACTION_FILE}"; then
+    TEST_ERROR="action.yml description does not mention 51 core checks or 'core' dimensions"
+    return 1
+  fi
 }
 
 test_action_declares_inputs() {
@@ -87,6 +112,8 @@ run_test "action.yml exists" test_action_file_exists
 run_test "action.yml is valid YAML" test_action_yaml_valid
 run_test "action.yml references existing scripts" test_action_references_existing_scripts
 run_test "action.yml declares all expected outputs" test_action_declares_outputs
+run_test "action.yml does not expose extended dimensions" test_action_does_not_expose_extended_dimensions
+run_test "action.yml description reflects core/extended contract" test_action_description_reflects_core_extended
 run_test "action.yml declares all expected inputs" test_action_declares_inputs
 run_test "action.yml is a composite action" test_composite_type
 
