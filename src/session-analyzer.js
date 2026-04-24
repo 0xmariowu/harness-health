@@ -840,6 +840,32 @@ async function run() {
     ...buildS4Findings(sessions, options),
   ];
 
+  // Emit "ran, no issue" sentinels for any SS check that produced no
+  // findings. Without this, a clean repo (sessions scanned, nothing
+  // flagged) produces zero session records — scorer's `state.checks.length
+  // > 0` test then marks Session as `not_run` and score_scope stays
+  // `core` even though the user explicitly selected Session. That made
+  // "Session selected but clean" indistinguishable from "Session not
+  // selected", collapsing a real product distinction.
+  const SS_CHECK_NAMES = {
+    SS1: 'Repeated instructions',
+    SS2: 'Ignored rules',
+    SS3: 'Friction hotspots',
+    SS4: 'Missing rule suggestions',
+  };
+  const reportedCheckIds = new Set(findings.map((f) => f.check_id));
+  for (const checkId of Object.keys(SS_CHECK_NAMES)) {
+    if (reportedCheckIds.has(checkId)) continue;
+    process.stdout.write(`${JSON.stringify({
+      dimension: 'session',
+      check_id: checkId,
+      name: SS_CHECK_NAMES[checkId],
+      score: 1,
+      detail: 'No issues found in analyzed sessions',
+      evidence_id: checkId,
+    })}\n`);
+  }
+
   for (const record of findings) {
     process.stdout.write(`${JSON.stringify(record)}\n`);
   }

@@ -70,24 +70,41 @@ rc=$?
 
 check "--include-global: exits zero" "[ $rc -eq 0 ]"
 # Any non-empty output must be valid JSONL.
+# Pipe $out through a temp file — embedding JSON (which has double quotes)
+# directly into `check`'s `eval` string corrupts quoting and breaks jq.
+out_file="$(mktemp)"
+printf '%s\n' "$out" > "$out_file"
 if [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
   check "--include-global: each line is valid JSON" \
-    "printf '%s\n' \"$out\" | while IFS= read -r line; do [ -z \"\$line\" ] && continue; printf '%s' \"\$line\" | jq -e . >/dev/null || exit 1; done"
-  # Redaction check: raw prompt text must NOT appear in output by default.
-  check "--include-global (default): raw prompt text is redacted" \
-    "! printf '%s' \"$out\" | grep -q 'Always use TypeScript'"
-  check "--include-global (default): redaction marker present" \
-    "printf '%s' \"$out\" | grep -q '\[redacted'"
+    "while IFS= read -r line; do [ -z \"\$line\" ] && continue; printf '%s' \"\$line\" | jq -e . >/dev/null || exit 1; done < '$out_file'"
+  # Session analyzer emits "no issues" sentinel records (score=1) for SS
+  # checks with no findings, so the dimension flips to `run` even on
+  # clean repos. Redaction assertions only make sense for actual findings
+  # (score=0) — filter those out before the raw-text / redaction checks.
+  findings_only="$(printf '%s\n' "$out" | jq -c 'select(.score == 0)' 2>/dev/null)"
+  if [ -n "$(printf '%s' "$findings_only" | tr -d '[:space:]')" ]; then
+    check "--include-global (default): raw prompt text is redacted" \
+      "! printf '%s' \"$findings_only\" | grep -q 'Always use TypeScript'"
+    check "--include-global (default): redaction marker present" \
+      "printf '%s' \"$findings_only\" | grep -q '\[redacted'"
+  else
+    check "--include-global: only sentinels emitted (below finding threshold) — acceptable" "true"
+  fi
 else
-  # Fixture is small — it may not reach the cluster threshold; still valid.
-  check "--include-global: empty (below threshold) — acceptable" "true"
+  check "--include-global: empty (no sessions scanned) — acceptable" "true"
 fi
 
 # ─── 5. --include-raw-snippets includes raw text ──────────────────────────
 out="$(node "$SESSION" --projects-root "$empty_proj2" --session-root "${fixture_root}/.claude/projects" --include-global --include-raw-snippets 2>&1)"
 if [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
-  check "--include-raw-snippets: raw prompt text appears in output" \
-    "printf '%s' \"$out\" | grep -q 'Always use TypeScript'"
+  # Same sentinel filter as above — raw text only appears in real findings.
+  findings_only="$(printf '%s\n' "$out" | jq -c 'select(.score == 0)' 2>/dev/null)"
+  if [ -n "$(printf '%s' "$findings_only" | tr -d '[:space:]')" ]; then
+    check "--include-raw-snippets: raw prompt text appears in output" \
+      "printf '%s' \"$findings_only\" | grep -q 'Always use TypeScript'"
+  else
+    check "--include-raw-snippets: only sentinels emitted (no findings) — acceptable" "true"
+  fi
 fi
 
 rm -rf "$fixture_root" "$empty_proj2"
