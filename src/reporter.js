@@ -54,7 +54,13 @@ function bar(score, max, width = 20) {
 function generateTerminalSummary(scores) {
   const lines = [];
   lines.push('');
-  const scopeSuffix = scores.score_scope === 'core' ? ' (core)' : '';
+  // Match the Markdown/HTML formats: show ' (core+extended)' when any
+  // extended dim ran, otherwise ' (core)'. Prior terminal output appended
+  // nothing for core+extended, hiding which scoring contract produced the
+  // score.
+  const scopeSuffix = scores.score_scope === 'core+extended'
+    ? ' (core+extended)'
+    : ' (core)';
   lines.push(`\x1b[1m\u{1F3E5} AgentLint \u2014 Score: ${scores.total_score}/100${scopeSuffix}\x1b[0m`);
   lines.push('');
 

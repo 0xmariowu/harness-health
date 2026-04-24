@@ -50,6 +50,9 @@
     "agentlint": "scripts/agentlint.sh",
     "al-scan": "src/scanner.sh"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "postinstall": "node postinstall.js",
     "test": "npm run test:core && npm run test:js && npm run test:action",

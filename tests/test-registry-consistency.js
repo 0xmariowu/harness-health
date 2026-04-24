@@ -496,5 +496,36 @@ runTest('session-analyzer loadProjectCatalog walks nested repos (maxdepth 4)', (
     'session-analyzer must use a recursive walker rather than a single readdirSync');
 });
 
+runTest('package.json declares Node 20+ engine and E2B scenarios agree', () => {
+  // Contract: docs say Node 20+, installer checks Node 20+, package.json
+  // must declare the same. E2B Node 18 scenarios used to claim Node 18
+  // as "minimum supported" — they must now assert Node 18 is REJECTED by
+  // the engines field.
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.ok(pkg.engines && />=\s*20/.test(pkg.engines.node || ''),
+    `package.json must declare "engines.node" >= 20, got ${JSON.stringify(pkg.engines)}`);
+  const specs = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'tests', 'e2b', 'scenarios', 'install', 'specs.json'), 'utf8'),
+  );
+  const node18Scenarios = (specs.scenarios || []).filter((s) => s.node_version === '18');
+  assert.ok(node18Scenarios.length > 0,
+    'E2B must include at least one Node 18 scenario to exercise the unsupported path');
+  for (const s of node18Scenarios) {
+    assert.match(s.description || '', /rejected|unsupported/i,
+      `E2B scenario ${s.id} on Node 18 must describe rejection, not "minimum supported"`);
+    assert.ok(s.expected && s.expected.exit_nonzero_or_engines_warning,
+      `E2B scenario ${s.id} must expect a non-zero exit or engines warning on Node 18`);
+  }
+});
+
+runTest('terminal reporter shows (core+extended) suffix when extended dims ran', () => {
+  // Terminal output used to drop the suffix entirely on core+extended,
+  // hiding which scoring contract produced the score. Must match the
+  // Markdown / HTML formats: ' (core)' vs ' (core+extended)'.
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'reporter.js'), 'utf8');
+  assert.match(src, /score_scope\s*===\s*['"]core\+extended['"]\s*\?\s*['"]\s*\(core\+extended\)['"]/,
+    'reporter.js terminal path must branch on score_scope === "core+extended" and output " (core+extended)"');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

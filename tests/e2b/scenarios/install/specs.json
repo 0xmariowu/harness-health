@@ -36,19 +36,19 @@
       }
     },
     {
-      "id": "S03-install-node18-ubuntu22",
+      "id": "S03-install-node18-rejected",
       "layer": "install",
-      "scenario_type": "install",
+      "scenario_type": "install-unsupported",
       "node_version": "18",
-      "description": "npm install -g agentlint on Node 18 (minimum supported)",
+      "description": "npm install -g agentlint on Node 18 is rejected by engines field",
       "timeout": 300,
       "use_synthetic": false,
       "expected": {
-        "version_pattern": "^\\d+\\.\\d+\\.\\d+$",
-        "help_contains": [
-          "check",
-          "fix",
-          "setup"
+        "exit_nonzero_or_engines_warning": true,
+        "stderr_contains_any": [
+          "engine",
+          "EBADENGINE",
+          "unsupported"
         ]
       }
     },
@@ -115,17 +115,20 @@
       }
     },
     {
-      "id": "S23-npx-init-node18",
+      "id": "S23-npx-init-node18-rejected",
       "layer": "install",
-      "scenario_type": "npx-init",
+      "scenario_type": "npx-init-unsupported",
       "node_version": "18",
-      "description": "npx agentlint-ai shows logo + tagline on Node 18 (minimum supported)",
+      "description": "npx agentlint-ai on Node 18 is rejected by engines field",
       "timeout": 120,
       "use_synthetic": false,
       "expected": {
-        "logo_present": true,
-        "tagline_present": true,
-        "no_crash": true
+        "exit_nonzero_or_engines_warning": true,
+        "stderr_contains_any": [
+          "engine",
+          "EBADENGINE",
+          "unsupported"
+        ]
       }
     }
   ]
