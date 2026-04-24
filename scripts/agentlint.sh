@@ -76,9 +76,39 @@ case "${1:-}" in
     ;;
   check)
     shift
-    run_scan "$@" || exit $?
+    # Split args into scanner-bound vs reporter-bound so the CLI can forward
+    # report-formatting flags (--format, --output-dir, --fail-below, --before,
+    # --sarif-include-all) that the GitHub Action already exposed. Unknown
+    # flags reach the scanner and fail loudly there — the transactional
+    # pipeline (P0-1) guarantees no fake score report leaks to stdout.
+    scanner_args=()
+    reporter_args=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --project-dir|--project-dir=*)
+          scanner_args+=("$1")
+          if [[ "$1" == "--project-dir" ]]; then
+            shift
+            scanner_args+=("${1-}")
+          fi
+          ;;
+        --format|--output-dir|--fail-below|--before)
+          reporter_args+=("$1")
+          shift
+          reporter_args+=("${1-}")
+          ;;
+        --format=*|--output-dir=*|--fail-below=*|--before=*|--sarif-include-all)
+          reporter_args+=("$1")
+          ;;
+        *)
+          scanner_args+=("$1")
+          ;;
+      esac
+      shift
+    done
+    run_scan "${scanner_args[@]+"${scanner_args[@]}"}" || exit $?
     node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
-      | node "${SCRIPT_DIR}/../src/reporter.js"
+      | node "${SCRIPT_DIR}/../src/reporter.js" "${reporter_args[@]+"${reporter_args[@]}"}"
     ;;
   fix)
     shift
@@ -150,8 +180,12 @@ Commands:
   setup   Bootstrap a repo with AI-native CI/CD, hooks, and templates
           agentlint setup --lang <ts|python|node> [--visibility public|private] <path>
 
-  check   Diagnose your repo's AI-friendliness (58 checks, 8 dimensions)
+  check   Diagnose your repo's AI-friendliness (51 core checks + 7 opt-in)
           agentlint check [--project-dir <path>]
+                          [--format <terminal|md|jsonl|html|sarif|all>]
+                          [--output-dir <path>]      # used when format != terminal
+                          [--fail-below <0-100>]     # exit non-zero below threshold
+                          [--before <scores.json>]   # HTML delta vs a previous run
 
   fix     Auto-fix issues found by check
           agentlint fix [--project-dir <path>]
