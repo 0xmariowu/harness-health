@@ -1381,9 +1381,14 @@ run_test "F4: ≤10 root files → 1" test_f4_few_files
 W5_BIG_DIR="${TEMP_ROOT}/w5-big"
 mkdir -p "${W5_BIG_DIR}/src"
 git -C "${W5_BIG_DIR}" init --quiet 2>/dev/null || true
+git -C "${W5_BIG_DIR}" config user.email "t@t" 2>/dev/null || true
+git -C "${W5_BIG_DIR}" config user.name "t" 2>/dev/null || true
 printf '# Project\n' > "${W5_BIG_DIR}/CLAUDE.md"
-# Create a >256KB .js file (262145 bytes)
+# Create a >256KB .js file (262145 bytes). W5 now uses git ls-files in git repos,
+# so the file must be tracked for the check to see it.
 dd if=/dev/zero bs=1 count=262145 2>/dev/null | tr '\0' 'x' > "${W5_BIG_DIR}/src/big.js"
+git -C "${W5_BIG_DIR}" add -A 2>/dev/null
+git -C "${W5_BIG_DIR}" commit -q -m init 2>/dev/null || true
 
 test_w5_oversized_file() {
   local out="${TEMP_ROOT}/w5-big.jsonl"
@@ -1394,6 +1399,58 @@ test_w5_oversized_file() {
 }
 
 run_test "W5: source file >256KB → 0" test_w5_oversized_file
+
+# ── W5 regression: .gitignore'd oversized files must not lower the score ──
+# Before fix: W5 scanned filesystem and flagged coverage/, tmp/, cache files.
+# After fix: git repos use `git ls-files` so .gitignore is respected.
+
+W5_IGNORED_DIR="${TEMP_ROOT}/w5-ignored"
+mkdir -p "${W5_IGNORED_DIR}/coverage/tmp"
+git -C "${W5_IGNORED_DIR}" init --quiet 2>/dev/null || true
+git -C "${W5_IGNORED_DIR}" config user.email "t@t" 2>/dev/null || true
+git -C "${W5_IGNORED_DIR}" config user.name "t" 2>/dev/null || true
+printf '# Project\n' > "${W5_IGNORED_DIR}/CLAUDE.md"
+printf 'coverage/\n' > "${W5_IGNORED_DIR}/.gitignore"
+# Put an oversized JSON under the ignored directory.
+dd if=/dev/zero bs=1 count=262145 2>/dev/null | tr '\0' 'x' > "${W5_IGNORED_DIR}/coverage/tmp/report.json"
+git -C "${W5_IGNORED_DIR}" add -A 2>/dev/null
+git -C "${W5_IGNORED_DIR}" commit -q -m init 2>/dev/null || true
+
+test_w5_respects_gitignore() {
+  local out="${TEMP_ROOT}/w5-ignored.jsonl"
+  bash "${SCANNER}" --project-dir "${W5_IGNORED_DIR}" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W5")" || { TEST_ERROR="W5 not found"; return 1; }
+  if [ "$score" != "1" ]; then TEST_ERROR="W5 should be 1 — coverage/ is gitignored (got ${score})"; return 1; fi
+}
+
+run_test "W5 regression: gitignored oversized files do not affect score" test_w5_respects_gitignore
+
+# ── W5 regression: project dir containing `&` must not corrupt paths ──────
+# Before fix: `sed "s|^|${project_dir}/|"` treated literal `&` in replacement
+# as "whole matched pattern", silently truncating paths for projects whose
+# absolute path contains `&`. Oversized files would go undetected.
+
+W5_AMP_DIR="${TEMP_ROOT}/w5-amp & dir/src"
+mkdir -p "${W5_AMP_DIR}"
+git -C "${TEMP_ROOT}/w5-amp & dir" init --quiet 2>/dev/null || true
+git -C "${TEMP_ROOT}/w5-amp & dir" config user.email "t@t" 2>/dev/null || true
+git -C "${TEMP_ROOT}/w5-amp & dir" config user.name "t" 2>/dev/null || true
+printf '# Project\n' > "${TEMP_ROOT}/w5-amp & dir/CLAUDE.md"
+# Oversized source file that must be detected even with `&` in parent path.
+dd if=/dev/zero bs=1 count=262145 2>/dev/null | tr '\0' 'x' > "${W5_AMP_DIR}/big.js"
+git -C "${TEMP_ROOT}/w5-amp & dir" add -A 2>/dev/null
+git -C "${TEMP_ROOT}/w5-amp & dir" commit -q -m init 2>/dev/null || true
+
+test_w5_handles_ampersand_path() {
+  local out="${TEMP_ROOT}/w5-amp.jsonl"
+  bash "${SCANNER}" --project-dir "${TEMP_ROOT}/w5-amp & dir" > "$out" 2>/dev/null
+  local score
+  score="$(extract_check_score "$out" "W5")" || { TEST_ERROR="W5 not found"; return 1; }
+  if [ "$score" != "0" ]; then TEST_ERROR="W5 should detect the oversized file even with '&' in path (got ${score})"; return 1; fi
+}
+
+run_test "W5 regression: project dir with '&' does not corrupt paths" test_w5_handles_ampersand_path
 
 # ── S2 failure: unpinned action (bare 'uses:' key format) → score < 1 ────
 # NOTE: Scanner grep pattern '^\s*uses:\s' matches only bare key format (not '- uses:' list items).

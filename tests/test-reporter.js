@@ -367,5 +367,99 @@ runTest('jsonl format output with empty by_project produces no lines', () => {
   }
 });
 
+// ─── not_run regression tests ──────────────────────────────────────────────
+
+function makeDim(score, weight, status = 'run') {
+  return { status, score, max: 10, weight, checks: [] };
+}
+
+runTest('By-Project panel skips not_run dimensions when averaging (regression: would drag per-project score down)', () => {
+  // Two projects, each with F=9, I=9, W=9 (ran) and deep/session (not_run).
+  // If not_run dims are included in denominator, per-project score = 9 * 0.63 / (0.63 + 0.1) ≈ 78 instead of 90.
+  // The By-Project panel must match the scorer's contract: only average run dims.
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-byproj-'));
+  try {
+    const scores = {
+      total_score: 90,
+      score_scope: 'core',
+      dimensions: {
+        findability: makeDim(9, 0.2),
+        instructions: makeDim(9, 0.25),
+        workability: makeDim(9, 0.18),
+        deep: makeDim(null, 0.05, 'not_run'),
+        session: makeDim(null, 0.05, 'not_run'),
+      },
+      by_project: {
+        alpha: {
+          findability: makeDim(9, 0.2),
+          instructions: makeDim(9, 0.25),
+          workability: makeDim(9, 0.18),
+          deep: makeDim(null, 0.05, 'not_run'),
+          session: makeDim(null, 0.05, 'not_run'),
+        },
+        beta: {
+          findability: makeDim(9, 0.2),
+          instructions: makeDim(9, 0.25),
+          workability: makeDim(9, 0.18),
+          deep: makeDim(null, 0.05, 'not_run'),
+          session: makeDim(null, 0.05, 'not_run'),
+        },
+      },
+    };
+    const scoresPath = path.join(tempDir, 'scores.json');
+    fs.writeFileSync(scoresPath, JSON.stringify(scores));
+    const result = runReporter([scoresPath, '--format', 'terminal']);
+    // Per-project score should be 9 (the avg of run dims), not ~8 (polluted by
+    // counting weights of deep/session in the denominator with a null*weight=0).
+    // Terminal renders as "   9" padded right. We match any 9 after the project name.
+    assert.match(result.stdout, /alpha\s+9\b/);
+    assert.match(result.stdout, /beta\s+9\b/);
+    // Must not show 7 or 8 (the buggy values).
+    assert.doesNotMatch(result.stdout, /alpha\s+[78]\b/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('HTML compare mode: not_run dimension does not render a negative delta (null-arithmetic regression)', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-delta-'));
+  try {
+    // After scan: deep is not_run. Before scan: deep had score 8.
+    // Bug: `dim.score - bd.score` = `null - 8` = -8 → fake "-8" delta pill.
+    const scores = {
+      total_score: 90,
+      score_scope: 'core',
+      dimensions: {
+        findability: makeDim(9, 0.2),
+        deep: makeDim(null, 0.05, 'not_run'),
+      },
+      by_project: {},
+    };
+    const before = {
+      total_score: 80,
+      dimensions: {
+        findability: makeDim(9, 0.2),
+        deep: makeDim(8, 0.05),
+      },
+      by_project: {},
+    };
+    const scoresPath = path.join(tempDir, 'scores.json');
+    const beforePath = path.join(tempDir, 'before.json');
+    fs.writeFileSync(scoresPath, JSON.stringify(scores));
+    fs.writeFileSync(beforePath, JSON.stringify(before));
+    runReporter([scoresPath, '--format', 'html', '--before', beforePath, '--output-dir', tempDir]);
+    const htmlFile = fs.readdirSync(tempDir).find((n) => n.endsWith('.html'));
+    assert.ok(htmlFile, 'expected html file');
+    const html = fs.readFileSync(path.join(tempDir, htmlFile), 'utf8');
+    // The Deep dimension section must NOT contain a delta-down pill with -8.
+    const deepSection = html.match(/dim-label">Deep<\/span>[\s\S]{0,800}?<\/summary>/);
+    assert.ok(deepSection, 'expected Deep dimension row in HTML');
+    assert.doesNotMatch(deepSection[0], /delta-down[^>]*>-\d/);
+    assert.doesNotMatch(deepSection[0], /-8</);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

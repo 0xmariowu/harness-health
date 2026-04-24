@@ -49,9 +49,34 @@ const CHECK_FIX_ACTIONS = {
   H8: 'Add hooks/_shared.sh with fail_with_help() for structured hook errors (what/rule/fix/see)',
 };
 
-const ASSISTED_FIXES = new Set(['F1', 'F5', 'C2', 'W9', 'W10', 'H8']);
-const AUTO_FIXES = new Set(['I5', 'W11']);
-const GUIDED_FIXES = new Set(['I3', 'W3', 'C1', 'H3', 'H6', 'C6']);
+// ─── Fix Capability Registry ────────────────────────────────────────────────
+// Single source of truth for what `src/fixer.js` actually implements. Any
+// check not listed here defaults to 'guided' — plan-generator MUST NOT invent
+// an 'assisted' promise for a check the fixer has no handler for, because the
+// user selecting "High priority" would then see "No assisted strategy for X"
+// failures at fix time.
+//
+// When you add a new fixer handler, add the check ID here with the matching
+// type. When you remove a handler, remove it here too.
+const FIX_REGISTRY = {
+  // auto — runs silently with no user decision
+  W11: 'auto',   // executeAutoW11 — create .github/workflows/test-required.yml
+  F5:  'auto',   // removeLinesWithBrokenReferences — strips broken markdown refs
+  I5:  'auto',   // removeIdentityLanguage — strips identity-language lines
+
+  // assisted — fixer generates a file/template; user typically edits after
+  F1:  'assisted', // executeAssistedF1 — scaffold CLAUDE.md from template
+  C2:  'assisted', // executeAssistedC2 — generate HANDOFF.md from template
+  H8:  'assisted', // executeAssistedH8 — add structured hook error helper
+
+  // guided — plan-generator returns a text recipe; no file changes
+  I3:  'guided',
+  W3:  'guided',
+  C1:  'guided',
+  H3:  'guided',
+  H6:  'guided',
+  C6:  'guided',
+};
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -141,10 +166,12 @@ function inferFixType(checkId, score) {
     return null;
   }
 
-  if (GUIDED_FIXES.has(checkId)) return 'guided';
-  if (AUTO_FIXES.has(checkId)) return 'auto';
-  if (ASSISTED_FIXES.has(checkId)) return 'assisted';
-  if (score < 0.5) return 'assisted';
+  const registered = FIX_REGISTRY[checkId];
+  if (registered) return registered;
+
+  // Unregistered checks are 'guided' — never promise an 'assisted' fix the
+  // fixer hasn't implemented. Low scores don't create capability out of thin
+  // air. See the FIX_REGISTRY comment above.
   return 'guided';
 }
 

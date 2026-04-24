@@ -18,6 +18,11 @@ const DIMENSION_BY_PREFIX = {
   H: 'harness',
 };
 
+// Extended dimensions require optional runtime conditions (AI sub-agents, local
+// Claude Code session logs) and are not produced by the deterministic scanner.
+// They participate in the total score only when their checks actually ran.
+const EXTENDED_DIMENSIONS = new Set(['deep', 'session']);
+
 function readJsonFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
   return JSON.parse(raw);
@@ -103,9 +108,11 @@ function finalizeDimensions(states, dimensionsConfig) {
   const dimensions = {};
   for (const name of Object.keys(dimensionsConfig)) {
     const state = states[name];
+    const ran = state.checks.length > 0;
     const weighted = state.weightSum > 0 ? (state.weightedSum / state.weightSum) * state.max : 0;
-    const score = Number.isFinite(weighted) ? Math.round(weighted) : 0;
+    const score = ran ? (Number.isFinite(weighted) ? Math.round(weighted) : 0) : null;
     dimensions[name] = {
+      status: ran ? 'run' : 'not_run',
       score,
       max: state.max,
       weight: state.weight,
@@ -121,6 +128,9 @@ function calculateTotalScore(dimensions, dimensionsConfig) {
 
   for (const [name, cfg] of Object.entries(dimensionsConfig)) {
     const dim = dimensions[name];
+    // Skip dimensions whose checks didn't run — they would pollute the average
+    // with a spurious 0 even though no evidence was gathered.
+    if (!dim || dim.status !== 'run') continue;
     const weight = Number(cfg.weight);
     if (!Number.isFinite(weight) || weight < 0) continue;
     numerator += (dim.score / dim.max) * weight;
@@ -129,6 +139,15 @@ function calculateTotalScore(dimensions, dimensionsConfig) {
 
   if (denominator === 0) return 0;
   return Math.round((numerator / denominator) * 100);
+}
+
+function computeScoreScope(dimensions) {
+  for (const [name, dim] of Object.entries(dimensions)) {
+    if (EXTENDED_DIMENSIONS.has(name) && dim.status === 'run') {
+      return 'core+extended';
+    }
+  }
+  return 'core';
 }
 
 function addCheckContribution(stateMap, record, checkWeights, dimensionsConfig, thresholds) {
@@ -257,6 +276,7 @@ async function run() {
 
   const result = {
     total_score: calculateTotalScore(dimensions, dimensionsConfig),
+    score_scope: computeScoreScope(dimensions),
     dimensions,
     by_project,
   };

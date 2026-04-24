@@ -1248,27 +1248,62 @@ EOF
   fi
 
   # W5 — No oversized source files (> 256 KB)
+  # Source-of-truth priority: in a git repo, honor .gitignore via `git ls-files`
+  # so generated/ignored artifacts (coverage/, tmp/, caches) don't pollute the
+  # score. Filesystem fallback excludes common cache dirs explicitly.
   local oversized_count=0
   local oversized_examples=""
-  while IFS= read -r file; do
-    [ -z "$file" ] && continue
+  local candidate_files=""
+  # in_git: 1 when candidate paths are relative-to-repo (git ls-files output);
+  # 0 when they're already absolute (find output). Controls prefixing below.
+  local in_git=0
+  if git -C "$project_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    in_git=1
+    candidate_files="$(git -C "$project_dir" ls-files -- \
+      '*.js' '*.ts' '*.py' '*.go' '*.rs' '*.java' '*.rb' '*.sql' '*.json' \
+      '*.yaml' '*.yml' '*.md' '*.sh' '*.c' '*.cpp' '*.h' '*.cs' '*.php' \
+      '*.swift' '*.kt' 2>/dev/null)"
+  else
+    candidate_files="$(find "$project_dir" -type f -size +262144c \
+      -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' \
+      -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' -not -path '*/.next/*' \
+      -not -path '*/coverage/*' -not -path '*/.nyc_output/*' \
+      -not -path '*/.pytest_cache/*' -not -path '*/.mypy_cache/*' -not -path '*/.ruff_cache/*' \
+      -not -path '*/.turbo/*' -not -path '*/.cache/*' -not -path '*/tmp/*' -not -path '*/logs/*' \
+      \( -name '*.js' -o -name '*.ts' -o -name '*.py' -o -name '*.go' -o -name '*.rs' \
+         -o -name '*.java' -o -name '*.rb' -o -name '*.sql' -o -name '*.json' \
+         -o -name '*.yaml' -o -name '*.yml' -o -name '*.md' -o -name '*.sh' \
+         -o -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.cs' \
+         -o -name '*.php' -o -name '*.swift' -o -name '*.kt' \) \
+      2>/dev/null)"
+  fi
+  while IFS= read -r entry; do
+    [ -z "$entry" ] && continue
+    local file
+    # Prepend project_dir inside the loop — `sed "s|^|${project_dir}/|"` would
+    # treat literal `&` in project_dir as the back-reference "whole match",
+    # silently corrupting paths for projects with `&` in the path.
+    if [ "$in_git" -eq 1 ]; then
+      file="${project_dir}/${entry}"
+    else
+      file="$entry"
+    fi
+    # Lockfiles are generated — always skip regardless of size.
     case "$file" in
       *package-lock.json|*yarn.lock|*pnpm-lock.yaml|*bun.lock|*Cargo.lock|*poetry.lock|*uv.lock|*Gemfile.lock|*composer.lock) continue ;;
     esac
-    oversized_count=$((oversized_count + 1))
-    if [ "$oversized_count" -le 3 ]; then
-      local fsize
-      fsize="$(wc -c < "$file" 2>/dev/null | tr -d '[:space:]')"
-      oversized_examples="${oversized_examples}$(basename "$file")(${fsize}B), "
+    [ -f "$file" ] || continue
+    local fsize
+    fsize="$(wc -c < "$file" 2>/dev/null | tr -d '[:space:]')"
+    [ -z "$fsize" ] && continue
+    if [ "$fsize" -gt 262144 ]; then
+      oversized_count=$((oversized_count + 1))
+      if [ "$oversized_count" -le 3 ]; then
+        oversized_examples="${oversized_examples}$(basename "$file")(${fsize}B), "
+      fi
     fi
   done <<EOF
-$(find "$project_dir" -type f -size +262144c \
-  -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' \
-  -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' -not -path '*/.next/*' \
-  -not -name 'package-lock.json' -not -name 'yarn.lock' -not -name 'pnpm-lock.yaml' \
-  -not -name 'bun.lock' -not -name 'Cargo.lock' -not -name 'poetry.lock' -not -name 'uv.lock' \
-  \( -name '*.js' -o -name '*.ts' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.java' -o -name '*.rb' -o -name '*.sql' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' -o -name '*.md' -o -name '*.sh' -o -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.cs' -o -name '*.php' -o -name '*.swift' -o -name '*.kt' \) \
-  2>/dev/null)
+$candidate_files
 EOF
   if [ "$oversized_count" -eq 0 ]; then
     emit_result "$project_name" "W5" "0" "0" "1" "No source files exceed 256 KB"
