@@ -236,6 +236,91 @@ fi
 rm -rf "$eq_repo" "$eq_out"
 
 # ---------------------------------------------------------------------------
+# Test 10: `check` with no target defaults to current directory
+# (million-user-product-readiness-audit P0-1 — previously fell through to
+#  scanner's auto-discovery of ~/Projects, surprising users inside unrelated
+#  repos.)
+# ---------------------------------------------------------------------------
+default_repo="$(mktemp -d)"
+git -C "$default_repo" init -q
+git -C "$default_repo" config user.email "t@t"
+git -C "$default_repo" config user.name "t"
+# Signature entry so we can confirm this repo got scanned.
+printf '# DefaultRepoFixture\n' > "$default_repo/CLAUDE.md"
+git -C "$default_repo" add -A
+git -C "$default_repo" commit -q -m init
+
+# Run `check` with no --project-dir and no --all from inside the repo.
+# Use a subshell so cd doesn't leak back into the test script.
+(
+  cd "$default_repo" || exit 1
+  "$WRAPPER" check --format jsonl --output-dir "$default_repo/reports" >/dev/null 2>&1
+) || true
+
+if ls "$default_repo/reports"/*.jsonl >/dev/null 2>&1; then
+  first_project="$(grep -oE '"project":"[^"]+"' "$default_repo"/reports/*.jsonl | head -1 | sed 's/.*":"//;s/"//')"
+  # The project name in scanner output is the basename of the scanned dir.
+  # For `.` in our tmp repo it should match the tmp-dir basename.
+  expected_basename="$(basename "$default_repo")"
+  if [ "$first_project" = "$expected_basename" ]; then
+    ok "check (no args) scans current directory, not ~/Projects"
+  else
+    fail "check default scanned '$first_project' not '$expected_basename' — P0-1 regression"
+  fi
+else
+  fail "check (no args) produced no JSONL report"
+fi
+
+rm -rf "$default_repo"
+
+# ---------------------------------------------------------------------------
+# Test 11: `check --all --projects-root ROOT` discovers child git repos
+# ---------------------------------------------------------------------------
+root="$(mktemp -d)"
+mkdir -p "$root/alpha" "$root/beta"
+for r in alpha beta; do
+  git -C "$root/$r" init -q
+  git -C "$root/$r" config user.email "t@t"
+  git -C "$root/$r" config user.name "t"
+  printf '# %s\n' "$r" > "$root/$r/CLAUDE.md"
+  git -C "$root/$r" add -A
+  git -C "$root/$r" commit -q -m init
+done
+
+# Invoke from unrelated cwd to prove --projects-root wins.
+reports_dir="$(mktemp -d)"
+(
+  cd /tmp || exit 1
+  "$WRAPPER" check --all --projects-root "$root" --format jsonl --output-dir "$reports_dir" >/dev/null 2>&1
+) || true
+
+if ls "$reports_dir"/*.jsonl >/dev/null 2>&1; then
+  projects_seen="$(grep -oE '"project":"[^"]+"' "$reports_dir"/*.jsonl | sort -u | tr '\n' ',')"
+  case ",$projects_seen," in
+    *'"project":"alpha"'*'"project":"beta"'* | *'"project":"beta"'*'"project":"alpha"'*)
+      ok "check --all --projects-root discovers both alpha and beta"
+      ;;
+    *)
+      fail "check --all discovered: $projects_seen (expected alpha+beta)"
+      ;;
+  esac
+else
+  fail "check --all produced no JSONL report"
+fi
+rm -rf "$root" "$reports_dir"
+
+# ---------------------------------------------------------------------------
+# Test 12: `check --all` + `--project-dir` are mutually exclusive
+# ---------------------------------------------------------------------------
+combo_err="$("$WRAPPER" check --all --project-dir . 2>&1 1>/dev/null)"
+combo_rc=$?
+if [ "$combo_rc" -ne 0 ] && echo "$combo_err" | grep -q "mutually exclusive"; then
+  ok "check --all + --project-dir error clearly"
+else
+  fail "check --all + --project-dir should error, got rc=$combo_rc err='$combo_err'"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
