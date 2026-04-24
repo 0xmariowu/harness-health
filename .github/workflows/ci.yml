@@ -89,28 +89,6 @@ jobs:
         shell: bash
         run: node tests/unit/test-postinstall-detection.js
 
-      - name: Run full Linux test suite
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          bash tests/test-scanner.sh
-          bash tests/test-action-smoke.sh
-          bash tests/test-e2e.sh
-          bash tests/test-install-script.sh
-          bash tests/test-session-analyzer.sh
-          bash tests/robustness/malicious-fixtures.sh
-          node tests/test-scorer.js
-          node tests/test-plan-generator.js
-          node tests/test-reporter.js
-          node tests/test-fixer.js
-          node tests/test-html-report.js
-          node tests/fixer-safety/test-traversal.js
-
-      - name: Run SARIF integration test
-        if: runner.os == 'Linux'
-        shell: bash
-        run: bash tests/test-sarif-output.sh
-
       - name: Prepare deep-analyzer corpus fixture
         if: runner.os == 'Linux'
         shell: bash
@@ -120,12 +98,29 @@ jobs:
           { printf '# Medium\n'; for i in $(seq 1 100); do printf 'line %s of content\n' "$i"; done; } > /tmp/al-corpus/medium/CLAUDE.md
           { printf '# Large\n'; for i in $(seq 1 500); do printf 'line %s of content here\n' "$i"; done; } > /tmp/al-corpus/large/CLAUDE.md
 
-      - name: Run deep-analyzer test
+      - name: Run npm test (Linux — full suite)
+        # Single source of truth: `npm test` runs exactly the same suite local
+        # devs run, so CI cannot drift from the local contract. Extra
+        # integration tests that are Linux-specific run as a separate step
+        # below.
         if: runner.os == 'Linux'
+        shell: bash
         env:
           AL_CORPUS_DIR: /tmp/al-corpus
+        run: npm test
+
+      - name: Run Linux-only integration tests (not in npm test)
+        # These four aren't part of `npm test` because they exercise
+        # install flows / traversal safety / e2e scenarios that need the
+        # Linux CI environment, not unit-testable behavior. Keep them
+        # wired to CI explicitly rather than folding them into npm test.
+        if: runner.os == 'Linux'
         shell: bash
-        run: bash tests/test-deep-analyzer.sh
+        run: |
+          bash tests/test-e2e.sh
+          bash tests/test-install-script.sh
+          bash tests/robustness/malicious-fixtures.sh
+          node tests/fixer-safety/test-traversal.js
 
   # Aggregator that emits check contexts 'test (20)' and 'test (22)' required by
   # main branch protection. The real test matrix fans out to os x node (6 jobs),
