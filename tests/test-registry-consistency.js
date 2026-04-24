@@ -224,5 +224,21 @@ runTest('E2B orchestrator and workflow gate treat PARTIAL as failure by default'
     'e2b-comprehensive.yml release gate must fail when total_partial > 0');
 });
 
+runTest('/al filter narrows top-level items, not just grouped display', () => {
+  // CRITICAL: plan-generator.js emits both `items` (flat, consumed by
+  // fixer.js) and `grouped` (display-only). An earlier version of Step 5c
+  // filtered only `grouped`, leaving the full unfiltered `items` for fixer.
+  // That let fixer apply another project's fix to $PROJECT_DIR — real data
+  // corruption risk for F5/I5/W11 (mutating checks). Guard both filters
+  // here so the regression cannot sneak back in.
+  const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
+  const usesFixer = src.includes('node "$AL_DIR/src/fixer.js"');
+  if (!usesFixer) return;
+  assert.match(src, /\.items\s*\|=\s*map\(select\(\.project\s*==\s*\$p\)\)/,
+    'al.md must filter top-level .items by .project == $p before passing plan to fixer');
+  assert.match(src, /\.grouped\s*\|=/,
+    'al.md must also filter the grouped display tree for UI consistency');
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

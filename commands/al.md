@@ -180,17 +180,34 @@ fi
 ```
 
 Then narrow the plan to items that touch the selected project so
-`fixer.js` only sees work it can actually perform:
+`fixer.js` only sees work it can actually perform.
+
+`plan-generator.js` emits two parallel structures: the top-level
+`items` array (flat, one entry per project+check, consumed by
+`fixer.js`) and a display-only `grouped` tree (merged by check, can
+span multiple projects). **Both must be filtered**; grouping alone is
+cosmetic. Without the top-level filter, `fixer.js` can apply
+another project's fix to `$PROJECT_DIR` — a real data-corruption risk
+for mutating checks (F5, I5, W11).
 
 ```bash
 jq --arg p "$SELECTED_PROJECT" '
+  .items |= map(select(.project == $p)) |
   .grouped |= (
     to_entries
-    | map(.value.items |= map(select(.projects | index($p))))
+    | map(
+        .value.items |= map(select(.projects | index($p))) |
+        .value.count = (.value.items | length)
+      )
     | from_entries
-  )
+  ) |
+  .total_items = (.items | length)
 ' "$RUN_DIR/plan.json" > "$RUN_DIR/plan.filtered.json"
 ```
+
+The filter uses `.project == $p` (single string) on top-level items
+and `.projects | index($p)` (array membership) on grouped merged items
+— they have different schemas by design.
 
 ### Step 6: Execute Fixes (no interaction)
 
