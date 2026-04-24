@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v1.0.4 (2026-04-24)
+
+- **fix (macOS critical)**: `agentlint fix W11` (or any check id) no longer fails with `bad substitution` on macOS. The CLI wrapper used Bash 4+ syntax `${1^^}` for case-insensitive parsing; replaced with portable `printf | tr` so Mac's default Bash 3.2 works.
+- **fix (UX)**: `agentlint fix` now defaults `--project-dir` to the current directory. Previously users running `agentlint fix W11` from a repo root got `--project-dir is required` and had no clear recovery path. The `check` subcommand is intentionally left alone — its discovery semantics differ.
+- **test**: new `tests/test-cli-wrapper.sh` runs under `/bin/bash` explicitly so macOS Bash 3.2 regressions are caught locally by `npm test` on every Mac.
+
 ## v1.0.3 (2026-04-24)
 
 - feat: install screen tagline updated to "The linter for your agent harness"
