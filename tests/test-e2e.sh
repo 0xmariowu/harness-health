@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
 SCORER="${ROOT_DIR}/src/scorer.js"
 PLAN_GEN="${ROOT_DIR}/src/plan-generator.js"
@@ -377,7 +377,6 @@ printf '\n=== Fixer ===\n\n'
 
 # 5a: auto-fix F5 (broken references) on gamma
 gamma_dir="${PROJECTS}/project-gamma"
-gamma_before="$(cat "${gamma_dir}/CLAUDE.md")"
 
 fixer_out="$(node "${FIXER}" "${plan_file}" \
   --project-dir "${gamma_dir}" \
@@ -431,10 +430,13 @@ fi
 # 5c: assisted fix F1 on beta (generate CLAUDE.md)
 f1_id="$(jq -r '.items[] | select(.check_id == "F1" and .project == "project-beta") | .id' "${plan_file}" | head -1)"
 if [ -n "${f1_id}" ]; then
-  f1_out="$(node "${FIXER}" "${plan_file}" \
+  # Discard fixer stdout — the file-existence check below is the real
+  # assertion. Before, capturing to f1_out just triggered an unused-var
+  # warning (SC2034).
+  node "${FIXER}" "${plan_file}" \
     --project-dir "${PROJECTS}/project-beta" \
     --items "${f1_id}" \
-    2>/dev/null)"
+    >/dev/null 2>&1
   if [ -f "${PROJECTS}/project-beta/CLAUDE.md" ]; then
     pass "F1 assisted fix created CLAUDE.md for beta"
   else
@@ -453,8 +455,10 @@ scan_gamma_after="${TEMP_ROOT}/scan-gamma-after.jsonl"
 bash "${SCANNER}" --project-dir "${gamma_dir}" > "${scan_gamma_after}" 2>/dev/null
 gamma_after_score="$(cat "${scan_gamma_after}" | node "${SCORER}" 2>/dev/null | jq -r '.total_score')"
 
-scan_gamma_before="${TEMP_ROOT}/scan-gamma-before.jsonl"
-bash "${SCANNER}" --project-dir "${PROJECTS}/project-alpha" > /dev/null 2>/dev/null  # just warming
+# Warm the scanner against an unrelated project to exercise the
+# multi-project discovery path — output is intentionally discarded.
+bash "${SCANNER}" --project-dir "${PROJECTS}/project-alpha" >/dev/null 2>&1
+
 # We know gamma started low. Check it's not zero after fixes.
 if [ "${gamma_after_score}" -ge 1 ]; then
   pass "gamma scores ${gamma_after_score}/100 after fixes (not zero)"

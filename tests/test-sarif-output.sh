@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SCANNER="${ROOT_DIR}/src/scanner.sh"
 SCORER="${ROOT_DIR}/src/scorer.js"
 PLAN_GENERATOR="${ROOT_DIR}/src/plan-generator.js"

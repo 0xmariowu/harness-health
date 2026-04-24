@@ -30,8 +30,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
 
-      - name: Lint shell script
-        run: shellcheck src/scanner.sh
+      - name: Lint shell scripts (warning+error severity)
+        # User-facing scripts (src/scanner.sh + everything in scripts/) must
+        # stay clean at warning+ severity. Test harnesses get a narrower pass
+        # with SC2329 suppressed — `run_test` dynamic dispatch triggers many
+        # "function never invoked" false positives.
+        run: |
+          shellcheck -S warning src/scanner.sh scripts/*.sh
+          shellcheck -S warning -e SC2329 tests/*.sh
 
       - name: Check JavaScript syntax
         run: find src -name '*.js' -print0 | xargs -0 -n1 node --check

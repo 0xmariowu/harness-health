@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 ACTION_FILE="${ROOT_DIR}/action.yml"
 
 test_count=0

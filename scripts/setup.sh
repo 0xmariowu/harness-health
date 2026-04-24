@@ -30,6 +30,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# RUNNER is accepted as --runner today but not yet consumed (reserved for a
+# future bun vs node switch — keeps the advertised flag compatible for users
+# who copied older docs). Export to mark it "used" for shellcheck and for any
+# future hook that wants to read it without another parser pass.
+export RUNNER
+
 [[ -z "$LANG" ]] && die "usage: bootstrap.sh --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--protect] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] <project-path>"
 [[ -z "$PROJECT" ]] && die "project path required"
 [[ "$LANG" != "ts" && "$LANG" != "python" && "$LANG" != "node" ]] && die "lang must be 'ts', 'python', or 'node'"
@@ -82,6 +88,7 @@ info "detected package manager: $PKG_MANAGER"
 
 # Invoke the detected PM. Exposed as a function so the three install sites
 # below stay readable. Any arguments are forwarded verbatim after 'install'.
+# shellcheck disable=SC2120 # callers pass no args today; $@ stays for future wiring
 pm_install() {
   case "$PKG_MANAGER" in
     npm)  npm install --no-audit --no-fund "$@" ;;
@@ -177,7 +184,9 @@ mkdir -p "$PROJECT/.github/workflows"
 copy_workflow() {
   local src="$1" label="$2"
   [[ -e "$src" ]] || return 0
-  local dest="$PROJECT/.github/workflows/$(basename "$src")"
+  # Split declaration from assignment so `basename` failures surface (SC2155).
+  local dest
+  dest="$PROJECT/.github/workflows/$(basename "$src")"
   if [[ -e "$dest" ]]; then
     info "skipped workflow: $(basename "$src") (exists)"
   else
