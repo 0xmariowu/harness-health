@@ -375,15 +375,15 @@ runTest('/al Deep conversion uses per-project file names, not shared literals', 
   // Previously the Deep conversion example used `--project my-project`
   // (literal) and `$RUN_DIR/d1-ai.json` (shared across all projects).
   // Multi-project runs would mis-attribute findings or overwrite files.
-  // Must use `$P` and `$RUN_DIR/${P}.d1-ai.json` form.
+  // Must use basename + hash prefix and path-stable file names.
   const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
   const deepSection = src.slice(src.indexOf('## AI Deep Analysis'));
   assert.doesNotMatch(deepSection, /--project my-project/,
     'Deep conversion must not use the literal project name "my-project" — pass "$P"');
   assert.doesNotMatch(deepSection, /\$RUN_DIR\/d1-ai\.json\b/,
     'Deep conversion must not use shared per-check filenames — prefix with per-project "$P"');
-  assert.match(deepSection, /\$\{P\}\.d1-ai\.json/,
-    'Deep conversion must use per-project file names like "${P}.d1-ai.json"');
+  assert.match(deepSection, /\$\{PREFIX\}\.d1-ai\.json/,
+    'Deep conversion must use per-project path-keyed file names like "${PREFIX}.d1-ai.json"');
 });
 
 runTest('deep-analyzer --format-result validates --check against D1/D2/D3', () => {
@@ -447,10 +447,56 @@ runTest('scanner + scorer + plan-generator bucket by project_path (not basename)
 
   assert.match(scanner, /project_path:\s*\$project_path/,
     'scanner.sh emit_result must include a project_path field in every JSONL record');
-  assert.match(scorer, /const pathKey = record\.project_path/,
+  assert.match(scorer, /const projectPath = typeof record\.project_path/,
     'scorer.js mergeRecord must key byProject on project_path (basename fallback only)');
   assert.match(planGen, /dedupeProject = normalized\.project_path \|\| normalized\.project/,
     'plan-generator.js dedupe key must use project_path when available');
+});
+
+runTest('session-analyzer sentinels never emit bare records lacking project identity', () => {
+  const ss = fs.readFileSync(path.join(ROOT, 'src', 'session-analyzer.js'), 'utf8');
+  const scorer = fs.readFileSync(path.join(ROOT, 'src', 'scorer.js'), 'utf8');
+  assert.match(ss, /project:\s*null,[\s\S]*project_path:\s*null/,
+    'session-analyzer sentinel output should include explicit null project + project_path');
+  assert.match(scorer, /if\s*\(\s*!projectPath\s*&&\s*!projectName\s*\)\s*return;/,
+    'scorer.mergeRecord must skip byProject bucketing for records without project identity');
+});
+
+runTest('session-analyzer SS1 clusters carry project identity, not global', () => {
+  const ss = fs.readFileSync(path.join(ROOT, 'src', 'session-analyzer.js'), 'utf8');
+  assert.doesNotMatch(ss, /buildS1Findings[\s\S]{0,500}project:\s*['"]global['"]/,
+    'SS1 findings must not default project to global');
+});
+
+runTest('session-analyzer SS2 hit keys use project path, not basename', () => {
+  const ss = fs.readFileSync(path.join(ROOT, 'src', 'session-analyzer.js'), 'utf8');
+  assert.match(ss, /project\.dir.*\\u0000.*rule\.text/s,
+    'SS2 hit keys must include project.path (or equivalent path-keyed tuple)');
+  assert.doesNotMatch(ss, /\$\{project\.name\}::\$\{rule\.text\}/,
+    'SS2 must not use basename-only `${project.name}::` keying');
+});
+
+runTest('/al Step 3b Deep flow uses project_path, not basename resolution', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
+  const deepSection = src.slice(src.indexOf('## AI Deep Analysis'), src.indexOf('## Session Analysis'));
+  assert.match(deepSection, /--project-path/,
+    'Deep format-result invocation must pass --project-path');
+  assert.doesNotMatch(deepSection, /find "\$PROJECTS_ROOT"\s+.*-type d -name \.git \|\s*dirname \|\s*grep basename/s,
+    'Deep Step 3b must not resolve by basename via find+grep');
+  assert.match(deepSection, /project_path/i,
+    'Deep Step 3b documentation must reference project_path values');
+});
+
+runTest('scanner.sh discovers .git directories and .git files (worktrees)', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'scanner.sh'), 'utf8');
+  assert.match(src, /find "\$projects_root"[\s\S]{0,120}-type d -name '\.git'[\s\S]{0,40}-o[\s\S]{0,40}-type f -name '\.git'/,
+    'scanner.sh discover_projects must search both .git dirs and .git files');
+});
+
+runTest('test-install-script.sh does not use grep -c || echo pattern', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'tests', 'test-install-script.sh'), 'utf8');
+  assert.doesNotMatch(src, /grep -c [^\n]*\s*\|\|\s*echo 0/,
+    'test-install-script.sh must not use grep -c with || echo 0 anti-pattern');
 });
 
 runTest('/al Step 5c selects by project_path, not basename', () => {

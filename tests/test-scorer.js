@@ -169,12 +169,15 @@ runTest('score > 100 is coerced to 0 (out of range)', () => {
   assert.equal(check.score, 0);
 });
 
-runTest('missing project field defaults to "unknown"', () => {
+runTest('missing project identity stays in global dimension scope only', () => {
   const result = runScorerRaw(
     JSON.stringify({ check_id: 'F1', score: 1, name: 'Entry' }) + '\n'
   );
   const output = JSON.parse(result.stdout);
-  assert.ok(output.by_project.unknown, 'project should default to "unknown"');
+  assert.ok(output.dimensions.findability.status, 'run');
+  assert.equal(output.dimensions.findability.checks.length, 1);
+  assert.ok(!output.by_project.unknown, 'records without project identity should not create by_project/unknown');
+  assert.equal(output.total_score, 100);
 });
 
 runTest('all-zero scores produce total_score=0', () => {
