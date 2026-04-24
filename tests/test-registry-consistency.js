@@ -194,21 +194,20 @@ runTest('commands/al.md resolves $PROJECT_DIR before fixer.js invocation', () =>
   // Step 6 calls `fixer.js --project-dir "$PROJECT_DIR"`. Without a prior
   // resolution step, $PROJECT_DIR is undefined and fixer either errors or
   // (worse) picks the wrong repo if the shell happens to have the var set.
-  // Resolution must come from SELECTED_PROJECT (chosen via AskUserQuestion
-  // on multi-project scans) mapped back to an absolute path.
+  // Resolution now uses SELECTED_PATH (absolute) directly — Step 5c picks
+  // a project_path from scan.jsonl so the find-by-basename footgun is
+  // gone entirely.
   const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
   const usesProjectDir = src.includes('--project-dir "$PROJECT_DIR"');
-  if (!usesProjectDir) return; // if the flag stops being used, nothing to guard
-  const resolutionIdx = src.indexOf('PROJECT_DIR="$(find "$PROJECTS_ROOT"');
-  // Match the executable invocation specifically, not prose mentions of fixer.js
+  if (!usesProjectDir) return;
+  const resolutionIdx = src.indexOf('PROJECT_DIR="$SELECTED_PATH"');
   const fixerInvokeIdx = src.indexOf('node "$AL_DIR/src/fixer.js"');
   assert.ok(resolutionIdx >= 0,
-    'commands/al.md must resolve PROJECT_DIR from SELECTED_PROJECT before calling fixer.js');
+    'commands/al.md must set PROJECT_DIR from SELECTED_PATH (absolute, canonical)');
   assert.ok(fixerInvokeIdx > resolutionIdx,
     'PROJECT_DIR resolution must appear BEFORE the node ... fixer.js invocation');
-  assert.match(src, /SELECTED_PROJECT/,
-    'commands/al.md must introduce SELECTED_PROJECT (single or user-picked) ' +
-    'to drive the resolution');
+  assert.match(src, /SELECTED_PATH/,
+    'commands/al.md must introduce SELECTED_PATH as the canonical project identifier');
 });
 
 runTest('E2B orchestrator and workflow gate treat PARTIAL as failure by default', () => {
@@ -226,18 +225,18 @@ runTest('E2B orchestrator and workflow gate treat PARTIAL as failure by default'
 
 runTest('/al filter narrows top-level items, not just grouped display', () => {
   // CRITICAL: plan-generator.js emits both `items` (flat, consumed by
-  // fixer.js) and `grouped` (display-only). An earlier version of Step 5c
-  // filtered only `grouped`, leaving the full unfiltered `items` for fixer.
-  // That let fixer apply another project's fix to $PROJECT_DIR — real data
-  // corruption risk for F5/I5/W11 (mutating checks). Guard both filters
-  // here so the regression cannot sneak back in.
+  // fixer.js) and `grouped` (display-only). Filter must hit both,
+  // preferring project_path (canonical) and falling back to basename
+  // only for legacy records.
   const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
   const usesFixer = src.includes('node "$AL_DIR/src/fixer.js"');
   if (!usesFixer) return;
-  assert.match(src, /\.items\s*\|=\s*map\(select\(\.project\s*==\s*\$p\)\)/,
-    'al.md must filter top-level .items by .project == $p before passing plan to fixer');
+  assert.match(src, /\.items\s*\|=\s*map\(select\([\s\S]{0,200}\.project_path[\s\S]{0,50}==\s*\$pp/,
+    'al.md must filter top-level .items by .project_path == $pp before passing plan to fixer');
   assert.match(src, /\.grouped\s*\|=/,
     'al.md must also filter the grouped display tree for UI consistency');
+  assert.match(src, /project_paths[\s\S]{0,100}\$pp/,
+    'al.md grouped filter must consult .project_paths (the canonical array)');
 });
 
 runTest('action.yml fails closed on plan-generator errors and invalid fail-below', () => {
@@ -433,6 +432,33 @@ runTest('scanner + scorer + plan-generator bucket by project_path (not basename)
     'scorer.js mergeRecord must key byProject on project_path (basename fallback only)');
   assert.match(planGen, /dedupeProject = normalized\.project_path \|\| normalized\.project/,
     'plan-generator.js dedupe key must use project_path when available');
+});
+
+runTest('/al Step 5c selects by project_path, not basename', () => {
+  // commands/al.md used to pick projects via `.project` (basename) and
+  // resolve via find-first-match. On basename collision this silently
+  // picked the wrong repo and fixer applied changes to the wrong dir.
+  // Step 5c must now use `.project_path` for both the option list and
+  // the filter.
+  const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
+  const step5c = src.slice(src.indexOf('Step 5c'));
+  assert.match(step5c, /UNIQUE_PATHS.*\.project_path/,
+    'Step 5c must enumerate projects by .project_path (not .project)');
+  assert.match(step5c, /\.project_path == \$pp|\.project_path\s*==\s*\$pp/,
+    'Step 5c plan filter must compare .project_path to the selected path');
+  assert.doesNotMatch(step5c, /find "\$PROJECTS_ROOT".*basename.*SELECTED_PROJECT/s,
+    'Step 5c must not use find + basename to resolve the project dir');
+});
+
+runTest('plan-generator grouped items carry project_paths array', () => {
+  // Without project_paths on grouped items, /al Step 5c can only filter
+  // by basename — which re-introduces the basename-collision bug at the
+  // grouped-plan layer even after PR #162 fixed the flat items.
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'plan-generator.js'), 'utf8');
+  assert.match(src, /project_paths:\s*\[item\.project_path/,
+    'plan-generator.js mergeItems must initialize project_paths array for grouped items');
+  assert.match(src, /merged\.project_paths\.push/,
+    'plan-generator.js mergeItems must append to project_paths when merging');
 });
 
 process.stdout.write(`${passed}/${total} tests passed\n`);

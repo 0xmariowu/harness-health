@@ -108,5 +108,46 @@ runTest('plan-generator dedupe-by-path keeps both same-basename items', () => {
   assert.equal(itemPaths.size, 2, 'the two F5 items must carry distinct project_path values');
 });
 
+runTest('plan-generator grouped items track project_paths + disambiguate display', () => {
+  // Same fixture, same severity so the two F5 items go into the same
+  // grouped bucket. grouped.items[0] must (a) carry both paths in
+  // `project_paths` so /al Step 5c can filter by path, and (b) render a
+  // disambiguated display label ("org1/app, org2/app") rather than the
+  // prior ambiguous "app, app".
+  const sameSeverityJsonl = [
+    {
+      project: 'app', project_path: '/tmp/org1/app', dimension: 'findability',
+      check_id: 'F5', name: 'x', measured_value: 3, reference_value: 1.0,
+      score: 0.3, detail: 'a', evidence_id: 'F5',
+    },
+    {
+      project: 'app', project_path: '/tmp/org2/app', dimension: 'findability',
+      check_id: 'F5', name: 'x', measured_value: 2, reference_value: 1.0,
+      score: 0.4, detail: 'b', evidence_id: 'F5',
+    },
+  ].map((r) => JSON.stringify(r)).join('\n') + '\n';
+
+  const scoresOut = execFileSync('node', [SCORER], { input: sameSeverityJsonl, encoding: 'utf8' });
+  const planOut = execFileSync('node', [PLAN], { input: scoresOut, encoding: 'utf8' });
+  const plan = JSON.parse(planOut);
+  const groupedF5 = (plan.grouped.high?.items || []).find((it) => it.check_id === 'F5');
+  assert.ok(groupedF5, 'expected grouped.high.items[F5] to exist');
+  assert.deepEqual(
+    groupedF5.project_paths,
+    ['/tmp/org1/app', '/tmp/org2/app'],
+    'grouped F5 must carry both project_paths',
+  );
+  assert.notEqual(
+    groupedF5.project,
+    'app, app',
+    'grouped F5 display label must disambiguate colliding basenames (got "app, app")',
+  );
+  assert.match(
+    groupedF5.project,
+    /org1\/app[\s\S]*org2\/app|org2\/app[\s\S]*org1\/app/,
+    'grouped display should include parent-dir suffix for colliding basenames',
+  );
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
