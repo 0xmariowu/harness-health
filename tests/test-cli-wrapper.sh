@@ -195,6 +195,47 @@ fi
 rm -rf "$gate_repo"
 
 # ---------------------------------------------------------------------------
+# Test 8: missing-value flags exit non-zero with a clear stderr message
+# (post-remediation-deep-review High #2 — `fix --project-dir` previously
+#  returned 0 with `$1: unbound variable` on stderr).
+# ---------------------------------------------------------------------------
+for combo in "check --format" "check --project-dir" "check --output-dir" \
+             "check --fail-below" "check --before" "fix --project-dir"; do
+  # shellcheck disable=SC2086
+  err="$("$WRAPPER" $combo 2>&1 1>/dev/null)"
+  rc=$?
+  if [ "$rc" -ne 0 ] && echo "$err" | grep -q "requires a value"; then
+    ok "missing value for ${combo##* } → clear error (combo: $combo)"
+  else
+    fail "missing value for '$combo' should error with 'requires a value', got rc=$rc err='$err'"
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Test 9: equals form `--flag=value` works end-to-end for check
+# (post-remediation-deep-review Medium #3 — agentlint.sh accepted
+#  `--format=html` but scanner.sh and reporter.js only understood space form,
+#  so HTML silently didn't get written.)
+# ---------------------------------------------------------------------------
+eq_repo="$(mktemp -d)"
+eq_out="$(mktemp -d)"
+git -C "$eq_repo" init -q
+git -C "$eq_repo" config user.email "t@t"
+git -C "$eq_repo" config user.name "t"
+printf '# Project\n' > "$eq_repo/CLAUDE.md"
+git -C "$eq_repo" add -A
+git -C "$eq_repo" commit -q -m init
+
+"$WRAPPER" check --project-dir="$eq_repo" --format=html --output-dir="$eq_out" >/dev/null 2>&1
+rc=$?
+if [ "$rc" -eq 0 ] && ls "$eq_out"/*.html >/dev/null 2>&1; then
+  ok "--flag=value equals form writes HTML end-to-end"
+else
+  fail "--flag=value form failed (rc=$rc, no HTML in $eq_out)"
+fi
+rm -rf "$eq_repo" "$eq_out"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

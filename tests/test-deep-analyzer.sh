@@ -108,6 +108,22 @@ check "scorer accepts deep JSONL: deep.status == run" \
 check "scorer accepts deep JSONL: score_scope == core+extended" \
   "jq -e '.score_scope == \"core+extended\"' '${TMP}/scored.json' >/dev/null"
 
+# ─── --format-result exits non-zero on bad input ─────────────────────────
+# post-remediation-deep-review Low #5: silently dropping bad AI output
+# let regressions hide. Now malformed JSON or missing required keys fail
+# loudly so operators notice.
+set +e
+echo not-json | node "$DEEP" --format-result --project p --check D1 >/dev/null 2>&1
+bad_json_rc=$?
+echo '{"unexpected":[]}' | node "$DEEP" --format-result --project p --check D1 >/dev/null 2>&1
+bad_key_rc=$?
+echo '{"contradictions":[]}' | node "$DEEP" --format-result --project p --check D1 >/dev/null 2>&1
+good_rc=$?
+set -e
+check "--format-result: invalid JSON exits non-zero" "[ $bad_json_rc -ne 0 ]"
+check "--format-result: missing expected key exits non-zero" "[ $bad_key_rc -ne 0 ]"
+check "--format-result: well-formed clean input exits zero" "[ $good_rc -eq 0 ]"
+
 echo ""
 echo "=== Summary ==="
 echo "Total: ${total}  Pass: ${pass}  Fail: ${fail}"

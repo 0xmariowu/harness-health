@@ -276,11 +276,27 @@ runTest('fail-below exits zero when threshold is disabled', () => {
   }
 });
 
-runTest('fail-below requires a numeric threshold', () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-fail-below-invalid-'));
+runTest('fail-below without a value exits 1 with a clear message', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-fail-below-no-val-'));
   try {
     const scoresPath = writeFixtureScores(tempDir);
     const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--fail-below'], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 1);
+    // New contract: missing-value check fires in the arg parser before we
+    // reach the "must be a number" path, so stderr mentions "requires a value".
+    assert.match(result.stderr, /--fail-below.*requires a value/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('fail-below with a non-numeric value exits 1 with numeric-range message', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-fail-below-nan-'));
+  try {
+    const scoresPath = writeFixtureScores(tempDir);
+    const result = spawnSync(process.execPath, [reporterPath, scoresPath, '--fail-below', 'banana'], {
       encoding: 'utf8',
     });
     assert.equal(result.status, 1);
@@ -456,6 +472,77 @@ runTest('HTML compare mode: not_run dimension does not render a negative delta (
     assert.ok(deepSection, 'expected Deep dimension row in HTML');
     assert.doesNotMatch(deepSection[0], /delta-down[^>]*>-\d/);
     assert.doesNotMatch(deepSection[0], /-8</);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('HTML renders score_scope suffix: "(core)" when extended did not run', () => {
+  // post-remediation-deep-review High #1: the HTML hero previously showed
+  // just "90" with no scope indicator, so the E2B assertion
+  // `html_shows_core_suffix` failed even against correct data.
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-scope-core-'));
+  try {
+    const scores = {
+      total_score: 90,
+      score_scope: 'core',
+      dimensions: {
+        findability: makeDim(9, 0.2),
+        deep: makeDim(null, 0.05, 'not_run'),
+      },
+      by_project: {},
+    };
+    const p = path.join(tempDir, 'scores.json');
+    fs.writeFileSync(p, JSON.stringify(scores));
+    runReporter([p, '--format', 'html', '--output-dir', tempDir]);
+    const htmlFile = fs.readdirSync(tempDir).find((n) => n.endsWith('.html'));
+    const html = fs.readFileSync(path.join(tempDir, htmlFile), 'utf8');
+    assert.match(html, /\(core\)/, 'HTML must show "(core)" next to the total score');
+    assert.doesNotMatch(html, /core \+ extended/, 'must NOT show "core + extended" when deep is not_run');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('HTML renders "core + extended" when deep or session ran', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-scope-ext-'));
+  try {
+    const scores = {
+      total_score: 86,
+      score_scope: 'core+extended',
+      dimensions: {
+        findability: makeDim(9, 0.2),
+        deep: makeDim(7, 0.05),
+      },
+      by_project: {},
+    };
+    const p = path.join(tempDir, 'scores.json');
+    fs.writeFileSync(p, JSON.stringify(scores));
+    runReporter([p, '--format', 'html', '--output-dir', tempDir]);
+    const htmlFile = fs.readdirSync(tempDir).find((n) => n.endsWith('.html'));
+    const html = fs.readFileSync(path.join(tempDir, htmlFile), 'utf8');
+    assert.match(html, /core \+ extended/, 'HTML must show "core + extended" when extended ran');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('reporter accepts --flag=value equals form (not just space-separated)', () => {
+  // post-remediation-deep-review Medium #3 — equals form used to silently
+  // write nothing because only space-separated parsing was implemented.
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-eq-'));
+  try {
+    const scores = {
+      total_score: 80,
+      score_scope: 'core',
+      dimensions: { findability: makeDim(8, 0.2) },
+      by_project: {},
+    };
+    const p = path.join(tempDir, 'scores.json');
+    fs.writeFileSync(p, JSON.stringify(scores));
+    spawnSync(process.execPath, [reporterPath, p, `--format=html`, `--output-dir=${tempDir}`], { encoding: 'utf8' });
+    const htmlFile = fs.readdirSync(tempDir).find((n) => n.endsWith('.html'));
+    assert.ok(htmlFile, 'expected an HTML report file with equals-form flags');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
