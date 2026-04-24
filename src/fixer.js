@@ -8,16 +8,23 @@ const os = require('os');
 const EVIDENCE_FILE = path.join(__dirname, '..', 'standards', 'evidence.json');
 const CLAUDE_TEMPLATE = path.join(__dirname, '..', 'standards', 'fix-templates', 'claude-md-starter.md');
 
-const DEFAULT_ITEM_IDS = new Map([
-  ['F1', 'assisted'],
-  ['I5', 'auto'],
-  ['F5', 'assisted'],
-  ['C2', 'assisted'],
-  ['W9', 'assisted'],
-  ['W10', 'assisted'],
-  ['W11', 'auto'],
-  ['H8', 'assisted'],
-]);
+// Default fix_type lookup for plan items missing an explicit `fix_type`.
+// Derived from `standards/evidence.json` — the single source of truth that
+// `src/plan-generator.js` also reads. This guarantees plan-generator and
+// fixer agree for every check. Drift is caught by
+// `tests/test-registry-consistency.js`.
+function buildDefaultFixTypes() {
+  const evidence = JSON.parse(fs.readFileSync(EVIDENCE_FILE, 'utf8'));
+  const map = new Map();
+  for (const [checkId, entry] of Object.entries(evidence.checks || {})) {
+    if (entry && entry.fix_type) {
+      map.set(checkId, entry.fix_type);
+    }
+  }
+  return map;
+}
+
+const DEFAULT_ITEM_IDS = buildDefaultFixTypes();
 
 function usage() {
   process.stderr.write('Usage: node src/fixer.js <plan-json-file-or-stdin> --project-dir <path> (--items <id1,id2,...> | --checks <check1,check2,...>)\n');
