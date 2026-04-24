@@ -59,54 +59,82 @@
     "F1": {
       "dimension": "findability",
       "name": "Entry file exists",
+      "scope": "core",
+      "fix_type": "assisted",
       "evidence_sources": ["anthropic-265", "openai-agents"],
       "evidence_text": "Anthropic: CLAUDE.md is auto-loaded by Claude Code as the entry point. OpenAI: 88 AGENTS.md files, one per subsystem, each as a local entry point."
     },
     "F2": {
       "dimension": "findability",
       "name": "Entry file describes the project",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "AI-Friendly Standard: CLAUDE.md answers three questions — what is this, what can I do, what to read first. First paragraph must state what the project does."
     },
     "F3": {
       "dimension": "findability",
       "name": "Conditional loading guidance",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265", "eth-zurich"],
       "evidence_text": "Session Checklist ('if X → read Y') is the single most effective AI-friendly pattern. ETH Zurich found that generic repo overviews hurt performance — targeted loading helps."
     },
     "F4": {
       "dimension": "findability",
       "name": "Large directories have index",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Directories with >10 content files need INDEX for AI navigation. Without it, AI defaults to 'read everything' which fills context with irrelevant content."
     },
     "F5": {
       "dimension": "findability",
       "name": "All references resolve",
+      "scope": "core",
+      "fix_type": "auto",
       "evidence_sources": ["practical-audit", "codified-context"],
       "evidence_text": "Real-world audit found broken references across multiple production projects. Broken links waste AI tokens on dead-end file reads. Codified Context: stale references are a primary failure mode."
     },
     "F6": {
       "dimension": "findability",
       "name": "Predictable file naming",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["openai-agents", "harness-engineering"],
       "evidence_text": "Standard filenames (CLAUDE.md, AGENTS.md, README.md) are recognized by AI tools. Non-standard names require explicit documentation to be discovered."
     },
     "I1": {
       "dimension": "instructions",
       "name": "Emphasis keyword usage",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Across 265 versions: IMPORTANT 12→4, MUST 7→1, NEVER 4→1, VERY IMPORTANT 2→0 (eliminated). Keyword-imperative instructions dropped from 34% to 5% of the system prompt.",
       "reference_values": {
-        "IMPORTANT": {"anthropic_start": 12, "anthropic_end": 4},
-        "MUST": {"anthropic_start": 7, "anthropic_end": 1},
-        "NEVER": {"anthropic_start": 4, "anthropic_end": 1},
-        "VERY_IMPORTANT": {"anthropic_start": 2, "anthropic_end": 0}
+        "IMPORTANT": {
+          "anthropic_start": 12,
+          "anthropic_end": 4
+        },
+        "MUST": {
+          "anthropic_start": 7,
+          "anthropic_end": 1
+        },
+        "NEVER": {
+          "anthropic_start": 4,
+          "anthropic_end": 1
+        },
+        "VERY_IMPORTANT": {
+          "anthropic_start": 2,
+          "anthropic_end": 0
+        }
       }
     },
     "I2": {
       "dimension": "instructions",
       "name": "Keyword density",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265", "ifscale"],
       "evidence_text": "Anthropic density: 7.5 rules/1K words (v1.0.0) → 1.4 (v2.1.81). IFScale: at 500 instructions, best model (Gemini 2.5 Pro) scores 68.9%, Claude Sonnet 42.9%. Every instruction weakens every other instruction.",
       "reference_values": {
@@ -118,24 +146,32 @@
     "I3": {
       "dimension": "instructions",
       "name": "Rule specificity",
+      "scope": "core",
+      "fix_type": "guided",
       "evidence_sources": ["anthropic-265", "agent-readmes"],
       "evidence_text": "Anthropic converged on: 'Don't [anti-pattern]. Instead [correct]. Because [reason].' — the golden formula after 265 versions. Agent READMEs study: concrete instructions (F1=0.94) understood 2x better than abstract ones (F1=0.42)."
     },
     "I4": {
       "dimension": "instructions",
       "name": "Action-oriented organization",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Section titles evolved: Phase 1 'Tone and style' (identity) → Phase 2 'Professional objectivity' (attitude) → Phase 3 'Executing actions with care' (action). All identity sections were deleted."
     },
     "I5": {
       "dimension": "instructions",
       "name": "No identity language",
+      "scope": "core",
+      "fix_type": "auto",
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "'Following conventions' — an entire 12-line section telling the model to mimic code style — was deleted in v2.0.0. The model already does this without being told. Identity descriptions are dead weight."
     },
     "I6": {
       "dimension": "instructions",
       "name": "Entry file length",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265", "codified-context", "ifscale"],
       "evidence_text": "Anthropic main agent: 15K-22K token baseline. Codified Context: 660-line constitution (n=1 reference point). IFScale: compliance degrades beyond ~150 instructions. No single 'right' length — measure and compare.",
       "reference_values": {
@@ -147,276 +183,368 @@
     "W1": {
       "dimension": "workability",
       "name": "Build/test commands documented",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["openai-agents"],
       "evidence_text": "GitHub analysis of 2500+ repos: 'Build and test commands' is one of the 6 core areas of effective AGENTS.md. AI cannot run what it cannot find."
     },
     "W2": {
       "dimension": "workability",
       "name": "CI exists",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["harness-engineering"],
       "evidence_text": "Harness Engineering: 'Put rules in CI mechanical checks, not just documentation.' CI is the enforcement mechanism."
     },
     "W3": {
       "dimension": "workability",
       "name": "Tests exist and are non-empty",
+      "scope": "core",
+      "fix_type": "guided",
       "evidence_sources": ["practical-audit"],
       "evidence_text": "Real-world audit found a project with 'uv run pytest' in CI but 0 test files. CI always 'passed' because there was nothing to fail. Empty-shell CI creates false confidence."
     },
     "W4": {
       "dimension": "workability",
       "name": "Linter configured",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["harness-engineering"],
       "evidence_text": "Harness Engineering: 'Configure code format enforcement in CI.' Linters catch style issues mechanically so AI doesn't need to guess conventions."
     },
     "C1": {
       "dimension": "continuity",
       "name": "Document freshness",
+      "scope": "core",
+      "fix_type": "guided",
       "evidence_sources": ["codified-context", "harness-engineering"],
       "evidence_text": "Codified Context: stale content is the #1 failure mode — 'not missing rules, but rules that were once correct and no longer are.' Harness Engineering: 'CI Job checks document freshness relative to code.'"
     },
     "C2": {
       "dimension": "continuity",
       "name": "Handoff information exists",
+      "scope": "core",
+      "fix_type": "assisted",
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Anthropic: 'Structured progress files that let a new agent quickly understand the state of work.' Without handoff, every new session starts from zero."
     },
     "C3": {
       "dimension": "continuity",
       "name": "Changelog has why",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "'Updated INDEX.jsonl' tells a future session nothing. 'Fixed broken file path — entry referenced old directory structure' tells it what happened and whether it's relevant."
     },
     "C4": {
       "dimension": "continuity",
       "name": "Plans in repo",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["harness-engineering"],
       "evidence_text": "Harness Engineering: 'Plans in Jira, Confluence, Slack — for Agent, these don't exist.' Plans must be in the repo as first-class artifacts."
     },
     "C5": {
       "dimension": "continuity",
       "name": "CLAUDE.local.md not tracked",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Claude Code behavior: CLAUDE.local.md is for per-user private preferences. If tracked in git, all team members share private overrides. CC's /init explicitly recommends adding it to .gitignore."
     },
     "S1": {
       "dimension": "safety",
       "name": "Env files gitignored",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265", "corpus-4533"],
       "evidence_text": "Claude Code behavior: Glob tool defaults to CLAUDE_CODE_GLOB_NO_IGNORE=true, meaning .env files are visible to AI even if gitignored at grep level. Corpus analysis: 57 of 4533 repos have .env committed to git."
     },
     "S2": {
       "dimension": "safety",
       "name": "Actions SHA pinned",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 58% of repos use floating tags for GitHub Actions. A compromised tag can steal CI secrets when AI pushes code. SHA pinning makes actions immutable."
     },
     "S3": {
       "dimension": "safety",
       "name": "Secret scanning configured",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 98% of repos have no gitleaks config or pre-commit secret scanning. AI agents don't self-check for accidentally written secrets."
     },
     "S4": {
       "dimension": "safety",
       "name": "Security policy exists",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 92% of repos have no SECURITY.md. Without it, AI has no reference for security-sensitive decisions and users have no vulnerability reporting channel."
     },
     "S5": {
       "dimension": "safety",
       "name": "Workflow permissions minimized",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["practical-audit"],
       "evidence_text": "Workflow-level contents:write grants write access to every job. AI-triggered workflows should use job-level permissions with minimal scope."
     },
     "S6": {
       "dimension": "safety",
       "name": "No hardcoded secrets",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["practical-audit"],
       "evidence_text": "Hardcoded API keys, tokens, and private keys in source code are the most common credential leak vector. AI agents may copy-paste patterns with embedded secrets."
     },
     "S7": {
       "dimension": "safety",
       "name": "No personal paths in source",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["practical-audit", "anthropic-265"],
       "evidence_text": "Personal filesystem paths (/Users/xxx/, /home/xxx/) in source files reveal developer identity. Claude Code behavior: Glob tool defaults to ignoring .gitignore, making these paths visible to AI. AI copy-paste patterns spread leaked paths to new files."
     },
     "S8": {
       "dimension": "safety",
       "name": "No pull_request_target trigger",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["practical-audit"],
       "evidence_text": "Workflows using pull_request_target run with write access and secrets from the base branch. AI agents push code and create PRs frequently, increasing exposure to this attack vector. A malicious PR can execute arbitrary code with elevated permissions."
     },
     "I7": {
       "dimension": "instructions",
       "name": "Entry file size within limit",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Claude Code behavior: MAX_MEMORY_CHARACTER_COUNT = 40000. CC's built-in /doctor command warns when any single memory file exceeds 40,000 characters. Large files dilute instruction priority."
     },
     "F7": {
       "dimension": "findability",
       "name": "Include directives resolve",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Claude Code behavior: @include paths that don't exist are silently ignored — no error, no warning. The user thinks the content is loaded but it isn't. CC supports @path, @./relative, @~/home syntax."
     },
     "W5": {
       "dimension": "workability",
       "name": "No oversized source files",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Claude Code behavior: FileReadTool hard limit is 256 KB (MAX_FILE_SIZE). Files exceeding this cause a hard error — CC cannot read them at all. Common culprits: generated files, minified JS, large SQL schemas."
     },
     "W6": {
       "dimension": "workability",
       "name": "Pre-commit hooks are fast",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Claude Code behavior: CC is instructed to NEVER skip hooks (--no-verify). If a pre-commit hook is slow (>10s) or flaky, CC's commit workflow stalls visibly. CC will retry indefinitely on hook failure."
     },
     "W7": {
       "dimension": "workability",
       "name": "Local fast test command documented",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "AI agents need a single, fast, documented command to run before pushing. Without it, agents either skip local verification or invoke the full slow CI suite. Observed pattern: gstack documents 'bun test' at top of CLAUDE.md; all 4 audited repos were missing this and had to add it manually in a single session."
     },
     "W8": {
       "dimension": "workability",
       "name": "npm test script exists (JS/Node projects)",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "For Node.js projects, the absence of 'scripts.test' in package.json means there is no canonical test entry point. AI agents attempting 'npm test' get 'missing script: test'. Observed: agent-lint shipped without this for its entire history; fixed when explicitly audited."
     },
     "D1": {
       "dimension": "deep",
       "name": "Contradictory rules",
+      "scope": "extended",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "When the same rule exists at two levels with different wording, AI averages the signals instead of choosing one, producing unpredictable behavior."
     },
     "D2": {
       "dimension": "deep",
       "name": "Dead-weight rules",
+      "scope": "extended",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265"],
       "evidence_text": "Deletion test: 'Follow coding conventions' deleted because model already does this. Four conditions must hold: model can't self-derive, prevents real failure, has decision boundary, doesn't create worse edge cases."
     },
     "D3": {
       "dimension": "deep",
       "name": "Vague rules without decision boundary",
+      "scope": "extended",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265", "agent-readmes"],
       "evidence_text": "'Follow security best practices' was deleted — no decision boundary. Agent READMEs: abstract instructions (F1=0.42) understood at half the rate of concrete ones (F1=0.94)."
     },
     "SS1": {
       "dimension": "session",
       "name": "Repeated instructions",
+      "scope": "extended",
+      "fix_type": null,
       "evidence_sources": ["claude-insights"],
       "evidence_text": "Claude Code /insights: 'PRIORITIZE instructions that appear MULTIPLE TIMES in user data. If user told Claude the same thing in 2+ sessions, that's a PRIME candidate for CLAUDE.md.'"
     },
     "SS2": {
       "dimension": "session",
       "name": "Ignored rules",
+      "scope": "extended",
+      "fix_type": null,
       "evidence_sources": ["anthropic-265", "claude-insights"],
       "evidence_text": "A rule that exists in CLAUDE.md but is repeatedly violated in sessions may be too abstract, poorly worded, or conflicting with another rule. Signal for rewriting, not deleting."
     },
     "SS3": {
       "dimension": "session",
       "name": "Friction hotspots",
+      "scope": "extended",
+      "fix_type": null,
       "evidence_sources": ["claude-insights"],
       "evidence_text": "Claude Code /insights friction_analysis: categorized friction by type (misunderstood_request, wrong_approach, buggy_code, excessive_changes). File/directory level aggregation reveals structural issues."
     },
     "SS4": {
       "dimension": "session",
       "name": "Missing rule suggestions",
+      "scope": "extended",
+      "fix_type": null,
       "evidence_sources": ["claude-insights"],
       "evidence_text": "Claude Code /insights claude_md_additions: 'A specific line or block to add to CLAUDE.md based on workflow patterns.' Derived from user corrections and repeated instructions."
     },
     "H1": {
       "dimension": "harness",
       "name": "Hook event names valid",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 35+ unique invalid event names across ~50 repos. Common: preCommit (git hook name, not Claude hook), sessionStart (wrong casing), postEditHook (invented). Invalid hooks silently never fire — users believe they have protection but don't."
     },
     "H2": {
       "dimension": "harness",
       "name": "PreToolUse hooks have matcher",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 248/273 (91%) PreToolUse hooks lack tool_name filtering (no matcher field). Every Read, Glob, Grep call triggers the hook — massive performance tax on routine operations."
     },
     "H4": {
       "dimension": "harness",
       "name": "No dangerous auto-approve",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 85 repos auto-approve bare Bash (any command), 7 repos approve * (everything), 50 repos auto-approve financial MCP tools, 13 repos use mcp__* wildcard. Bare Bash auto-approve is equivalent to giving the agent root shell access."
     },
     "H3": {
       "dimension": "harness",
       "name": "Stop hook has circuit breaker",
+      "scope": "core",
+      "fix_type": "guided",
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: only 5/92 Stop hooks have loop protection. Stop hook exit non-zero → Claude continues → triggers Stop again → infinite loop. Circuit breaker pattern: guard variable (STOP_HOOK_ACTIVE) checked at script entry."
     },
     "H5": {
       "dimension": "harness",
       "name": "Env deny coverage complete",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 88 repos deny Read(./.env), but only 78 cover .env.* variants (.env.local, .env.production). Partial deny creates false sense of security — the most sensitive env file variants remain readable."
     },
     "H6": {
       "dimension": "harness",
       "name": "Hook scripts network access",
+      "scope": "core",
+      "fix_type": "guided",
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 5 repos have hooks that POST tool call input/output to external servers via curl/wget/fetch. This is a data exfiltration vector — tool calls may contain source code, credentials, or user data."
     },
     "H7": {
       "dimension": "harness",
       "name": "Gate workflows are blocking (not warn-only)",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Observed failure: VibeKit's test-required.yml ran in warn-only mode for months, exiting 0 regardless of outcome. Zero PRs were blocked during this period. A gate workflow that always exits 0 provides no enforcement — it only creates false confidence. Pattern: gate workflows must have a failure path that exits 1."
     },
     "S9": {
       "dimension": "safety",
       "name": "No personal email in git history",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Observed incident: 5 commits with a personal Gmail address in a public repo's git history. Git history is permanent and publicly visible — author email in commits is a PII leak even if the current source code is clean. Pre-commit author identity hooks prevent new leaks but don't retroactively clean history."
     },
     "F8": {
       "dimension": "findability",
       "name": "Rule file frontmatter uses globs",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 26.8% of .claude/rules/*.md files use paths: frontmatter instead of globs:. Claude Code's documented field is globs: — paths: may silently not apply the rule to intended files."
     },
     "F9": {
       "dimension": "findability",
       "name": "No unfilled template placeholders",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533"],
       "evidence_text": "Corpus analysis: 13% of CLAUDE.md files (419/3225) contain unreplaced template placeholders such as [your project name], <framework>, or TODO: markers. These waste context tokens and may confuse the agent about the project's actual identity."
     },
     "I8": {
       "dimension": "instructions",
       "name": "Total injected content within budget",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533", "ifscale"],
       "evidence_text": "Corpus analysis: total injected content (CLAUDE.md + AGENTS.md + rules/*.md) median is 116 non-empty lines, outliers reach 1000+. IFScale research shows instruction compliance degrades beyond ~150 instructions. The right metric is total injected content across all files, not just entry file length."
     },
     "W9": {
       "dimension": "workability",
       "name": "Release workflow validates version consistency",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533", "vibekit-audit"],
       "evidence_text": "Audit of autosearch, lazie, and vibekit release workflows: projects that validate tag against source version file (pyproject.toml, package.json) catch version drift before publish. Projects with only tag-format checks (vX.Y.Z regex) silently ship mismatched binaries. autosearch release.yml triple-checks: tag extract → source compare → fail with ::error:: on mismatch."
     },
     "W10": {
       "dimension": "workability",
       "name": "Test cost tiers defined (pytest markers)",
+      "scope": "core",
+      "fix_type": null,
       "evidence_sources": ["corpus-4533", "vibekit-audit"],
       "evidence_text": "Audit of autosearch: projects with ≥3 pytest marker tiers (unit/smoke/live) let AI agents run only fast tests locally. Without cost tiers, every test run hits network APIs and takes minutes — AI agents either skip tests or wait too long. autosearch defines 6 markers (network, real_llm, smoke, perf, live, avo); CI runs unit-only on PR, nightly runs live. Applies to Python projects only."
     },
     "W11": {
       "dimension": "workability",
       "name": "feat/fix commits paired with test commits (test-required gate)",
+      "scope": "core",
+      "fix_type": "auto",
       "evidence_sources": ["vibekit-audit"],
       "evidence_text": "vibekit test-required.yml: commit-type-based gating (feat/fix subjects trigger test requirement) prevented 4+ untested feature merges in production. File-change-based gating has high false-positive rate; commit-subject gating is precise. The gate checks for test(...) commit subject in same PR, with explicit opt-out checkbox. This pattern is directly reproducible via .github/workflows/test-required.yml template."
     },
     "H8": {
       "dimension": "harness",
       "name": "Hook errors use structured format (what/rule/fix)",
+      "scope": "core",
+      "fix_type": "assisted",
       "evidence_sources": ["vibekit-audit"],
       "evidence_text": "vibekit hooks/_shared.sh: all hook errors follow fail_with_help(what, rule, fix, see) pattern. Unstructured hook errors require users to read hook source code to understand what to do — structured errors are immediately actionable. Pattern verified in autosearch and lazie committer scripts (both emit scoped warnings with override instructions). Reduces hook friction for AI agents that parse stderr."
     },
     "C6": {
       "dimension": "continuity",
       "name": "HANDOFF.md contains verify conditions (not just status)",
+      "scope": "core",
+      "fix_type": "guided",
       "evidence_sources": ["vibekit-audit"],
       "evidence_text": "autosearch HANDOFF.md includes verify conditions: 'E2B Phase 1: 96.3/100 🟢 READY', 'E2B Phase 2: 33/33 ✅'. Plain status text ('CI passing', 'in progress') is not testable — verify conditions are. Without conditions, the next session cannot confirm readiness; it must re-run all checks. Verified across autosearch (strong) and lazie (weak — only status text)."
     }

@@ -50,33 +50,25 @@ const CHECK_FIX_ACTIONS = {
 };
 
 // ─── Fix Capability Registry ────────────────────────────────────────────────
-// Single source of truth for what `src/fixer.js` actually implements. Any
-// check not listed here defaults to 'guided' — plan-generator MUST NOT invent
-// an 'assisted' promise for a check the fixer has no handler for, because the
-// user selecting "High priority" would then see "No assisted strategy for X"
-// failures at fix time.
+// Derived from `standards/evidence.json` — the single source of truth for
+// every check's metadata (dimension, scope, fix_type). Any check whose
+// evidence entry declares a non-null `fix_type` MUST have a matching handler
+// in `src/fixer.js`; drift is caught by `tests/test-registry-consistency.js`.
 //
-// When you add a new fixer handler, add the check ID here with the matching
-// type. When you remove a handler, remove it here too.
-const FIX_REGISTRY = {
-  // auto — runs silently with no user decision
-  W11: 'auto',   // executeAutoW11 — create .github/workflows/test-required.yml
-  F5:  'auto',   // removeLinesWithBrokenReferences — strips broken markdown refs
-  I5:  'auto',   // removeIdentityLanguage — strips identity-language lines
+// Checks with `fix_type: null` default to 'guided' at plan time — we never
+// promise an 'assisted' fix the fixer cannot deliver.
+function buildFixRegistry() {
+  const evidence = readJson(EVIDENCE_PATH);
+  const registry = {};
+  for (const [checkId, entry] of Object.entries(evidence.checks || {})) {
+    if (entry && entry.fix_type) {
+      registry[checkId] = entry.fix_type;
+    }
+  }
+  return registry;
+}
 
-  // assisted — fixer generates a file/template; user typically edits after
-  F1:  'assisted', // executeAssistedF1 — scaffold CLAUDE.md from template
-  C2:  'assisted', // executeAssistedC2 — generate HANDOFF.md from template
-  H8:  'assisted', // executeAssistedH8 — add structured hook error helper
-
-  // guided — plan-generator returns a text recipe; no file changes
-  I3:  'guided',
-  W3:  'guided',
-  C1:  'guided',
-  H3:  'guided',
-  H6:  'guided',
-  C6:  'guided',
-};
+const FIX_REGISTRY = buildFixRegistry();
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
