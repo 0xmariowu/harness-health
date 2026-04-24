@@ -1,0 +1,60 @@
+# test-required.yml — Gate feat/fix commits on paired test commits
+# Adapted from vibekit. Checks that any PR containing feat(...) or fix(...) commits
+# also contains at least one test(...) commit. Opt-out via PR body checkbox.
+#
+# To opt out: include "[x] No tests needed because: <reason>" in the PR body.
+
+name: test-required
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-test-pairing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check feat/fix → test pairing
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Check for explicit opt-out in PR body
+          if echo "$PR_BODY" | grep -qiE '^\[x\] no tests needed because:'; then
+            reason="$(echo "$PR_BODY" | grep -iE '^\[x\] no tests needed because:' | head -1)"
+            # Reason must not be a template placeholder and must have real content
+            if ! echo "$reason" | grep -qE '^<!--' && echo "$reason" | grep -qE '[a-zA-Z]'; then
+              echo "Opt-out accepted: $reason"
+              exit 0
+            fi
+          fi
+
+          # Scan commit subjects in this PR
+          behavior_change=0
+          has_test=0
+          while IFS= read -r subject; do
+            case "$subject" in
+              feat\(*|feat:*) behavior_change=1 ;;
+              fix\(bootstrap*|fix\(scripts*|fix\(hooks*|fix\(src*|fix\(tests*) behavior_change=1 ;;
+            esac
+            case "$subject" in
+              test\(*|test:*) has_test=1 ;;
+            esac
+          done < <(git log --format="%s" "$BASE_SHA".."$HEAD_SHA" 2>/dev/null)
+
+          if [ "$behavior_change" -eq 1 ] && [ "$has_test" -eq 0 ]; then
+            echo "::error::This PR contains feat/fix commits but no test(...) commit."
+            echo "Add a test commit or include '[x] No tests needed because: <reason>' in the PR body."
+            exit 1
+          fi
+
+          echo "Test pairing check passed."
