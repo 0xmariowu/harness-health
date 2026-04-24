@@ -85,15 +85,18 @@ runTest('items at or above 0.8 are filtered out and severities are grouped corre
   assert.equal(output.grouped.low.count, 1);
 });
 
-runTest('fix types are assigned from check IDs', () => {
+runTest('fix types are assigned from the capability registry', () => {
   const output = runPlanGenerator(scorerOutput);
 
   const f5 = output.items.find((item) => item.check_id === 'F5' && item.project === 'alpha');
   const f1 = output.items.find((item) => item.check_id === 'F1' && item.project === 'alpha');
   const i3 = output.items.find((item) => item.check_id === 'I3' && item.project === 'beta');
 
-  assert.equal(f5.fix_type, 'assisted');
+  // F5 is auto — fixer.js handles it via executeAutoFix (removeLinesWithBrokenReferences).
+  assert.equal(f5.fix_type, 'auto');
+  // F1 is assisted — fixer.js has executeAssistedF1.
   assert.equal(f1.fix_type, 'assisted');
+  // I3 is guided — no automated handler.
   assert.equal(i3.fix_type, 'guided');
 });
 
@@ -107,7 +110,7 @@ runTest('every item includes a fix_command for its check ID', () => {
   }
 });
 
-runTest('F5 stays assisted for medium severity scores', () => {
+runTest('F5 is auto regardless of severity (matches fixer.js capability)', () => {
   const output = runPlanGenerator({
     by_project: {
       demo: {
@@ -121,7 +124,38 @@ runTest('F5 stays assisted for medium severity scores', () => {
   const f5 = output.items.find((item) => item.check_id === 'F5');
   assert.ok(f5, 'F5 item should exist');
   assert.equal(f5.severity, 'medium');
-  assert.equal(f5.fix_type, 'assisted');
+  // F5 is always 'auto' — fix_type comes from the registry, not the score.
+  assert.equal(f5.fix_type, 'auto');
+});
+
+runTest('unregistered low-score checks fall back to guided, not assisted', () => {
+  // Regression: before the registry, any check with score<0.5 that wasn't in
+  // the ASSISTED/AUTO/GUIDED sets got labeled 'assisted' — but the fixer had
+  // no handler for it, so "High priority only" produced "No assisted strategy
+  // for X" failures. F4, S5, S7, W4, W5 all hit this case.
+  const output = runPlanGenerator({
+    by_project: {
+      demo: {
+        findability: makeDimension([
+          { check_id: 'F4', project: 'demo', name: 'Root file count', measured_value: 20, score: 0, detail: 'too many files' },
+        ]),
+        safety: makeDimension([
+          { check_id: 'S5', project: 'demo', name: 'No contents:write', measured_value: 1, score: 0, detail: 'contents:write at top level' },
+          { check_id: 'S7', project: 'demo', name: 'No secrets in code', measured_value: 1, score: 0, detail: 'secret-like string' },
+        ]),
+        workability: makeDimension([
+          { check_id: 'W4', project: 'demo', name: 'Linter config present', measured_value: 0, score: 0, detail: 'no linter' },
+          { check_id: 'W5', project: 'demo', name: 'No oversized source files', measured_value: 5, score: 0, detail: '5 files > 256KB' },
+        ]),
+      },
+    },
+  });
+
+  for (const id of ['F4', 'S5', 'S7', 'W4', 'W5']) {
+    const item = output.items.find((it) => it.check_id === id);
+    assert.ok(item, `${id} should exist in plan`);
+    assert.equal(item.fix_type, 'guided', `${id} must be guided — fixer has no handler`);
+  }
 });
 
 runTest('merged items include item_ids and project_count', () => {
@@ -130,7 +164,8 @@ runTest('merged items include item_ids and project_count', () => {
   const highF5 = getMergedItem(output, 'high', 'F5');
   const mediumF1 = getMergedItem(output, 'medium', 'F1');
 
-  assert.deepEqual(highF5.item_ids, [1, 3]);
+  // F5 is 'auto' (sort key 0) so its items get the first IDs after grouping.
+  assert.deepEqual(highF5.item_ids, [1, 2]);
   assert.equal(highF5.project_count, 2);
   assert.deepEqual(mediumF1.item_ids, [5, 6]);
   assert.equal(mediumF1.project_count, 2);

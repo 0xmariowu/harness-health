@@ -36,7 +36,7 @@ function runScorer(records) {
   return JSON.parse(result.stdout);
 }
 
-runTest('dimension scores use weighted averages and total score is out of 100', () => {
+runTest('dimension scores use weighted averages and total score only counts dimensions that ran', () => {
   const output = runScorer([
     { check_id: 'F1', project: 'test-proj', score: 0.9, name: 'Entry file', measured_value: 1 },
     { check_id: 'F2', project: 'test-proj', score: 0.5, name: 'Project description', measured_value: 1 },
@@ -45,7 +45,14 @@ runTest('dimension scores use weighted averages and total score is out of 100', 
 
   assert.equal(output.dimensions.findability.score, 8);
   assert.equal(output.dimensions.workability.score, 3);
-  assert.equal(output.total_score, 19);
+  // Total is averaged only over dimensions whose checks actually ran (F and W).
+  // Dimensions with no inputs (D/I/C/S/H/session) are `not_run` and must not
+  // pollute the denominator with a spurious 0.
+  assert.equal(output.total_score, 56);
+  assert.equal(output.dimensions.findability.status, 'run');
+  assert.equal(output.dimensions.workability.status, 'run');
+  assert.equal(output.dimensions.instructions.status, 'not_run');
+  assert.equal(output.dimensions.deep.status, 'not_run');
 });
 
 runTest('per-project breakdown exists and retains project checks', () => {
@@ -82,7 +89,9 @@ runTest('unknown check prefixes are ignored without crashing', () => {
     { check_id: 'F1', project: 'ignored', score: 1, name: 'Entry file', measured_value: 1 },
   ]);
 
-  assert.equal(output.total_score, 18);
+  // Only F1 ran → only findability dimension counts toward total.
+  // F1 scored 1.0 across the only-run dim → total = 100.
+  assert.equal(output.total_score, 100);
   assert.equal(output.by_project.ignored.findability.checks.length, 1);
   assert.equal(output.by_project.ignored.findability.checks[0].check_id, 'F1');
 });
@@ -205,6 +214,61 @@ runTest('missing input file exits with a concise read error', () => {
 
   assert.notEqual(result.status, 0, 'missing file should cause non-zero exit');
   assert.match(result.stderr, /scorer: cannot read input .*does-not-exist\.jsonl/i);
+});
+
+// ─── not_run dimension semantics ────────────────────────────────────────────
+
+runTest('dimensions with no checks are marked not_run with score=null', () => {
+  const output = runScorer([
+    { check_id: 'F1', project: 'p', score: 1, name: 'Entry' },
+  ]);
+  assert.equal(output.dimensions.findability.status, 'run');
+  assert.equal(output.dimensions.findability.score, 10);
+  assert.equal(output.dimensions.deep.status, 'not_run');
+  assert.equal(output.dimensions.deep.score, null);
+  assert.equal(output.dimensions.session.status, 'not_run');
+  assert.equal(output.dimensions.session.score, null);
+});
+
+runTest('score_scope is "core" when no extended dimension ran', () => {
+  const output = runScorer([
+    { check_id: 'F1', project: 'p', score: 1, name: 'F1' },
+    { check_id: 'H1', project: 'p', score: 1, name: 'H1' },
+  ]);
+  assert.equal(output.score_scope, 'core');
+});
+
+runTest('score_scope is "core+extended" when a Deep or Session check ran', () => {
+  const withDeep = runScorer([
+    { check_id: 'F1', project: 'p', score: 1, name: 'F1' },
+    { check_id: 'D1', project: 'p', score: 0.5, name: 'D1' },
+  ]);
+  assert.equal(withDeep.score_scope, 'core+extended');
+
+  const withSession = runScorer([
+    { check_id: 'F1', project: 'p', score: 1, name: 'F1' },
+    { check_id: 'SS1', project: 'p', score: 0.5, name: 'SS1' },
+  ]);
+  assert.equal(withSession.score_scope, 'core+extended');
+});
+
+runTest('not_run dimensions do not pull down total score (regression: 51-core = 89, not 81)', () => {
+  // Replicate the AgentLint self-scan shape: all 6 core dims populated with
+  // good scores, Deep and Session absent. Before the fix this produced ~81;
+  // after the fix it produces the correct weighted average of the 6 core dims.
+  const records = [
+    { check_id: 'F1', project: 'self', score: 1, name: 'F1' },
+    { check_id: 'I1', project: 'self', score: 1, name: 'I1' },
+    { check_id: 'W1', project: 'self', score: 1, name: 'W1' },
+    { check_id: 'C1', project: 'self', score: 1, name: 'C1' },
+    { check_id: 'S1', project: 'self', score: 1, name: 'S1' },
+    { check_id: 'H1', project: 'self', score: 1, name: 'H1' },
+  ];
+  const output = runScorer(records);
+  assert.equal(output.total_score, 100, 'all-ones on 6 core dims must be 100, not 91 (which would be 100*1.0/1.1)');
+  assert.equal(output.score_scope, 'core');
+  assert.equal(output.dimensions.deep.status, 'not_run');
+  assert.equal(output.dimensions.session.status, 'not_run');
 });
 
 process.stdout.write(`${passed}/${total} tests passed\n`);
