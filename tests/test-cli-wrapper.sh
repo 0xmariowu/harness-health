@@ -88,6 +88,63 @@ fi
 rm -rf "$tmp_repo3"
 
 # ---------------------------------------------------------------------------
+# Test 4: `check` with invalid scanner args does NOT emit a fake score report
+# (P0-1 regression — see docs/comprehensive-remediation-plan.md).
+# Before the transactional pipeline fix, scanner failure let scorer read
+# empty stdin, scorer emitted total_score=0, and reporter printed
+# "🏥 AgentLint — Score: 0/100 (core)" to stdout. CI parsers treated this
+# as a real scan.
+# ---------------------------------------------------------------------------
+bogus_stdout="$(mktemp)"
+bogus_stderr="$(mktemp)"
+"$WRAPPER" check --bogus-flag >"$bogus_stdout" 2>"$bogus_stderr"
+bogus_rc=$?
+
+if [ "$bogus_rc" -eq 0 ]; then
+  fail "invalid scanner args should exit non-zero, got 0"
+else
+  ok "invalid scanner args exit non-zero (rc=$bogus_rc)"
+fi
+
+if grep -q "AgentLint.*Score" "$bogus_stdout"; then
+  fail "invalid scanner args still emit fake score report to stdout"
+else
+  ok "invalid scanner args do not emit fake score report"
+fi
+
+if grep -q "Unknown argument" "$bogus_stderr"; then
+  ok "scanner stderr is forwarded to wrapper stderr"
+else
+  fail "scanner error message was not forwarded — user sees no reason"
+fi
+
+rm -f "$bogus_stdout" "$bogus_stderr"
+
+# ---------------------------------------------------------------------------
+# Test 5: `fix` with invalid scanner args does NOT run plan/fixer
+# ---------------------------------------------------------------------------
+fix_stdout="$(mktemp)"
+fix_stderr="$(mktemp)"
+"$WRAPPER" fix --bad-flag >"$fix_stdout" 2>"$fix_stderr"
+fix_rc=$?
+
+if [ "$fix_rc" -eq 0 ]; then
+  fail "fix with bad scanner flag should exit non-zero, got 0"
+else
+  ok "fix with bad scanner flag exits non-zero"
+fi
+
+# fixer emits its own status JSON ({"executed":[...]}) when it runs; the
+# transactional wrapper should prevent that from ever appearing on bogus args.
+if grep -q "executed" "$fix_stdout"; then
+  fail "fix ran the fixer after scanner failure"
+else
+  ok "fix short-circuits before plan/fixer when scanner fails"
+fi
+
+rm -f "$fix_stdout" "$fix_stderr"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
