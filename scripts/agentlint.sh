@@ -213,17 +213,37 @@ case "${1:-}" in
       path_args+=("--project-dir" ".")
     fi
 
+    # fixer.js requires --items or --checks. Without a check id the old
+    # behavior piped scorer → plan-generator → fixer with neither flag, so
+    # fixer threw "Usage: ... --items or --checks is required" and the
+    # broken pipe on an earlier stage emitted an EPIPE Node stack trace.
+    # That's a bad UX for the most obvious "fix what you found" entry
+    # point. Option A: reject fast with a clear product-level message
+    # pointing to the correct commands.
+    if [[ -z "$check_ids" ]]; then
+      cat >&2 <<'USAGE'
+agentlint fix: a check id is required.
+
+Run a scan first to see what needs fixing:
+
+  agentlint check
+
+Then fix a specific check:
+
+  agentlint fix W11                 # fix one check
+  agentlint fix W11,F5,S1           # fix several
+
+Inside Claude Code, /al walks you through selecting and fixing items
+interactively.
+USAGE
+      exit 2
+    fi
+
     run_scan "${path_args[@]}" || exit $?
 
-    if [[ -n "$check_ids" ]]; then
-      node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
-        | node "${SCRIPT_DIR}/../src/plan-generator.js" \
-        | node "${SCRIPT_DIR}/../src/fixer.js" --checks "$check_ids" "${path_args[@]}"
-    else
-      node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
-        | node "${SCRIPT_DIR}/../src/plan-generator.js" \
-        | node "${SCRIPT_DIR}/../src/fixer.js" "${path_args[@]}"
-    fi
+    node "${SCRIPT_DIR}/../src/scorer.js" "${_AL_SCAN_OUT}" \
+      | node "${SCRIPT_DIR}/../src/plan-generator.js" \
+      | node "${SCRIPT_DIR}/../src/fixer.js" --checks "$check_ids" "${path_args[@]}"
     ;;
   version|--version|-v)
     # Resolve symlinks to find real script location (handles npm global installs)
