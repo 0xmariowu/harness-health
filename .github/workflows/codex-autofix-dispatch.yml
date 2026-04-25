@@ -1,7 +1,7 @@
 name: Copilot Autofix Dispatch
 
 # v2 (fixed via bug #1 resolution · validated by V-F03a2/F04a2):
-# Codex Cloud does auto-REVIEW but does NOT autopush (0 commits铁证 by chatgpt-codex-connector[bot]).
+# Codex Cloud does auto-REVIEW but does NOT autopush (0-commit evidence by chatgpt-codex-connector[bot]).
 # Only Copilot Coding Agent (copilot-swe-agent bot) can autopush fix commits (L2 execute level).
 #
 # This workflow closes the autofix loop by automatically commenting `@copilot please fix ...`
