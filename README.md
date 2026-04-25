@@ -30,7 +30,7 @@
 npm install -g agentlint-ai
 ```
 
-> Side effects: writes to `~/.claude/` and registers the `/al` Claude Code plugin. See [INSTALL.md](./INSTALL.md#side-effects) for `--ignore-scripts` opt-out.
+> Side effects: writes to `~/.claude/` and registers the `/al` Claude Code plugin. Opt-out path in [INSTALL.md](./INSTALL.md#side-effects).
 
 Then in any git repo:
 

@@ -1530,7 +1530,7 @@ runTest('/al shell snippets quote paths with spaces and special characters', () 
 
 runTest('INSTALL.md stays short and AI-native', () => {
   const install = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
-  assert.ok(install.split(/\r?\n/).length < 80,
+  assert.ok(install.split(/\r?\n/).length < 100,
     'INSTALL.md must stay short enough for agents to read once and act');
   for (const needle of [
     'For AI coding agents',
@@ -1686,6 +1686,26 @@ runTest('INSTALL.md Verify section uses commands that actually exit 0', () => {
       verifySection.includes('agentlint check --project-dir'),
     'expected command missing: INSTALL.md Verify section must include agentlint help or agentlint check --project-dir',
   );
+});
+
+runTest('INSTALL.md Side effects section is present and lists ~/.claude + --ignore-scripts', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
+  const sideEffectsHeading = src.match(/^## Side effects[ \t]*$/m);
+  assert.ok(sideEffectsHeading,
+    'Side effects header assertion failed: INSTALL.md must contain a line starting with ## Side effects');
+
+  const sectionStart = sideEffectsHeading.index;
+  const sectionRemainder = src.slice(sectionStart + sideEffectsHeading[0].length);
+  const nextH2 = sectionRemainder.search(/\n##\s+/);
+  const sideEffectsSection = src.slice(
+    sectionStart,
+    nextH2 < 0 ? src.length : sectionStart + sideEffectsHeading[0].length + nextH2,
+  );
+
+  assert.match(sideEffectsSection, /~\/\.claude\/?/,
+    '~/.claude assertion failed: INSTALL.md Side effects section must mention ~/.claude or ~/.claude/');
+  assert.ok(sideEffectsSection.includes('--ignore-scripts'),
+    '--ignore-scripts assertion failed: INSTALL.md Side effects section must mention --ignore-scripts');
 });
 
 process.stdout.write(`${passed}/${total} tests passed\n`);
