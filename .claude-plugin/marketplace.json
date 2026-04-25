@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Check how well your repo supports AI coding agents.",
-    "version": "1.1.5"
+    "version": "1.1.6"
   },
   "plugins": [
     {
       "name": "agent-lint",
       "source": "./",
       "description": "Check how well your repo supports AI coding agents.",
-      "version": "1.1.5",
+      "version": "1.1.6",
       "author": {
         "name": "0xmariowu"
       },
