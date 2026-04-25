@@ -138,6 +138,13 @@ jobs:
           fi
 
       - name: Compare with ground truth
+        env:
+          # S9 (no personal email in git history) is unmeasurable from the
+          # corpus snapshot — corpus repos have no .git/ directory, so
+          # auto-label-full.js emits `na` for all 4533 rows. Allow-list it
+          # so the fail-closed gate (compare-results.js) doesn't trip on
+          # an inherently unmeasurable check.
+          ACCURACY_ALLOW_MISSING: S9
         run: |
           node tests/accuracy/compare-results.js \
             /tmp/scanner-results.jsonl \

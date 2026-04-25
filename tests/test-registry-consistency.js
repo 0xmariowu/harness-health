@@ -160,6 +160,23 @@ runTest('accuracy compare-results.js derives ALL_CHECKS from evidence.json', () 
     'compare-results.js must not re-hardcode ALL_CHECKS — derive from evidence.json');
 });
 
+runTest('accuracy compare-results.js fail-on-missing core checks with ACCURACY_ALLOW_MISSING support', () => {
+  // Regression task added fail-closed behavior for missing core labeled data, with
+  // explicit per-check exemptions via ACCURACY_ALLOW_MISSING.
+  const src = fs.readFileSync(
+    path.join(ROOT, 'tests', 'accuracy', 'compare-results.js'),
+    'utf8',
+  );
+  assert.match(src, /ACCURACY_ALLOW_MISSING/,
+    'compare-results.js must read ACCURACY_ALLOW_MISSING');
+  assert.match(src, /split\(\s*['"]\s*,\s*['"]\s*\)/,
+    'ACCURACY_ALLOW_MISSING must be parsed as comma-separated values');
+  assert.match(src, /missingCoreChecks[\s\S]{0,140}process\.exit\(1\)/,
+    'compare-results.js must fail closed on missing core checks');
+  assert.match(src, /scope\s*===\s*['"]core['"]/,
+    'compare-results.js must gate the missing-check fail path on core scope');
+});
+
 runTest('README "is my code sent" FAQ does not overclaim local-only', () => {
   // Prior wording answered "No. AgentLint runs locally." flat-out, which is
   // inaccurate: Deep (opt-in) sends selected entry files to a Claude
