@@ -19,7 +19,7 @@
 // (if it needs a handler). This test makes that requirement unambiguous.
 
 const assert = require('node:assert/strict');
-const { execFileSync, spawnSync } = require('node:child_process');
+const { execFileSync, execSync, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -1112,28 +1112,49 @@ runTest('setup.sh does not expose --protect flag (helper not implemented)', () =
 });
 
 runTest('INSTALL.md exists and is the canonical install reference', () => {
-  // INSTALL.md is a top-level, AI-consumable install doc. README points to
-  // it for the full install matrix (npm / curl / ignore-scripts / corporate).
+  // INSTALL.md is a top-level, AI-consumable fallback doc. README points to
+  // it for failure-mode handling after the single default install path.
   // If someone deletes it or relocates it, README links break silently.
   const installPath = path.join(ROOT, 'INSTALL.md');
   assert.ok(fs.existsSync(installPath),
     'INSTALL.md must exist at repo root as the canonical install reference');
   const install = fs.readFileSync(installPath, 'utf8');
-  assert.match(install, /npx agentlint-ai init/,
-    'INSTALL.md must document the recommended `npx agentlint-ai init` path');
+  assert.match(install, /For AI coding agents/,
+    'INSTALL.md must identify itself as the AI coding agent install reference');
+  assert.match(install, /npm install -g agentlint-ai/,
+    'INSTALL.md must document the default global npm install path');
   assert.match(install, /--ignore-scripts/,
-    'INSTALL.md must document the no-side-effects `--ignore-scripts` path');
+    'INSTALL.md must keep the `--ignore-scripts` fallback in failure modes');
 });
 
-runTest('INSTALL.md and README document npx init persistence limitation', () => {
+runTest('public install docs use one default install command and point agents to INSTALL.md', () => {
   const install = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
   const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-  assert.match(install, /does \*\*not\*\* install a persistent `agentlint` binary/,
-    'INSTALL.md must say npx init does not install persistent agentlint');
-  assert.match(readme, /does not leave a persistent `agentlint` binary/,
-    'README.md must say npx init does not leave agentlint on PATH');
+  const cn = fs.readFileSync(path.join(ROOT, 'README_CN.md'), 'utf8');
+  const intro = fs.readFileSync(path.join(ROOT, 'docs', 'content', 'intro.md'), 'utf8');
+  const foregroundFlag = ['--foreground', 'scripts'].join('-');
+
+  for (const [name, src] of [
+    ['README.md', readme],
+    ['README_CN.md', cn],
+    ['docs/content/intro.md', intro],
+  ]) {
+    assert.match(src, /npm install -g agentlint-ai/,
+      `${name} must document the default global npm install path`);
+    assert.match(src, /agentlint check/,
+      `${name} must show agentlint check as the next shell command`);
+    assert.match(src, /INSTALL\.md/,
+      `${name} must point AI agents to INSTALL.md`);
+    assert.doesNotMatch(src, /npx agentlint-ai init/,
+      `${name} must not reintroduce the old npx init install path`);
+    assert.doesNotMatch(src, new RegExp(foregroundFlag),
+      `${name} must not document the foreground scripts workaround as an install path`);
+    assert.doesNotMatch(src, /agentlint-ai@latest/,
+      `${name} must not document redundant @latest installs`);
+  }
+
   assert.match(install, /npm install -g agentlint-ai/,
-    'INSTALL.md must direct users to npm install -g for persistent CLI');
+    'INSTALL.md must direct users to the default global npm install path');
 });
 
 runTest('Claude plugin install failures are distinguished from npm CLI success', () => {
@@ -1147,34 +1168,32 @@ runTest('Claude plugin install failures are distinguished from npm CLI success',
     'postinstall.js must not collapse plugin failure into generic install success');
 });
 
-runTest('README recommends npx init path and links to INSTALL.md', () => {
-  // The recommended primary install command must be `npx agentlint-ai init`
-  // (explicit, UI-visible) rather than a bare `npx agentlint-ai` or plain
-  // `npm install -g` (npm 9+ silences postinstall stdout so the install UI
-  // is invisible on the latter).
+runTest('README recommends npm global install path and links to INSTALL.md', () => {
   const en = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   const cn = fs.readFileSync(path.join(ROOT, 'README_CN.md'), 'utf8');
-  assert.match(en, /npx agentlint-ai init/,
-    'README.md must recommend `npx agentlint-ai init` as the primary install path');
-  assert.match(cn, /npx agentlint-ai init/,
-    'README_CN.md must recommend `npx agentlint-ai init` as the primary install path');
+  assert.match(en, /npm install -g agentlint-ai/,
+    'README.md must recommend `npm install -g agentlint-ai` as the primary install path');
+  assert.match(cn, /npm install -g agentlint-ai/,
+    'README_CN.md must recommend `npm install -g agentlint-ai` as the primary install path');
   assert.match(en, /INSTALL\.md/,
-    'README.md must link to INSTALL.md for the full install matrix');
+    'README.md must link to INSTALL.md for AI-agent fallback install guidance');
   assert.match(cn, /INSTALL\.md/,
     'README_CN.md must link to INSTALL.md');
 });
 
-runTest('README documents the postinstall design choice (v1.x)', () => {
+runTest('postinstall side-effect fallback is documented in INSTALL.md, not the main README path', () => {
   // The `npm install` → `~/.claude` side effect is a deliberate UX choice
-  // for v1.x. Reviewers flag it repeatedly. Keep the design note in the
-  // FAQ so the rationale + --ignore-scripts escape hatch is always one
-  // click away from README readers.
+  // for v1.x. The fallback belongs in INSTALL.md so the main install path
+  // stays focused while AI agents still have a concrete failure-mode fix.
   const en = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   const cn = fs.readFileSync(path.join(ROOT, 'README_CN.md'), 'utf8');
-  assert.match(en, /--ignore-scripts/,
-    'README.md must show the --ignore-scripts escape hatch for users who do not want the postinstall side effect');
-  assert.match(cn, /--ignore-scripts/,
-    'README_CN.md must show the --ignore-scripts escape hatch');
+  const install = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
+  assert.doesNotMatch(en, /--ignore-scripts/,
+    'README.md must not show --ignore-scripts in the main install path');
+  assert.doesNotMatch(cn, /--ignore-scripts/,
+    'README_CN.md must not show --ignore-scripts in the main install path');
+  assert.match(install, /--ignore-scripts/,
+    'INSTALL.md must show the --ignore-scripts failure-mode fallback');
 });
 
 runTest('accuracy workflow fails closed on missing corpus + scanner failures', () => {
@@ -1296,13 +1315,56 @@ runTest('docs GitHub Action quickstart is a complete copy-paste workflow', () =>
     'jobs:',
     'runs-on: ubuntu-latest',
     'actions/checkout@v4',
-    '0xmariowu/agent-lint@v0',
+    '0xmariowu/agent-lint@v1',
   ]) {
     assert.match(actionSection, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
       `docs GitHub Action quickstart must include ${needle}`);
   }
   assert.doesNotMatch(actionSection, /fail-below:\s*['"]60['"]/,
     'copy-paste quickstart must not include a score threshold that can fail a fresh repo before the first baseline');
+});
+
+runTest('documented GitHub Action refs are tag-safe', () => {
+  const docs = [
+    'README.md',
+    'README_CN.md',
+    path.join('docs', 'content', 'intro.md'),
+    'INSTALL.md',
+  ];
+  const localTags = new Set(execSync('git tag -l', { cwd: ROOT, encoding: 'utf8' })
+    .split(/\r?\n/)
+    .filter(Boolean));
+  const refs = [];
+
+  for (const file of docs) {
+    const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const pattern = /0xmariowu\/(?:agent-lint|AgentLint)@([A-Za-z0-9._/-]+)/g;
+    let match;
+    while ((match = pattern.exec(src)) !== null) {
+      refs.push({ file, ref: match[1] });
+    }
+  }
+
+  assert.ok(refs.length > 0,
+    'public docs must include at least one GitHub Action ref for AgentLint');
+
+  for (const { file, ref } of refs) {
+    assert.notEqual(ref, 'v0',
+      `${file}: documented action ref @v0 no longer exists; use @v1 or a real semver tag`);
+    assert.ok(ref !== 'main' && ref !== 'master',
+      `${file}: documented action ref @${ref} is a mutable branch name and a security risk`);
+    if (ref === 'v1') continue;
+
+    assert.match(ref, /^v\d+\.\d+\.\d+$/,
+      `${file}: documented action ref @${ref} must be @v1 or a semver release tag`);
+    assert.ok(localTags.has(ref),
+      `Documented action ref @${ref} not found in tags. Run 'git tag -l' to see valid tags.`);
+    execSync(`git rev-parse --verify "refs/tags/${ref}"`, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+  }
 });
 
 runTest('/al scan reads persisted config for root and selected modules', () => {
@@ -1360,24 +1422,28 @@ runTest('install.sh reports /al copy failures instead of unconditional success',
     'install.sh must only print /al installed after the cp branch succeeds');
 });
 
-runTest('public install docs distinguish npx cache init from persistent CLI install', () => {
+runTest('public install docs keep npx init out of main install guidance', () => {
   const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   const cn = fs.readFileSync(path.join(ROOT, 'README_CN.md'), 'utf8');
   const intro = fs.readFileSync(path.join(ROOT, 'docs', 'content', 'intro.md'), 'utf8');
   for (const [name, src] of [['README.md', readme], ['docs/content/intro.md', intro]]) {
-    assert.match(src, /npx agentlint-ai init/,
-      `${name} must use the explicit npx init command`);
-    assert.match(src, /persistent `agentlint`/,
-      `${name} must say npx init does not install a persistent agentlint CLI`);
     assert.match(src, /npm install -g agentlint-ai/,
-      `${name} must point users to npm install -g for persistent CLI use`);
+      `${name} must use npm install -g as the default install command`);
+    assert.match(src, /agentlint check/,
+      `${name} must show the default post-install check command`);
+    assert.match(src, /Using an AI coding agent\?/,
+      `${name} must point AI coding agents to INSTALL.md`);
+    assert.doesNotMatch(src, /npx agentlint-ai init/,
+      `${name} must not reintroduce the npx init command`);
   }
-  assert.match(cn, /npx agentlint-ai init/,
-    'README_CN.md must use the explicit npx init command');
-  assert.match(cn, /持久的 `agentlint`/,
-    'README_CN.md must say npx init does not install a persistent agentlint CLI');
   assert.match(cn, /npm install -g agentlint-ai/,
-    'README_CN.md must point users to npm install -g for persistent CLI use');
+    'README_CN.md must use npm install -g as the default install command');
+  assert.match(cn, /agentlint check/,
+    'README_CN.md must show the default post-install check command');
+  assert.match(cn, /AI 编程 agent/,
+    'README_CN.md must point AI coding agents to INSTALL.md');
+  assert.doesNotMatch(cn, /npx agentlint-ai init/,
+    'README_CN.md must not reintroduce the npx init command');
   assert.doesNotMatch(intro, /```bash\nnpx agentlint-ai\n```/,
     'docs/content/intro.md must not reintroduce the ambiguous bare npx command');
 });
@@ -1398,22 +1464,23 @@ runTest('/al shell snippets quote paths with spaces and special characters', () 
     'session analyzer must quote the session-root path');
 });
 
-runTest('INSTALL.md documents cleanup for npm, Claude plugin, command file, run data, and setup files', () => {
+runTest('INSTALL.md stays short and AI-native', () => {
   const install = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
-  const uninstall = install.slice(install.indexOf('## Uninstall'), install.indexOf('## Requirements'));
+  assert.ok(install.split(/\r?\n/).length < 60,
+    'INSTALL.md must stay short enough for agents to read once and act');
   for (const needle of [
-    'npm uninstall -g agentlint-ai',
-    'claude plugin marketplace remove agent-lint',
-    'rm -rf "$HOME/.claude/plugins/cache/agent-lint"',
-    'rm -f "$HOME/.claude/commands/al.md"',
-    'rm -rf "$HOME/.al"',
-    'agentlint setup',
-    '.github/workflows/',
-    'CLAUDE.md',
-    'HANDOFF.md',
+    'For AI coding agents',
+    '## Default',
+    '## Failure modes',
+    '## GitHub Action',
+    '## After install',
+    '## Verify',
+    'npm install -g agentlint-ai',
+    '0xmariowu/agent-lint@v1',
+    'agentlint check',
   ]) {
-    assert.match(uninstall, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-      `INSTALL.md uninstall section must include ${needle}`);
+    assert.match(install, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      `INSTALL.md must include ${needle}`);
   }
 });
 
