@@ -1508,6 +1508,38 @@ runTest('CI workflows do not expose secret diagnostics or token introspection', 
   }
 });
 
+runTest('shipped templates do not reference missing files or VibeKit identity', () => {
+  const PROHIBITED_PATTERNS = [
+    /\bbootstrap\.sh\b/,                        // legacy filename, replaced by agentlint setup
+    /standards\/ship-boundary\.json/,           // never existed in agent-lint
+    /configs\/templates\/subsystem-CLAUDE\.md/, // VibeKit-only path
+    /configs\/templates\/plan\.md/,             // VibeKit-only path
+    /atomic-dev-environment\.md/,               // external doc not shipped here
+    /\bvibekit(?:\b|_)/i,                       // upstream identity must not leak to downstream
+  ];
+  const skipFiles = new Set([
+    // Test self-references (this file lives outside templates/, not skipped here)
+  ]);
+  const templatesDir = path.join(ROOT, 'templates');
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (skipFiles.has(path.relative(ROOT, full))) continue;
+      const src = fs.readFileSync(full, 'utf8');
+      for (const pat of PROHIBITED_PATTERNS) {
+        assert.doesNotMatch(src, pat,
+          `${path.relative(ROOT, full)} contains stale pattern ${pat}; ` +
+          'templates copy to user repos and must not carry VibeKit / dead-path references');
+      }
+    }
+  };
+  walk(templatesDir);
+});
+
 runTest('copilot-instructions.md product summary stays in sync with evidence.json', () => {
   const file = path.join(ROOT, '.github', 'copilot-instructions.md');
   const src = fs.readFileSync(file, 'utf8');
