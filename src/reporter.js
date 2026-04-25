@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const faviconPath = path.join(__dirname, '..', 'assets', 'favicon.svg');
 const evidencePath = path.join(__dirname, '..', 'standards', 'evidence.json');
@@ -342,7 +343,12 @@ function findMeasuredPathByExtension(value, extensions) {
 
 function findProjectEntryFile(scores, project) {
   if (!project || !isObject(scores) || !isObject(scores.by_project)) return null;
-  const projectScores = scores.by_project[project];
+  let projectScores = scores.by_project[project];
+  if (!isObject(projectScores)) {
+    projectScores = Object.values(scores.by_project).find((entry) => (
+      isObject(entry) && (entry.project === project || entry.project_path === project)
+    ));
+  }
   if (!isObject(projectScores)) return null;
   if (typeof projectScores.entry_file === 'string' && projectScores.entry_file.trim()) {
     return projectScores.entry_file.trim();
@@ -451,7 +457,6 @@ function generateSarif(scores, plan, opts) {
 
   const results = [];
   for (const [key, entry] of Object.entries(scores.by_project || {})) {
-    const project = (entry && entry.project) || key;
     const projectPath = entry && entry.project_path;
     for (const [dimension, dim] of Object.entries(entry || {})) {
       if (dimension === 'project' || dimension === 'project_path') continue;
@@ -481,7 +486,7 @@ function generateSarif(scores, plan, opts) {
           locations: [{
             physicalLocation: {
               artifactLocation: {
-                uri: prefixedArtifactUri(projectPath, resolveFilePath(check, scores, project)),
+                uri: prefixedArtifactUri(projectPath, resolveFilePath(check, scores, key)),
               },
             },
           }],
@@ -960,7 +965,8 @@ function main() {
   const now = new Date();
   const date = now.toISOString().split('T')[0];
   const time = now.toISOString().slice(11, 19).replace(/:/g, '');
-  const fileStamp = `${date}-${time}`;
+  const unique = crypto.randomBytes(4).toString('hex');
+  const fileStamp = `${date}-${time}-${unique}`;
   let failBelow = null;
   if (failBelowPresent) {
     if (typeof failBelowRaw !== 'string' || failBelowRaw.trim() === '') {

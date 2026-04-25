@@ -35,7 +35,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Validate tag matches source version
-        if: steps.check.outputs.exists == 'false'
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           python3 - "$VERSION" <<'PY'
@@ -68,7 +67,6 @@ jobs:
           PY
 
       - name: Validate content sync
-        if: steps.check.outputs.exists == 'false'
         run: |
           ACTUAL_CHECKS=$(python3 -c "import json; print(len(json.load(open('standards/weights.json'))['check_weights']))")
           META_CHECKS=$(python3 -c "import json; print(json.load(open('release-metadata.json'))['check_count'])")
@@ -134,7 +132,6 @@ jobs:
           echo "Validated: $ACTUAL_CHECKS total ($CORE_CHECKS core + $EXT_CHECKS extended), $ACTUAL_DIMS dimensions"
 
       - name: Extract changelog for this version
-        if: steps.check.outputs.exists == 'false'
         id: changelog
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
@@ -150,8 +147,20 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check if npm version already exists
+        id: npm
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if npm view "agentlint-ai@${VERSION}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::agentlint-ai@${VERSION} is already published. npm versions are immutable, so this tag rerun will skip npm publish. Use a new version for new package contents."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "agentlint-ai@${VERSION} is not published yet; npm publish will run."
+          fi
+
       - name: Publish to npm
-        if: steps.check.outputs.exists == 'false'
+        if: steps.npm.outputs.exists == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -165,16 +174,24 @@ jobs:
           echo "Published agentlint-ai@${VERSION} to npm"
 
       - name: Create GitHub Release
-        if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          if [ "${{ steps.changelog.outputs.found }}" == "true" ]; then
-            gh release create "$TAG" --title "AgentLint ${VERSION}" --notes-file /tmp/release-notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::GitHub Release ${TAG} already exists; editing it instead of creating a duplicate."
+            if [ "${{ steps.changelog.outputs.found }}" == "true" ]; then
+              gh release edit "$TAG" --title "AgentLint ${VERSION}" --notes-file /tmp/release-notes.md
+            else
+              gh release edit "$TAG" --title "AgentLint ${VERSION}"
+            fi
           else
-            gh release create "$TAG" --title "AgentLint ${VERSION}" --generate-notes
+            if [ "${{ steps.changelog.outputs.found }}" == "true" ]; then
+              gh release create "$TAG" --title "AgentLint ${VERSION}" --notes-file /tmp/release-notes.md
+            else
+              gh release create "$TAG" --title "AgentLint ${VERSION}" --generate-notes
+            fi
           fi
 
       - name: Sync to website repo (agent-lint-simple-green)
@@ -249,12 +266,16 @@ jobs:
           done
 
       - name: Summary
-        if: steps.check.outputs.exists == 'false'
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           {
-            echo "## Released ${VERSION}"
+            echo "## Release ${VERSION}"
             echo "- GitHub Release: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}"
             echo "- npm: [agentlint-ai@${VERSION}](https://www.npmjs.com/package/agentlint-ai)"
+            if [ "${{ steps.npm.outputs.exists }}" = "true" ]; then
+              echo "- npm publish: skipped because agentlint-ai@${VERSION} is already published"
+            else
+              echo "- npm publish: completed"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

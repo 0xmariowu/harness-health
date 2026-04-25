@@ -126,9 +126,12 @@ runs:
         node "${AL_ACTION_PATH}/src/reporter.js" "${RUNNER_TEMP}/al-scores.json" "${REPORTER_ARGS[@]}"
         # Emit inline PR annotations (::warning / ::error). Works on all repos,
         # no GHAS required. Complements SARIF for users without Code Scanning.
-        node "${AL_ACTION_PATH}/scripts/emit-workflow-commands.js" \
+        if ! node "${AL_ACTION_PATH}/scripts/emit-workflow-commands.js" \
           "${RUNNER_TEMP}/al-scores.json" \
-          "${RUNNER_TEMP}/al-plan.json" || true
+          "${RUNNER_TEMP}/al-plan.json"; then
+          echo "::error::AgentLint annotation generation failed. Findings could not be emitted as workflow annotations."
+          exit 1
+        fi
 
     - name: Generate SARIF
       if: inputs.sarif-upload == 'true'
@@ -147,7 +150,6 @@ runs:
     - name: Upload SARIF to GitHub Code Scanning
       if: ${{ inputs.sarif-upload == 'true' && always() }}
       uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225  # v4.35.2
-      continue-on-error: true
       with:
         sarif_file: ${{ runner.temp }}/agent-lint.sarif
         category: agent-lint

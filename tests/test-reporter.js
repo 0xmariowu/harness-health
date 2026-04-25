@@ -227,6 +227,66 @@ runTest('sarif format prefixes locations with project_path when present', () => 
   }
 });
 
+runTest('sarif format uses AGENTS.md as the project entry URI when that is what scanner found', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-sarif-agents-entry-'));
+
+  try {
+    const scores = {
+      total_score: 50,
+      dimensions: {},
+      by_project: {
+        'org/agents-only': {
+          project: 'agents-only',
+          project_path: 'org/agents-only',
+          findability: makeDimension(8, 0.25, [
+            {
+              check_id: 'F1',
+              name: 'Entry file exists',
+              score: 1,
+              measured_value: { entry_file: 'AGENTS.md', platform: 'openai', all_files: ['AGENTS.md'] },
+              detail: 'AGENTS.md found',
+            },
+          ]),
+          instructions: makeDimension(4, 0.35, [
+            { check_id: 'I1', name: 'Project overview present', score: 0.2, measured_value: 0, detail: 'missing overview' },
+          ]),
+        },
+      },
+    };
+    const scoresPath = path.join(tempDir, 'scores.json');
+    fs.writeFileSync(scoresPath, JSON.stringify(scores, null, 2));
+    runReporter([scoresPath, '--format', 'sarif', '--output-dir', tempDir]);
+
+    const sarifFile = fs.readdirSync(tempDir).find((name) => name.endsWith('.sarif'));
+    assert.ok(sarifFile, 'expected a sarif report file');
+
+    const sarif = JSON.parse(fs.readFileSync(path.join(tempDir, sarifFile), 'utf8'));
+    const i1 = sarif.runs[0].results.find((result) => result.ruleId === 'I1');
+    assert.ok(i1, 'expected failing I1 result');
+    assert.equal(i1.locations[0].physicalLocation.artifactLocation.uri, 'org/agents-only/AGENTS.md');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+runTest('report file names include a unique suffix so same-second reporter calls do not collide', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-unique-names-'));
+
+  try {
+    const scoresPath = writeFixtureScores(tempDir);
+    runReporter([scoresPath, '--format', 'html', '--output-dir', tempDir]);
+    runReporter([scoresPath, '--format', 'html', '--output-dir', tempDir]);
+
+    const htmlFiles = fs.readdirSync(tempDir)
+      .filter((name) => /^al-\d{4}-\d{2}-\d{2}-\d{6}-[0-9a-f]{8}\.html$/.test(name))
+      .sort();
+    assert.equal(htmlFiles.length, 2, `expected two unique HTML reports, got ${htmlFiles.join(', ')}`);
+    assert.notEqual(htmlFiles[0], htmlFiles[1], 'report filenames must not collide');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 
 runTest('scores file is not confused with --plan value', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-reporter-plan-'));

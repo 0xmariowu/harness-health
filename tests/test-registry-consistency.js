@@ -236,8 +236,10 @@ runTest('reporter.js report filenames include an HHMMSS time component', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src', 'reporter.js'), 'utf8');
   assert.match(src, /slice\(11,\s*19\)\.replace\(\s*\/:\/g,\s*['"]{2}\s*\)/,
     'reporter.js must derive an HHMMSS time component for report filenames');
-  assert.match(src, /fileStamp\s*=\s*`\$\{date\}-\$\{time\}`/,
-    'reporter.js must append the time component to the date stamp');
+  assert.match(src, /randomBytes\(4\)\.toString\(['"]hex['"]\)/,
+    'reporter.js must add a short unique suffix so same-second reports do not collide');
+  assert.match(src, /fileStamp\s*=\s*`\$\{date\}-\$\{time\}-\$\{unique\}`/,
+    'reporter.js must append the time component and unique suffix to the date stamp');
   assert.match(src, /`al-\$\{fileStamp\}\.html`/,
     'reporter.js HTML filename must use the date+time stamp');
   assert.match(src, /`al-\$\{fileStamp\}\.md`/,
@@ -341,6 +343,18 @@ runTest('action.yml fails closed on plan-generator errors and invalid fail-below
     'action.yml Threshold check must validate fail-below against the 0-100 integer regex');
   assert.match(yml, /v\.trim\(\)\s*===\s*[""]{2}[\s\S]{0,120}fail-below requires a numeric value/,
     'action.yml Threshold check must reject whitespace-only fail-below before numeric coercion');
+});
+
+runTest('action.yml surfaces annotation and SARIF upload failures', () => {
+  const yml = fs.readFileSync(path.join(ROOT, 'action.yml'), 'utf8');
+  assert.doesNotMatch(yml, /emit-workflow-commands\.js[\s\S]{0,160}\|\|\s*true/,
+    'action.yml must not swallow annotation generation failures with `|| true`');
+  assert.match(yml, /AgentLint annotation generation failed[\s\S]{0,120}exit 1/,
+    'action.yml must emit a visible error and exit when annotation generation fails');
+  assert.doesNotMatch(yml, /continue-on-error:\s*true/,
+    'SARIF upload must not be soft-failed with continue-on-error: true');
+  assert.match(yml, /github\/codeql-action\/upload-sarif/,
+    'action.yml must still upload SARIF when sarif-upload is enabled');
 });
 
 runTest('reporter rejects empty --fail-below values', () => {
@@ -774,6 +788,57 @@ runTest('reporter SARIF artifact URIs preserve project_path identity', () => {
   }
 });
 
+runTest('reporter SARIF artifact URIs use AGENTS.md for AGENTS-only repos', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-sarif-agents-entry-'));
+  try {
+    const scores = {
+      total_score: 60,
+      dimensions: {},
+      by_project: {
+        'org/agents-only': {
+          project: 'agents-only',
+          project_path: 'org/agents-only',
+          findability: {
+            checks: [
+              {
+                check_id: 'F1',
+                name: 'Entry file exists',
+                score: 1,
+                measured_value: { entry_file: 'AGENTS.md', platform: 'openai', all_files: ['AGENTS.md'] },
+                detail: 'AGENTS.md found',
+              },
+            ],
+          },
+          instructions: {
+            checks: [
+              { check_id: 'I1', name: 'Project overview present', score: 0.2, measured_value: 0, detail: 'missing overview' },
+            ],
+          },
+        },
+      },
+    };
+    const scoresPath = path.join(tempDir, 'scores.json');
+    fs.writeFileSync(scoresPath, JSON.stringify(scores, null, 2));
+
+    execFileSync(process.execPath, [
+      path.join(ROOT, 'src', 'reporter.js'),
+      scoresPath,
+      '--format',
+      'sarif',
+      '--output-dir',
+      tempDir,
+    ], { cwd: ROOT });
+
+    const sarifFile = fs.readdirSync(tempDir).find((file) => file.endsWith('.sarif'));
+    assert.ok(sarifFile, 'reporter must write a SARIF file');
+    const sarif = JSON.parse(fs.readFileSync(path.join(tempDir, sarifFile), 'utf8'));
+    const i1 = sarif.runs[0].results.find((result) => result.ruleId === 'I1');
+    assert.equal(i1.locations[0].physicalLocation.artifactLocation.uri, 'org/agents-only/AGENTS.md');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 runTest('session-analyzer sentinels never emit bare records lacking project identity', () => {
   const ss = fs.readFileSync(path.join(ROOT, 'src', 'session-analyzer.js'), 'utf8');
   const scorer = fs.readFileSync(path.join(ROOT, 'src', 'scorer.js'), 'utf8');
@@ -1148,6 +1213,20 @@ runTest('release workflow publishes npm before creating GitHub Release', () => {
     'release.yml must document why npm publish precedes GitHub Release creation');
   assert.doesNotMatch(yml.slice(0, publishIdx), /gh release create/,
     'release.yml must not create the GitHub Release before npm publish');
+});
+
+runTest('release workflow is idempotent for existing npm versions and GitHub Releases', () => {
+  const yml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+  assert.match(yml, /npm view "agentlint-ai@\$\{VERSION\}" version/,
+    'release.yml must check whether the immutable npm version is already published');
+  assert.match(yml, /npm versions are immutable[\s\S]{0,180}Use a new version/,
+    'release.yml must print a clear message when a tag rerun targets an already-published npm version');
+  assert.match(yml, /if:\s*steps\.npm\.outputs\.exists == 'false'[\s\S]{0,500}npm publish --access public/,
+    'release.yml must skip npm publish when the package version already exists');
+  assert.match(yml, /gh release view "\$TAG"[\s\S]{0,240}gh release edit "\$TAG"/,
+    'release.yml must edit an existing GitHub Release instead of crashing on gh release create');
+  assert.match(yml, /already exists; editing it instead of creating a duplicate/,
+    'release.yml must explain the existing-release path clearly');
 });
 
 process.stdout.write(`${passed}/${total} tests passed\n`);
