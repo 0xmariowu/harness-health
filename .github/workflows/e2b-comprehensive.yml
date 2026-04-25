@@ -35,7 +35,7 @@ jobs:
           python-version: '3.12'
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: '20'
 
