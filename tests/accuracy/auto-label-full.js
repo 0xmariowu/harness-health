@@ -36,6 +36,23 @@ function parseRootTree(repoDir) {
   return { files, dirs };
 }
 
+function findRuleFiles(repoDir) {
+  const dirs = [
+    path.join(repoDir, '.claude', 'rules'),
+    path.join(repoDir, 'rules'),
+  ];
+  const files = [];
+  for (const ruleDir of dirs) {
+    if (!dirExists(ruleDir)) continue;
+    try {
+      for (const file of fs.readdirSync(ruleDir)) {
+        if (file.endsWith('.md')) files.push(path.join(ruleDir, file));
+      }
+    } catch { /* ignore */ }
+  }
+  return files;
+}
+
 function listWorkflows(repoDir) {
   const wfDir = path.join(repoDir, 'workflows');
   if (!dirExists(wfDir)) return [];
@@ -236,6 +253,17 @@ function labelRepo(repoDir) {
   // C5: CLAUDE.local.md not tracked — no git in corpus, check if file exists
   labels.C5 = tree.files.includes('CLAUDE.local.md') ? 'uncertain' : 'pass';
 
+  // C6: HANDOFF.md contains verify conditions (not just status)
+  // Conservative parser: require at least two recognizable verify-condition signals.
+  const handoffPath = path.join(repoDir, 'HANDOFF.md');
+  if (fileExists(handoffPath)) {
+    const handoffContent = readFile(handoffPath);
+    const verifyCount = (handoffContent.match(/(READY|PASS|verified|assert|verify:|[0-9]+\/[0-9]+\s*(✅|🟢)|[0-9]+\.[0-9]+\/[0-9]+)/gi) || []).length;
+    labels.C6 = verifyCount >= 2 ? 'pass' : 'fail';
+  } else {
+    labels.C6 = 'fail';
+  }
+
   // S1: .env in .gitignore
   const gitignoreContent = tree.files.includes('.gitignore')
     ? (readFile(path.join(repoDir, '.gitignore')) || '') : '';
@@ -315,21 +343,24 @@ function labelRepo(repoDir) {
     labels.S8 = prtCount === 0 ? 'pass' : 'fail';
   }
 
+  // S9: No personal email in git history
+  // Cannot be determined from corpus snapshot (no .git directory).
+  labels.S9 = 'na';
+
   // F8: Rule files use globs: frontmatter (not paths:)
   // Reads rules/*.md from corpus repo, parses YAML frontmatter.
   // pass  = no .claude/rules/ dir, OR no scoped files, OR all scoped files use globs:
   // fail  = any scoped file uses paths: (deprecated) instead of globs:
   // score = fraction of scoped files that use globs:
-  const rulesDir = path.join(repoDir, 'rules');
-  if (!dirExists(rulesDir)) {
+  const ruleFiles = findRuleFiles(repoDir);
+  if (ruleFiles.length === 0) {
     labels.F8 = 'pass'; // N/A: no rules directory
   } else {
     let f8TotalScoped = 0;
     let f8UsesGlobs = 0;
     try {
-      const ruleFiles = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
       for (const rf of ruleFiles) {
-        const rfContent = readFile(path.join(rulesDir, rf));
+        const rfContent = readFile(rf);
         const rfLines = rfContent.split('\n');
         let inFm = false;
         let hasScope = false;
@@ -350,15 +381,8 @@ function labelRepo(repoDir) {
         }
       }
     } catch { /* ignore read errors */ }
-    if (f8TotalScoped === 0) {
-      labels.F8 = 'pass'; // No scoped files — N/A
-    } else if (f8UsesGlobs === f8TotalScoped) {
-      labels.F8 = 'pass'; // All scoped files use globs:
-    } else if (f8UsesGlobs === 0) {
-      labels.F8 = 'fail'; // No scoped files use globs:
-    } else {
-      labels.F8 = 'uncertain'; // Mixed — partial score in scanner
-    }
+    labels.F8 = (f8TotalScoped > 0 && f8UsesGlobs === f8TotalScoped) ? 'pass' : 'fail';
+    if (f8TotalScoped === 0) labels.F8 = 'pass';
   }
 
   // F9: No unfilled template placeholders in entry file
@@ -386,22 +410,19 @@ function labelRepo(repoDir) {
       const nonEmpty = entryContent.split('\n').filter(l => l.trim().length > 0).length;
       i8Total += nonEmpty;
     }
-    // Also count AGENTS.md if different from entry
-    if (entry !== 'AGENTS.md' && fileExists(path.join(repoDir, 'AGENTS.md'))) {
-      const agentsContent = readFile(path.join(repoDir, 'AGENTS.md'));
-      const nonEmpty = agentsContent.split('\n').filter(l => l.trim().length > 0).length;
+      // Also count AGENTS.md if different from entry
+      if (entry !== 'AGENTS.md' && fileExists(path.join(repoDir, 'AGENTS.md'))) {
+        const agentsContent = readFile(path.join(repoDir, 'AGENTS.md'));
+        const nonEmpty = agentsContent.split('\n').filter(l => l.trim().length > 0).length;
+        i8Total += nonEmpty;
+      }
+    // Count rules/*.md or .claude/rules/*.md
+    const i8RuleFiles = findRuleFiles(repoDir);
+    for (const rf of i8RuleFiles) {
+      const rfContent = readFile(rf);
+      if (!rfContent) continue;
+      const nonEmpty = rfContent.split('\n').filter(l => l.trim().length > 0).length;
       i8Total += nonEmpty;
-    }
-    // Count rules/*.md
-    if (dirExists(rulesDir)) {
-      try {
-        const ruleFiles = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
-        for (const rf of ruleFiles) {
-          const rfContent = readFile(path.join(rulesDir, rf));
-          const nonEmpty = rfContent.split('\n').filter(l => l.trim().length > 0).length;
-          i8Total += nonEmpty;
-        }
-      } catch { /* ignore */ }
     }
     // Score against reference range [60, 200]
     // Score function mirrors scanner's score_range: 1 at center, tapers at edges, 0 outside
@@ -409,20 +430,101 @@ function labelRepo(repoDir) {
       labels.I8 = 'fail'; // No content at all
     } else if (i8Total >= 60 && i8Total <= 200) {
       labels.I8 = 'pass'; // Within reference range
-    } else if (i8Total < 60) {
-      // Very lean — score < 1 but > 0 depending on how far below
-      labels.I8 = i8Total < 20 ? 'fail' : 'uncertain';
     } else {
-      // Over budget — score decreases above 200
-      labels.I8 = i8Total > 800 ? 'fail' : 'uncertain';
+      labels.I8 = 'fail';
     }
+  }
+
+  // W7: Local fast test command documented
+  if (entry) {
+    const hasHeading = /^##\s*(local\s+test|test\s+(command|run)|before\s+push)/im.test(entryContent);
+    const hasCommand = /(pytest|npm\s+test|pnpm\s+test|bun\s+test|xcodebuild\s+test|cargo\s+test|go\s+test|jest|vitest|rspec|\bbash\s+tests?\/|npm\s+run\s+test|pnpm\s+run\s+test|bun\s+run\s+test)/i.test(entryContent);
+    labels.W7 = (hasHeading && hasCommand) ? 'pass' : 'fail';
+  } else { labels.W7 = 'na'; }
+
+  // W8: npm test script exists (JS/Node projects)
+  const packageJsonPath = path.join(repoDir, 'package.json');
+  if (!fileExists(packageJsonPath)) {
+    labels.W8 = 'na';
+  } else {
+    try {
+      const pkg = JSON.parse(readFile(packageJsonPath) || '{}');
+      const scripts = pkg && pkg.scripts ? pkg.scripts : {};
+      labels.W8 = (scripts && typeof scripts.test === 'string') ? 'pass' : 'fail';
+    } catch {
+      labels.W8 = 'fail';
+    }
+  }
+
+  // W9: Release workflow validates version consistency
+  if (workflows.length === 0) {
+    labels.W9 = 'pass';
+  } else {
+    const releaseWorkflow = workflows
+      .slice()
+      .sort()
+      .find(wf => /(release|publish)/i.test(path.basename(wf)));
+    if (!releaseWorkflow) {
+      labels.W9 = 'pass';
+    } else {
+      const wfContent = readFile(releaseWorkflow);
+      const hasTagExtract = /(ref_name|GITHUB_REF|github\.ref|TAG=|tag_name)/.test(wfContent);
+      const hasVersionCompare = /(pyproject\.toml|package\.json|version\.py|Cargo\.toml|build\.gradle)/.test(wfContent);
+      labels.W9 = hasTagExtract && hasVersionCompare ? 'pass' : 'fail';
+    }
+  }
+
+  // W10: Test cost tiers defined (pytest markers)
+  const pyprojectPath = path.join(repoDir, 'pyproject.toml');
+  const pytestIniPath = path.join(repoDir, 'pytest.ini');
+  const setupCfgPath = path.join(repoDir, 'setup.cfg');
+  if (!fileExists(pyprojectPath) && !fileExists(pytestIniPath) && !fileExists(setupCfgPath)) {
+    labels.W10 = 'na';
+  } else {
+    let markerSource = '';
+    if (fileExists(pyprojectPath)) markerSource = readFile(pyprojectPath);
+    else if (fileExists(pytestIniPath)) markerSource = readFile(pytestIniPath);
+    else markerSource = readFile(setupCfgPath);
+
+    let markerCount = (markerSource.match(/^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*:/gm) || []).length;
+    if (fileExists(pyprojectPath) && /^\s*markers\s*=\s*\[/m.test(markerSource)) {
+      let inMarkers = false;
+      let quotedCount = 0;
+      for (const line of markerSource.split('\n')) {
+        if (!inMarkers) {
+          if (/^\s*markers\s*=\s*\[/.test(line)) {
+            inMarkers = true;
+            if (/\]/.test(line)) {
+              quotedCount += (line.match(/["']\w+[^"']*["']\s*:/g) || []).length;
+              break;
+            }
+            continue;
+          }
+        } else {
+          if (/^\s*\]/.test(line)) break;
+          if (/^\s*["']/.test(line)) quotedCount += 1;
+        }
+      }
+      markerCount = Math.max(markerCount, quotedCount);
+    }
+    labels.W10 = markerCount >= 3 ? 'pass' : 'fail';
+  }
+
+  // W11: feat/fix commits paired with test commits (test-required gate)
+  const testRequiredYml = path.join(repoDir, 'workflows', 'test-required.yml');
+  const testRequiredYaml = path.join(repoDir, 'workflows', 'test-required.yaml');
+  const testRequiredPath = fileExists(testRequiredYml) ? testRequiredYml : (fileExists(testRequiredYaml) ? testRequiredYaml : '');
+  if (!testRequiredPath) {
+    labels.W11 = 'fail';
+  } else {
+    labels.W11 = /exit[ \t]+1/.test(readFile(testRequiredPath)) ? 'pass' : 'fail';
   }
 
   // H1-H6: Harness checks (require .claude/settings.json)
   // The corpus does NOT extract settings.json (confirmed: 0 of 4,533 repos have it).
   // We label based on _meta.json presence indicator:
   //   settings == false → scanner safe-defaults to pass → label 'pass' (tests no-settings path)
-  //   settings == true  → actual settings.json content unknown → label 'uncertain' (skip in accuracy)
+  //   settings == true  → actual settings.json content unavailable in corpus snapshot
   let metaSettings = false;
   try {
     const meta = JSON.parse(readFile(path.join(repoDir, '_meta.json')));
@@ -431,12 +533,12 @@ function labelRepo(repoDir) {
 
   if (metaSettings) {
     // Settings.json exists but not available — cannot label content-dependent checks
-    labels.H1 = 'uncertain';
-    labels.H2 = 'uncertain';
-    labels.H3 = 'uncertain';
-    labels.H4 = 'uncertain';
-    labels.H5 = 'uncertain';
-    labels.H6 = 'uncertain';
+    labels.H1 = 'na';
+    labels.H2 = 'na';
+    labels.H3 = 'na';
+    labels.H4 = 'na';
+    labels.H5 = 'na';
+    labels.H6 = 'na';
   } else {
     // No settings.json: scanner returns score=1 for all H checks ("No settings.json")
     // These should all pass
@@ -446,6 +548,35 @@ function labelRepo(repoDir) {
     labels.H4 = 'pass';
     labels.H5 = 'pass';
     labels.H6 = 'pass';
+  }
+
+  // H7: Gate workflows are blocking (not warn-only)
+  if (workflows.length === 0) {
+    labels.H7 = 'pass';
+  } else {
+    const gateWorkflows = workflows.filter(w => /(required|gate|test-required|size|check)/i.test(path.basename(w)));
+    if (gateWorkflows.length === 0) {
+      labels.H7 = 'pass';
+    } else {
+      const warnOnly = gateWorkflows.filter(w => !/exit[ \t]+1/.test(readFile(w))).length;
+      labels.H7 = warnOnly === 0 ? 'pass' : 'fail';
+    }
+  }
+
+  // H8: Hook errors use structured format (what/rule/fix)
+  const hookCandidates = tree.files.filter(p => (p.startsWith('.husky/') || p.startsWith('hooks/')) && !/\.(md|json|lock)$/.test(p));
+  if (hookCandidates.length === 0) {
+    labels.H8 = 'pass';
+  } else {
+    let h8Structured = false;
+    for (const rel of hookCandidates) {
+      const hookContent = readFile(path.join(repoDir, rel));
+      if (/Rule:/.test(hookContent) && /Fix:/.test(hookContent)) {
+        h8Structured = true;
+        break;
+      }
+    }
+    labels.H8 = h8Structured ? 'pass' : 'fail';
   }
 
   return labels;
@@ -486,7 +617,7 @@ for (const repoName of reposDirs) {
 
 fs.closeSync(fd);
 
-const totalLabels = count * 42; // 42 checks total (F1-F9, I1-I8, W1-W6, C1-C5, S1-S8, H1-H6)
+const totalLabels = count * 60; // 60 checks total (adds C6, H7-H8, S9, W7-W11, plus existing)
 const uncertainPct = ((stats.uncertain / totalLabels) * 100).toFixed(1);
 process.stderr.write(`\nDone: ${count} repos → ${OUT}\n`);
 process.stderr.write(`Labels: pass=${stats.pass} fail=${stats.fail} uncertain=${stats.uncertain} (${uncertainPct}%) na=${stats.na}\n`);

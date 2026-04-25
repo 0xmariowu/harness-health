@@ -24,9 +24,14 @@ const LABELS_PATH = path.join(__dirname, 'labels-full.jsonl');
 const EVIDENCE_PATH = path.join(__dirname, '..', '..', 'standards', 'evidence.json');
 
 const EVIDENCE = JSON.parse(fs.readFileSync(EVIDENCE_PATH, 'utf8'));
-const ALL_CHECKS = Object.keys(EVIDENCE.checks)
+const CHECK_IDS = Object.keys(EVIDENCE.checks);
+const ALL_CHECKS = CHECK_IDS
   .filter((id) => EVIDENCE.checks[id].scope === 'core')
   .sort();
+const CHECK_SCOPE = Object.fromEntries(CHECK_IDS.map((id) => [id, EVIDENCE.checks[id].scope]));
+const ACCURACY_ALLOW_MISSING = new Set(
+  (process.env.ACCURACY_ALLOW_MISSING || '').split(',').map((id) => id.trim()).filter(Boolean),
+);
 
 // Parse args
 const args = process.argv.slice(2);
@@ -70,6 +75,23 @@ function loadScannerResults() {
   return map;
 }
 
+function countLabeledRepos(labels) {
+  const counts = {};
+  for (const check of CHECK_IDS) counts[check] = 0;
+
+  for (const repoLabels of Object.values(labels)) {
+    for (const check of CHECK_IDS) {
+      const label = repoLabels[check];
+      if (!label || label === 'uncertain' || label === 'na' || label === 'missing') {
+        continue;
+      }
+      counts[check]++;
+    }
+  }
+
+  return counts;
+}
+
 function wilsonInterval(successes, total, z = 1.96) {
   if (total === 0) return { lower: null, upper: null };
   const p = successes / total;
@@ -85,6 +107,7 @@ function wilsonInterval(successes, total, z = 1.96) {
 // Main
 const labels = loadLabels();
 const scanner = loadScannerResults();
+const labeledReposByCheck = countLabeledRepos(labels);
 
 const labelRepos = new Set(Object.keys(labels));
 const scannerRepos = new Set(Object.keys(scanner));
@@ -193,7 +216,7 @@ const overallAcc = (totalTP + totalFP + totalFN + totalTN) > 0 ? (totalTP + tota
 console.log('-'.repeat(72));
 console.log(`${'TOTAL'.padEnd(7)} ${String(totalTP).padStart(5)} ${String(totalFP).padStart(5)} ${String(totalFN).padStart(5)} ${String(totalTN).padStart(5)} ${''.padStart(5)} ${(overallPrec*100).toFixed(1).padStart(6)}% ${(overallRec*100).toFixed(1).padStart(6)}% ${(overallF1*100).toFixed(1).padStart(6)}% ${(overallAcc*100).toFixed(1).padStart(6)}%`);
 
-const missingGroundTruth = ALL_CHECKS.filter((check) => results[check].total === 0);
+const missingGroundTruth = CHECK_IDS.filter((check) => labeledReposByCheck[check] === 0);
 console.log('\nMissing ground truth:');
 if (missingGroundTruth.length === 0) {
   console.log('  None.');
@@ -203,6 +226,17 @@ if (missingGroundTruth.length === 0) {
     '- accuracy unmeasurable until labels are rebuilt:'
   );
   console.log(`  ${missingGroundTruth.join(', ')}`);
+}
+
+const missingCoreChecks = missingGroundTruth.filter((check) =>
+  CHECK_SCOPE[check] === 'core' && !ACCURACY_ALLOW_MISSING.has(check),
+);
+if (missingCoreChecks.length > 0) {
+  console.error(
+    `Error: ${missingCoreChecks.length} core check(s) have 0 labeled repos and are missing ground truth: ` +
+    `${missingCoreChecks.join(', ')}`
+  );
+  process.exit(1);
 }
 
 const lowNWarnings = ALL_CHECKS
