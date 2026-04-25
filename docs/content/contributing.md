@@ -42,16 +42,26 @@ bash tests/test-scanner.sh  # verify scanner works
 
 Requirements: `bash`, `jq`, `node` 20+
 
-## Maintainer checks
+## Branch protection
 
-Branch protection is declared in `.github/branch-protection.yml`. Before a
-release, an admin should verify the live `main` settings match that file:
+Required status checks for `main` are declared in
+[`.github/branch-protection.yml`](https://github.com/0xmariowu/agent-lint/blob/main/.github/branch-protection.yml).
+The actual protection on the `main` branch is configured manually
+(GitHub UI or `gh api repos/.../branches/main/protection`) and can
+drift from the declared YAML.
+
+To verify live branch protection matches the declared file:
 
 ```bash
-scripts/setup-branch-protection.sh --verify
+bash scripts/setup-branch-protection.sh --verify
 ```
 
-That command uses `gh api repos/.../branches/main/protection` and exits
-non-zero if required status checks or strictness drift from the checked-in
-contract. Use `scripts/setup-branch-protection.sh --apply` only when you intend
-to update the live GitHub settings.
+This calls `gh api repos/.../branches/main/protection`, parses the
+`required_status_checks` block, and exits non-zero if the live `strict`
+flag, missing checks, or extra checks disagree with the YAML.
+
+To apply the YAML to live protection (admin only):
+
+```bash
+bash scripts/setup-branch-protection.sh --apply
+```
