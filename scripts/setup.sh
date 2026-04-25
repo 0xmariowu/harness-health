@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# bootstrap.sh — Initialize project automation from templates
-# Usage: bootstrap.sh --lang <ts|python> [--runner bun] [--visibility public|private] [--workflows-only] [--init-git] [--with-auto-push] [--project-dir <path>] [project-path]
+# setup.sh — Initialize project automation from templates
+# Usage: agentlint setup --lang <ts|python> [--runner bun] [--visibility public|private] [--workflows-only] [--init-git] [--with-auto-push] [--project-dir <path>] [project-path]
 
 set -euo pipefail
 
@@ -50,7 +50,7 @@ done
 # future hook that wants to read it without another parser pass.
 export RUNNER
 
-[[ -z "$LANG" ]] && die "usage: bootstrap.sh --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--project-dir <path>] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--force] [--init-git] [--with-auto-push] [project-path]"
+[[ -z "$LANG" ]] && die "usage: agentlint setup --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--project-dir <path>] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--force] [--init-git] [--with-auto-push] [project-path]"
 [[ -z "$PROJECT" ]] && PROJECT="."
 [[ "$LANG" != "ts" && "$LANG" != "python" && "$LANG" != "node" ]] && die "lang must be 'ts', 'python', or 'node'"
 [[ "$VISIBILITY" != "public" && "$VISIBILITY" != "private" ]] && die "--visibility must be 'public' or 'private'"
@@ -261,7 +261,7 @@ fi
 # Detect the JS package manager by sniffing lockfiles. Modern monorepos use
 # pnpm / bun / yarn v2+ which introduce protocols (`workspace:`, `catalog:`)
 # that plain npm cannot parse — running `npm install` in such a repo aborts
-# bootstrap halfway. Detection lets us defer install to the right tool (or
+# setup halfway. Detection lets us defer install to the right tool (or
 # skip entirely and let the user run it).
 detect_js_pm() {
   [[ -f "$PROJECT/bun.lock"    || -f "$PROJECT/bun.lockb" ]] && { echo bun;  return; }
@@ -569,8 +569,8 @@ if [[ ! -f "$PROJECT/docs/ship-boundary.md" ]]; then
 fi
 
 # --- 3. Generate labeler config ---
-# Generate-once only: rerunning bootstrap must not churn the file, because
-# vibekit creates `scripts/` itself during the first run, which would flip the
+# Generate-once only: rerunning setup must not churn the file, because
+# setup creates `scripts/` itself during the first run, which would flip the
 # auto-detected content on a second run and produce a committed-file diff the
 # user didn't ask for.
 LABELER="$PROJECT/.github/labeler.yml"
@@ -888,19 +888,19 @@ if [[ -z "$AUTO_OWNER" ]]; then
 fi
 # No-op when the stock templates are used (they route security reports via
 # GitHub security advisories). Users who customise templates to reference
-# security@__PROJECT_DOMAIN__ can export PROJECT_DOMAIN before invoking bootstrap
+# security@__PROJECT_DOMAIN__ can export PROJECT_DOMAIN before invoking agentlint setup
 # (or set it later via scripts/fill-placeholders.sh).
 
 printf "\n${BOLD}Next steps:${NC}\n"
 if [[ "$LANG" == "python" ]]; then
   printf "  1. Activate pre-commit: pip install pre-commit && pre-commit install --install-hooks\n"
-  printf "  2. git add <files> && git commit -m \"chore: bootstrap vibekit\"\n"
+  printf "  2. git add <files> && git commit -m \"chore: initialize project automation\"\n"
   printf "  3. git push\n"
   printf "  4. Open a test PR to verify CI\n"
   printf "  5. Tag a release: git tag vX.Y.Z && git push --tags\n\n"
 else
   printf "  1. Commit the new files (direct \`git commit\` is blocked by the installed pre-commit hook):\n"
-  printf "       scripts/committer --all-new \"chore: bootstrap vibekit\"\n"
+  printf "       scripts/committer --all-new \"chore: initialize project automation\"\n"
   printf "  2. git push\n"
   printf "  3. Open a test PR to verify CI\n"
   printf "  4. Tag a release: git tag vX.Y.Z && git push --tags\n\n"
