@@ -49,7 +49,7 @@ npx agentlint-ai init
 ```bash
 agentlint check
 agentlint fix W11
-agentlint setup --lang ts
+agentlint setup --lang ts .
 ```
 
 ## 效果展示

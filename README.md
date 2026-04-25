@@ -49,7 +49,7 @@ That's it. AgentLint scans your repo, scores it across 6 core dimensions (plus 2
 ```bash
 agentlint check
 agentlint fix W11
-agentlint setup --lang ts
+agentlint setup --lang ts .
 ```
 
 ## What you get

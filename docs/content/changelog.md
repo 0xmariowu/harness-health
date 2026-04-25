@@ -24,8 +24,6 @@ Deep → Session → fixer).
   scanner failures now fail the build instead of silently passing. (#161)
 - **Trust `agentlint fix` exit codes** — non-zero when any item failed,
   not always 0 as before. (#166)
-- **Trust `setup --protect`** to fail loud when the branch-protection
-  helper is missing, instead of claiming protection was applied. (#166)
 - **Trust the GitHub Action to fail closed** on plan errors +
   invalid `--fail-below`. (#150)
 - **Discover nested git worktrees** (`.git` files, not just `.git`
@@ -107,10 +105,21 @@ Deep → Session → fixer).
 - `aquasecurity/trivy-action` bump. (#169)
 - `actions/download-artifact` 4.3.0 → 8.0.1. (#170)
 
+### Removed
+
+- **`setup --protect`** flag — required `templates/scripts/protect.sh`
+  which never shipped, so the flag wrote a bunch of templates and then
+  errored out half-installed. Removed entirely; may return when the
+  helper is implemented. Branch protection can still be set manually
+  via `gh api` or the GitHub UI.
+
 ### Known follow-ups
 
 - SS4 (Missing rule suggestions) still emits `project: 'global'` —
   deferred; narrowing requires separate analysis.
+- 18 core checks (C6, F8, F9, H1–H8, I8, S9, W7–W11) have 0 labeled
+  repos in `tests/accuracy/labels-full.jsonl` — the accuracy gate
+  silently skips them. Batch-labeling planned for a follow-up release.
 - `corpus-v1` release published (53 MB, 4533 public repos) as the
   canonical benchmark dataset for the accuracy gate.
 

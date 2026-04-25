@@ -585,14 +585,15 @@ runTest('fixer.js exits non-zero when any executed item reports failure', () => 
     'fixer.js must process.exit(1) when any executed item failed');
 });
 
-runTest('setup.sh --protect fails loudly and only claims protection when applied', () => {
+runTest('setup.sh does not expose --protect flag (helper not implemented)', () => {
+  // --protect required templates/scripts/protect.sh which never landed.
+  // Removed in v1.1.1 to avoid the half-installed-then-fails UX. May
+  // return in a future release if/when the helper is implemented.
   const src = fs.readFileSync(path.join(ROOT, 'scripts', 'setup.sh'), 'utf8');
-  assert.match(src, /PROTECT_APPLIED=false/,
-    'setup.sh must introduce a PROTECT_APPLIED flag (defaults false)');
-  assert.match(src, /die "--protect requested but/,
-    'setup.sh must die loud when protect.sh is missing, not silently skip');
-  assert.match(src, /\$PROTECT_APPLIED["]?\s*==\s*["]?true[\s\S]{0,120}branch protection/,
-    'setup.sh summary must gate the branch-protection bullet on PROTECT_APPLIED');
+  assert.doesNotMatch(src, /--protect\)/,
+    'setup.sh must not parse --protect — flag was removed (helper missing)');
+  assert.doesNotMatch(src, /PROTECT=true/,
+    'setup.sh must not set PROTECT=true anywhere');
 });
 
 runTest('INSTALL.md exists and is the canonical install reference', () => {

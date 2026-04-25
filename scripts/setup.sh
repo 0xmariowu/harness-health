@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # bootstrap.sh — Initialize project automation from templates
-# Usage: bootstrap.sh --lang <ts|python> [--runner bun] [--visibility public|private] [--workflows-only] [--protect] <project-path>
+# Usage: bootstrap.sh --lang <ts|python> [--runner bun] [--visibility public|private] [--workflows-only] <project-path>
 
 set -euo pipefail
 
@@ -24,14 +24,13 @@ require_value() {
 }
 
 # --- Parse args ---
-LANG=""; RUNNER=""; WORKFLOWS_ONLY=false; PROTECT=false; VISIBILITY="private"; PROJECT=""
+LANG=""; RUNNER=""; WORKFLOWS_ONLY=false; VISIBILITY="private"; PROJECT=""
 PKG_MANAGER_OVERRIDE=""; NO_INSTALL=false; FORCE=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --lang)           require_value --lang "${2-}"; LANG="$2"; shift 2 ;;
     --runner)         require_value --runner "${2-}"; RUNNER="$2"; shift 2 ;;
     --workflows-only) WORKFLOWS_ONLY=true; shift ;;
-    --protect)        PROTECT=true; shift ;;
     --visibility)     require_value --visibility "${2-}"; VISIBILITY="$2"; shift 2 ;;
     --pkg-manager)    require_value --pkg-manager "${2-}"; PKG_MANAGER_OVERRIDE="$2"; shift 2 ;;
     --no-install)     NO_INSTALL=true; shift ;;
@@ -47,7 +46,7 @@ done
 # future hook that wants to read it without another parser pass.
 export RUNNER
 
-[[ -z "$LANG" ]] && die "usage: bootstrap.sh --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--protect] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--force] <project-path>"
+[[ -z "$LANG" ]] && die "usage: bootstrap.sh --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--force] <project-path>"
 [[ -z "$PROJECT" ]] && die "project path required"
 [[ "$LANG" != "ts" && "$LANG" != "python" && "$LANG" != "node" ]] && die "lang must be 'ts', 'python', or 'node'"
 [[ "$VISIBILITY" != "public" && "$VISIBILITY" != "private" ]] && die "--visibility must be 'public' or 'private'"
@@ -672,29 +671,7 @@ else
   fi
 fi
 
-# --- 6. Branch protection (optional) ---
-PROTECT_APPLIED=false
-if [[ "$PROTECT" == true ]]; then
-  printf "\n${BOLD}Setting up branch protection...${NC}\n"
-  protect_script="$TEMPLATE_DIR/scripts/protect.sh"
-  if [[ ! -x "$protect_script" ]]; then
-    # Fail loud on a missing helper — previously `|| warn` swallowed this
-    # silently and the final summary still claimed branch protection had
-    # been set. That's a false functional promise: users who passed
-    # --protect never got what they asked for.
-    die "--protect requested but $protect_script is missing; cannot set branch protection"
-  fi
-  # Pass the owner we already detected so protect.sh doesn't re-query gh.
-  protect_args=(--repo "$PROJECT_NAME" --lang "$LANG")
-  [[ -n "$AUTO_OWNER" ]] && protect_args+=(--owner "$AUTO_OWNER")
-  if "$protect_script" "${protect_args[@]}"; then
-    PROTECT_APPLIED=true
-  else
-    warn "branch protection setup skipped (see message above)"
-  fi
-fi
-
-# --- 7. Summary ---
+# --- 6. Summary ---
 printf "\n${BOLD}${GREEN}Done!${NC} ${PROJECT_NAME} is now equipped with:\n"
 printf "  • %s GitHub Actions workflows\n" "$(find "$PROJECT/.github/workflows" -maxdepth 1 -name '*.yml' 2>/dev/null | wc -l | tr -d ' ')"
 if [[ "$WORKFLOWS_ONLY" != true ]]; then
@@ -722,9 +699,6 @@ fi
 printf "  • CODEOWNERS, PR template, issue templates, SECURITY.md\n"
 printf "  • release workflow (tag v* → GitHub Release)\n"
 printf "  • docs/ship-boundary.md (file-provenance ship/local/never rules)\n"
-if [[ "$PROTECT_APPLIED" == true ]]; then
-  printf "  • branch protection (required status checks on main)\n"
-fi
 if [[ -z "$AUTO_OWNER" ]]; then
   warn "__OWNER__ placeholder left in generated docs — gh owner not detected"
   warn "  Fix: scripts/fill-placeholders.sh --owner <your-handle> . (or edit files by hand)"
