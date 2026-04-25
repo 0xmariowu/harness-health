@@ -1,4 +1,4 @@
-# VibeKit zizmor configuration template.
+# zizmor configuration template (provisioned by agentlint setup).
 # See https://docs.zizmor.sh/configuration/
 #
 # Rule suppression discipline: each disabled rule gets a one-line reason.

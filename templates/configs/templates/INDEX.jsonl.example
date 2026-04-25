@@ -2,7 +2,7 @@
 # Fields (required): date, file, title
 # Optional: description
 
-{"date":"2026-04-17","file":"bootstrap.sh","title":"Bootstrapping flow","description":"Public visibility now copies .gitleaks.toml.template and AI-friendly templates."}
-{"date":"2026-04-17","file":"configs/templates/CLAUDE.md","title":"Project AI entrypoint","description":"Defines session checklist and commit gates for AI sessions."}
+{"date":"2026-04-17","file":"agentlint-setup-output","title":"Setup flow","description":"Public visibility now copies .gitleaks.toml.template and AI-friendly templates."}
+{"date":"2026-04-17","file":"CLAUDE.md","title":"Project AI entrypoint","description":"Defines session checklist and commit gates for AI sessions."}
 {"date":"2026-04-17","file":"workflows/universal/hygiene.yml","title":"CI leak checks","description":"Author checks now support ALLOWED_AUTHOR_PATTERN and internal-codename file source."}
 {"date":"2026-04-17","file":"standards/discipline.json","title":"WF rule annotations","description":"Added 'because' rationale for workflow discipline checks."}

@@ -3,9 +3,8 @@ name: Commit Message Scan
 # Closes the C.2 enforcement gap: tracked-file scanners never read commit
 # messages, so private information leaking into commit subjects or bodies
 # historically slipped through. This workflow scans every PR's commit range
-# against the same NEVER-tier patterns ship-boundary.json enforces for
-# file content, plus an optional per-project extension from
-# .ship-boundary-deny.local.
+# against the same NEVER-tier patterns used by the file-content hygiene
+# checks, plus an optional per-project extension from .ship-boundary-deny.local.
 #
 # Scope: commit messages only. File content is covered by hygiene.yml +
 # gitleaks.yml + semgrep.yml + trivy.yml.
@@ -50,12 +49,13 @@ jobs:
 
           FAIL=0
 
-          # SB-N-02: categorical codename shape — case-insensitive match,
-          # allowlist "VibeKit" (the product itself is public by design).
+          # SB-N-02: categorical codename shape — case-insensitive match.
+          # Add your public product/codename to CODENAME_ALLOWLIST when needed.
           # Pattern intentionally narrow to avoid false positives on
           # common public product names; project-specific exact matches
           # come from .ship-boundary-deny.local below.
-          CODENAME_HITS=$(grep -oE '\b[A-Z][a-z]+(OS|Kit|Memory|Labs?|Corp|Inc)\b' /tmp/pr-messages.txt | grep -vxE 'VibeKit' | sort -u || true)
+          CODENAME_ALLOWLIST='^$'
+          CODENAME_HITS=$(grep -oE '\b[A-Z][a-z]+(OS|Kit|Memory|Labs?|Corp|Inc)\b' /tmp/pr-messages.txt | grep -vxE "$CODENAME_ALLOWLIST" | sort -u || true)
           if [ -n "$CODENAME_HITS" ]; then
             echo "::warning::SB-N-02 (B.1 · internal-projects) codename-shaped tokens in commit messages:"
             echo "$CODENAME_HITS" | awk '{print "  - " $0}'
@@ -109,7 +109,7 @@ jobs:
           if [ "$FAIL" = "1" ]; then
             echo ""
             echo "::error::Commit-message scan FAILED. Fix: amend offending commits (git rebase -i + reword) before pushing again."
-            echo "Reference: configs/privacy-taxonomy.md for what counts as private, standards/ship-boundary.json for the full NEVER rules."
+            echo "Reference: this workflow's SB-N comments and docs/ship-boundary.md for the SHIP/LOCAL/NEVER boundary."
             exit 1
           fi
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# fill-placeholders.sh — replace VibeKit template tokens (__OWNER__,
+# fill-placeholders.sh — replace agentlint setup template tokens (__OWNER__,
 # __PROJECT_NAME__, …) across a bootstrapped project.
 #
 # Use cases:
-#   - After `bootstrap.sh` ran but OWNER couldn't be detected (no gh auth,
+#   - After `agentlint setup` ran but OWNER couldn't be detected (no gh auth,
 #     no remote) — you set up the remote later, then:
 #         scripts/fill-placeholders.sh .
 #     auto-detects OWNER from `git remote get-url origin` and fills every
@@ -11,7 +11,7 @@
 #   - You renamed your repo / changed GitHub handle / set a PROJECT_DOMAIN
 #     for SECURITY.md — rerun with explicit flags:
 #         scripts/fill-placeholders.sh --owner acme --domain acme.com .
-#   - You never ran bootstrap but copied vibekit's templates by hand — this
+#   - You never ran `agentlint setup` but copied these templates by hand — this
 #     tool still fills them.
 #
 # Safety: only replaces the exact `__TOKEN__` strings. Never touches tokens

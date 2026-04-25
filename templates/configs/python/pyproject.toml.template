@@ -1,4 +1,4 @@
-# pyproject.toml — VibeKit Python project template.
+# pyproject.toml — Python project template (provisioned by agentlint setup).
 # Customize [project] metadata; the [tool.*] sections below are the generic
 # defaults downstream projects tend to converge on — edit them only with cause.
 

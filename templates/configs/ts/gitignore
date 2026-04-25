@@ -34,7 +34,7 @@ coverage/
 .eslintcache
 .tsbuildinfo
 
-# Ship-boundary LOCAL tier (see standards/ship-boundary.json · module m4)
+# Ship-boundary LOCAL tier (see docs/ship-boundary.md)
 /HANDOFF.md
 /.claude/
 /experience/

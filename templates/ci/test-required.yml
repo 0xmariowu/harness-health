@@ -1,5 +1,5 @@
 # test-required.yml — Gate feat/fix commits on paired test commits
-# Adapted from vibekit. Checks that any PR containing feat(...) or fix(...) commits
+# Checks that any PR containing feat(...) or fix(...) commits
 # also contains at least one test(...) commit. Opt-out via PR body checkbox.
 #
 # To opt out: include "[x] No tests needed because: <reason>" in the PR body.

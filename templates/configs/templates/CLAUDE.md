@@ -59,7 +59,7 @@ The agent must ASK the human and wait for explicit confirmation before running a
 
 ## Ship vs Local vs Never
 
-Every file belongs to exactly one tier. See `docs/ship-boundary.md` for the full rule set and `standards/ship-boundary.json` for the machine-readable contract.
+Every file belongs to exactly one tier. See `docs/ship-boundary.md` for the full rule set.
 
 - **SHIP** — tracked in git, published publicly. Product + governance (`configs/**`, root `README.md` / `CLAUDE.md` / `CHANGELOG.md` / `LICENSE`).
 - **LOCAL** — on disk, gitignored. Session / per-contributor state (`HANDOFF.md`, `.claude/`, `experience/`, `docs/reports/`, `.ship-boundary-deny.local`).

@@ -8,7 +8,7 @@
 # --all-new implies --force so bootstrap-scale commits don't trip the
 # size/mix warnings.
 # Env vars:
-#   VIBEKIT_QUALITY_CHECK — shell command run before commit (e.g., 'npm run check'). Skipped if unset.
+#   COMMITTER_QUALITY_CHECK — shell command run before commit (e.g., 'npm run check'). Skipped if unset.
 
 set -euo pipefail
 
@@ -44,7 +44,7 @@ usage:
 
 examples:
   scripts/committer "feat: add login handler" src/auth.ts tests/auth.test.ts
-  scripts/committer --all-new "chore: bootstrap vibekit"
+  scripts/committer --all-new "chore: initialize project automation"
 EOF
 }
 
@@ -208,18 +208,18 @@ if [[ "$DRY_RUN" == true ]]; then
 fi
 
 # --- Pre-commit quality check ---
-if [ -n "${VIBEKIT_QUALITY_CHECK:-}" ]; then
+if [ -n "${COMMITTER_QUALITY_CHECK:-}" ]; then
   printf "${DIM}running quality checks...${NC}\n"
-  if ! bash -c "$VIBEKIT_QUALITY_CHECK"; then
+  if ! bash -c "$COMMITTER_QUALITY_CHECK"; then
     die_format \
       "quality check failed — fix issues before committing" \
-      "\$VIBEKIT_QUALITY_CHECK must exit 0 before the commit is recorded" \
-      "run '$VIBEKIT_QUALITY_CHECK' manually to see the actual failure; fix the code (don't silence the check), then retry" \
-      "VIBEKIT_QUALITY_CHECK env var documented in committer preamble · CLAUDE.md 'fix code not config'"
+      "\$COMMITTER_QUALITY_CHECK must exit 0 before the commit is recorded" \
+      "run '$COMMITTER_QUALITY_CHECK' manually to see the actual failure; fix the code (don't silence the check), then retry" \
+      "COMMITTER_QUALITY_CHECK env var documented in committer preamble · CLAUDE.md 'fix code not config'"
   fi
   info "quality checks passed"
 fi
 
 # --- Commit ---
-VIBEKIT_COMMITTER_ACTIVE=1 git commit -m "$MSG"
+COMMITTER_ACTIVE=1 git commit -m "$MSG"
 info "committed \"$MSG\" with ${#FILES[@]} file(s)"
