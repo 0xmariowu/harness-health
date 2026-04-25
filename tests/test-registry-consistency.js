@@ -1663,5 +1663,30 @@ runTest('public docs GitHub Action snippets include actions/checkout', () => {
   }
 });
 
+runTest('INSTALL.md Verify section uses commands that actually exit 0', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
+  const verifyHeading = src.match(/^## Verify[ \t]*$/m);
+  assert.ok(verifyHeading,
+    'expected command missing: INSTALL.md must contain a ## Verify section with verifiable commands');
+
+  const sectionStart = verifyHeading.index;
+  const sectionRemainder = src.slice(sectionStart + verifyHeading[0].length);
+  const nextH2 = sectionRemainder.search(/\n##\s+/);
+  const verifySection = src.slice(
+    sectionStart,
+    nextH2 < 0 ? src.length : sectionStart + verifyHeading[0].length + nextH2,
+  );
+
+  assert.doesNotMatch(verifySection, /agentlint check --help/,
+    'broken command present: INSTALL.md Verify section must not include agentlint check --help');
+  assert.ok(verifySection.includes('agentlint --version'),
+    'expected command missing: INSTALL.md Verify section must include agentlint --version');
+  assert.ok(
+    verifySection.includes('agentlint help') ||
+      verifySection.includes('agentlint check --project-dir'),
+    'expected command missing: INSTALL.md Verify section must include agentlint help or agentlint check --project-dir',
+  );
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
