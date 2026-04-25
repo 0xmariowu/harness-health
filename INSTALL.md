@@ -46,3 +46,14 @@ In Claude Code, run `/al` for the interactive scan-fix-report flow.
 agentlint --version
 agentlint check --help
 ```
+
+## Uninstall
+
+| Remove | Command |
+|---|---|
+| npm CLI | `npm uninstall -g agentlint-ai` |
+| Claude Code plugin | `claude plugin marketplace remove agent-lint` |
+| Cached files | `rm -rf "$HOME/.claude/plugins/cache/agent-lint" "$HOME/.al"` |
+| `/al` command file | `rm -f "$HOME/.claude/commands/al.md"` |
+
+If you ran `agentlint setup` in a repo, review and remove paths it added (typically under `.github/workflows/`, `.claude/`, `CLAUDE.md`, `HANDOFF.md`).

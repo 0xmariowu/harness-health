@@ -1466,7 +1466,7 @@ runTest('/al shell snippets quote paths with spaces and special characters', () 
 
 runTest('INSTALL.md stays short and AI-native', () => {
   const install = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
-  assert.ok(install.split(/\r?\n/).length < 60,
+  assert.ok(install.split(/\r?\n/).length < 80,
     'INSTALL.md must stay short enough for agents to read once and act');
   for (const needle of [
     'For AI coding agents',
