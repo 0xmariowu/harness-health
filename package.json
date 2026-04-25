@@ -42,6 +42,7 @@
     ".claude-plugin/",
     "release-metadata.json",
     "README.md",
+    "INSTALL.md",
     "LICENSE"
   ],
   "bin": {
