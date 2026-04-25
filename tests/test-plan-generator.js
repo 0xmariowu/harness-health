@@ -238,6 +238,26 @@ runTest('harness (H-prefix) checks appear in output items', () => {
   assert.ok(h1, 'H1 item should be present');
 });
 
+runTest('session findings with null fix_type appear as informational items', () => {
+  const sessionInput = {
+    by_project: {
+      '/tmp/org1/app': {
+        project: 'app',
+        project_path: '/tmp/org1/app',
+        session: makeDimension([
+          { check_id: 'SS3', name: 'Friction hotspots', measured_value: { friction_count: 3 }, score: 0, detail: 'friction hotspot' },
+        ]),
+      },
+    },
+  };
+  const output = runPlanGenerator(sessionInput);
+  const ss3 = output.items.find((item) => item.check_id === 'SS3');
+  assert.ok(ss3, 'SS3 informational item should be present');
+  assert.equal(ss3.dimension, 'session');
+  assert.equal(ss3.fix_type, null);
+  assert.equal(ss3.fix_command, null);
+});
+
 runTest('missing by_project key is tolerated', () => {
   const output = runPlanGenerator({ total_score: 0, dimensions: {} });
   assert.equal(output.total_items, 0);

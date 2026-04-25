@@ -574,6 +574,55 @@ runTest('session-analyzer SS2 hit keys use project path, not basename', () => {
     'SS2 must not use basename-only `${project.name}::` keying');
 });
 
+runTest('scanner malformed settings.json fails H1-H6 loud', () => {
+  const scanner = fs.readFileSync(path.join(ROOT, 'src', 'scanner.sh'), 'utf8');
+  assert.match(scanner, /settings_malformed=false/,
+    'scanner.sh must track whether .claude/settings.json parsed successfully');
+  assert.match(scanner, /jq -e type "\$settings_path"/,
+    'scanner.sh must validate settings.json with jq before H1-H6 reads');
+  assert.match(scanner, /settings\.json malformed: \$\{settings_error\}/,
+    'scanner.sh must emit malformed-settings detail instead of silently passing H checks');
+  for (const id of ['H1', 'H2', 'H3', 'H4', 'H5', 'H6']) {
+    assert.match(scanner, new RegExp(`emit_result "\\$project_name" "${id}" "null" "null" "0" "settings\\.json malformed:`),
+      `${id} must score 0 when settings.json is malformed`);
+  }
+});
+
+runTest('scorer refuses empty or all-malformed input', () => {
+  const scorer = fs.readFileSync(path.join(ROOT, 'src', 'scorer.js'), 'utf8');
+  assert.match(scorer, /let validRecordCount = 0/,
+    'scorer.js must count accepted scan records');
+  assert.match(scorer, /validRecordCount \+= 1/,
+    'scorer.js must increment only after buildRecord returns a valid record');
+  assert.match(scorer, /scorer\.js: no valid scan records — refusing to compute score/,
+    'scorer.js must emit the refusal error for empty/all-malformed input');
+  assert.match(scorer, /if \(validRecordCount === 0\)[\s\S]{0,180}process\.exit\(1\)/,
+    'scorer.js must exit non-zero before emitting JSON when no records are valid');
+});
+
+runTest('plan-generator includes session findings even when fix_type is null', () => {
+  const planGen = fs.readFileSync(path.join(ROOT, 'src', 'plan-generator.js'), 'utf8');
+  assert.match(planGen, /evidenceRecord\.dimension === 'session'/,
+    'plan-generator.js must read session fix_type directly from evidence.json');
+  assert.match(planGen, /normalized\.dimension !== 'session'/,
+    'plan-generator.js must not drop low-scoring session records just because fix_type is null');
+  assert.match(planGen, /fix_command: item\.fix_type \? `agentlint fix \$\{item\.check_id\}` : null/,
+    'plan-generator.js must surface null-fix_type session findings as informational, not actionable');
+});
+
+runTest('session-analyzer SS3 buckets by project_path, not basename', () => {
+  const ss = fs.readFileSync(path.join(ROOT, 'src', 'session-analyzer.js'), 'utf8');
+  const s3 = ss.slice(ss.indexOf('function buildS3Findings'), ss.indexOf('async function run'));
+  assert.match(s3, /const projectKey = projectPath \|\|/,
+    'SS3 must key project stats by project_path when available');
+  assert.match(s3, /project_path: stat\.project_path/,
+    'SS3 findings must carry project_path for per-project attribution');
+  assert.doesNotMatch(s3, /projectStats\.get\(project\)/,
+    'SS3 must not use basename-only projectStats.get(project)');
+  assert.doesNotMatch(s3, /projectStats\.set\(project,/,
+    'SS3 must not use basename-only projectStats.set(project, ...)');
+});
+
 runTest('/al Step 3b Deep flow uses project_path, not basename resolution', () => {
   const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
   const deepSection = src.slice(src.indexOf('## AI Deep Analysis'), src.indexOf('## Session Analysis'));

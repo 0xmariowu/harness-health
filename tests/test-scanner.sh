@@ -825,6 +825,28 @@ run_test "H6: hook without network calls → 1.0" test_h6_clean_hook
 run_test "H6: hook with curl → 0" test_h6_network_hook
 run_test "H6: no hooks configured → 1.0" test_h6_no_hooks
 
+H_MALFORMED_DIR="$(make_harness_project h-malformed '{"hooks":{"PreToolUse":[')"
+
+test_malformed_settings_fails_harness_checks() {
+  local out="${TEMP_ROOT}/h-malformed.jsonl"
+  run_scanner "${H_MALFORMED_DIR}" "$out" "${TEMP_ROOT}/hm.stderr" || return 1
+  local check score detail
+  for check in H1 H2 H3 H4 H5 H6; do
+    score="$(extract_check_score "$out" "$check")" || { TEST_ERROR="${check} not found"; return 1; }
+    if [ "$score" != "0" ]; then
+      TEST_ERROR="${check} should score 0 for malformed settings.json (got ${score})"
+      return 1
+    fi
+    detail="$(extract_check_detail "$out" "$check")" || { TEST_ERROR="${check} detail not found"; return 1; }
+    case "$detail" in
+      settings.json\ malformed:*) ;;
+      *) TEST_ERROR="${check} detail should explain malformed settings.json (got ${detail})"; return 1 ;;
+    esac
+  done
+}
+
+run_test "H1-H6: malformed settings.json fails loud" test_malformed_settings_fails_harness_checks
+
 # ─── New checks: F8, F9, I8 (v0.6.0 PR 6) ───
 
 # ── F8: rule file frontmatter ──

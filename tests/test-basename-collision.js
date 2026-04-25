@@ -8,11 +8,14 @@
 
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const SCORER = path.join(ROOT, 'src', 'scorer.js');
 const PLAN = path.join(ROOT, 'src', 'plan-generator.js');
+const SESSION = path.join(ROOT, 'src', 'session-analyzer.js');
 
 let passed = 0;
 let total = 0;
@@ -147,6 +150,65 @@ runTest('plan-generator grouped items track project_paths + disambiguate display
     /org1\/app[\s\S]*org2\/app|org2\/app[\s\S]*org1\/app/,
     'grouped display should include parent-dir suffix for colliding basenames',
   );
+});
+
+runTest('session-analyzer SS3 keeps same-basename projects in distinct buckets', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-ss3-collision-'));
+  const projectsRoot = path.join(tmp, 'projects');
+  const sessionRoot = path.join(tmp, 'sessions');
+
+  function sanitize(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function makeProject(parent, basename) {
+    const dir = path.join(projectsRoot, parent, basename);
+    fs.mkdirSync(path.join(dir, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), "# Project\n- NEVER skip tests before finishing.\n", 'utf8');
+    return dir;
+  }
+
+  function makeSession(projectDir, corrections) {
+    const dir = path.join(sessionRoot, sanitize(projectDir));
+    fs.mkdirSync(dir, { recursive: true });
+    const lines = [];
+    for (let i = 0; i < corrections; i += 1) {
+      lines.push(JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: `wrong approach ${i}; run npm test again` },
+      }));
+    }
+    if (corrections === 0) {
+      lines.push(JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'please continue with the current implementation' },
+      }));
+    }
+    fs.writeFileSync(path.join(dir, 'session.jsonl'), `${lines.join('\n')}\n`, 'utf8');
+  }
+
+  try {
+    const org1App = makeProject('org1', 'app');
+    const org2App = makeProject('org2', 'app');
+    const other = makeProject('org3', 'other');
+    makeSession(org1App, 3);
+    makeSession(org2App, 2);
+    makeSession(other, 0);
+
+    const out = execFileSync('node', [SESSION, '--projects-root', projectsRoot, '--session-root', sessionRoot], {
+      encoding: 'utf8',
+    });
+    const ss3 = out.trim().split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .filter((record) => record.check_id === 'SS3' && record.score === 0);
+
+    assert.equal(ss3.length, 2, `expected 2 SS3 findings, got ${ss3.length}: ${out}`);
+    assert.deepEqual(new Set(ss3.map((record) => record.project_path)), new Set([org1App, org2App]));
+    assert.equal(new Set(ss3.map((record) => record.project)).size, 1, 'both findings should display the same basename');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 process.stdout.write(`${passed}/${total} tests passed\n`);

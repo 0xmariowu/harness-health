@@ -478,20 +478,28 @@ else
 fi
 
 # scorer with empty input
-empty_out="$(echo '' | node "${SCORER}" 2>/dev/null)"
-if echo "${empty_out}" | jq -e '.total_score == 0' >/dev/null 2>&1; then
-  pass "scorer handles empty input gracefully (score 0)"
+empty_out="$(mktemp)"
+empty_err="$(mktemp)"
+if echo '' | node "${SCORER}" >"${empty_out}" 2>"${empty_err}"; then
+  fail "scorer rejects empty input" "$(cat "${empty_out}")"
+elif [ ! -s "${empty_out}" ] && grep -q 'no valid scan records' "${empty_err}"; then
+  pass "scorer rejects empty input"
 else
-  fail "scorer does not handle empty input" "${empty_out}"
+  fail "scorer rejects empty input" "$(cat "${empty_err}")"
 fi
+rm -f "${empty_out}" "${empty_err}"
 
 # scorer with malformed input
-malformed_out="$(echo 'not json at all' | node "${SCORER}" 2>/dev/null)"
-if echo "${malformed_out}" | jq -e '.total_score == 0' >/dev/null 2>&1; then
-  pass "scorer handles malformed input gracefully"
+malformed_out="$(mktemp)"
+malformed_err="$(mktemp)"
+if echo 'not json at all' | node "${SCORER}" >"${malformed_out}" 2>"${malformed_err}"; then
+  fail "scorer rejects malformed input" "$(cat "${malformed_out}")"
+elif [ ! -s "${malformed_out}" ] && grep -q 'no valid scan records' "${malformed_err}"; then
+  pass "scorer rejects malformed input"
 else
-  fail "scorer does not handle malformed input"
+  fail "scorer rejects malformed input" "$(cat "${malformed_err}")"
 fi
+rm -f "${malformed_out}" "${malformed_err}"
 
 # plan-generator with all-perfect scores
 perfect_scores='{"total_score":100,"dimensions":{"findability":{"score":10,"max":10,"weight":0.25,"checks":[]},"instructions":{"score":10,"max":10,"weight":0.35,"checks":[]},"workability":{"score":10,"max":10,"weight":0.2,"checks":[]},"continuity":{"score":10,"max":10,"weight":0.2,"checks":[]}},"by_project":{}}'

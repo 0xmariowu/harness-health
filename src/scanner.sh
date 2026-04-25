@@ -1679,9 +1679,20 @@ WF_PRT
 
   # ─── Harness dimension (v0.6.0) ───
   local settings_path="${project_dir}/.claude/settings.json"
+  local settings_malformed=false
+  local settings_error=""
+  if [ -f "$settings_path" ]; then
+    if ! settings_error="$(jq -e type "$settings_path" >/dev/null 2>&1)"; then
+      settings_malformed=true
+      settings_error="$(printf '%s' "$settings_error" | tr '\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//')"
+      [ -n "$settings_error" ] || settings_error="invalid JSON"
+    fi
+  fi
 
   # H1 — Hook event names valid
-  if [ ! -f "$settings_path" ]; then
+  if [ "$settings_malformed" = true ]; then
+    emit_result "$project_name" "H1" "null" "null" "0" "settings.json malformed: ${settings_error}"
+  elif [ ! -f "$settings_path" ]; then
     emit_result "$project_name" "H1" '{"total":0,"valid":0,"invalid":[]}' "null" "1" "No settings.json — nothing to validate"
   else
     local valid_events_list
@@ -1717,7 +1728,9 @@ EOF_H1
   fi
 
   # H2 — PreToolUse hooks have matcher
-  if [ ! -f "$settings_path" ]; then
+  if [ "$settings_malformed" = true ]; then
+    emit_result "$project_name" "H2" "null" "null" "0" "settings.json malformed: ${settings_error}"
+  elif [ ! -f "$settings_path" ]; then
     emit_result "$project_name" "H2" '{"total":0,"with_matcher":0}' "null" "1" "No settings.json"
   else
     local h2_total
@@ -1737,7 +1750,9 @@ EOF_H1
   fi
 
   # H4 — No dangerous auto-approve
-  if [ ! -f "$settings_path" ]; then
+  if [ "$settings_malformed" = true ]; then
+    emit_result "$project_name" "H4" "null" "null" "0" "settings.json malformed: ${settings_error}"
+  elif [ ! -f "$settings_path" ]; then
     emit_result "$project_name" "H4" '{"dangerous_rules":[],"total_allow":0}' "null" "1" "No settings.json"
   else
     local h4_patterns
@@ -1774,7 +1789,9 @@ EOF_H4R
   fi
 
   # H3 — Stop hook has circuit breaker (static analysis, never executes scripts)
-  if [ ! -f "$settings_path" ]; then
+  if [ "$settings_malformed" = true ]; then
+    emit_result "$project_name" "H3" "null" "null" "0" "settings.json malformed: ${settings_error}"
+  elif [ ! -f "$settings_path" ]; then
     emit_result "$project_name" "H3" '{"stop_hooks":0,"guarded":0}' "null" "1" "No settings.json"
   else
     local stop_total
@@ -1820,7 +1837,9 @@ EOF_H3
   fi
 
   # H5 — Env deny coverage complete
-  if [ ! -f "$settings_path" ]; then
+  if [ "$settings_malformed" = true ]; then
+    emit_result "$project_name" "H5" "null" "null" "0" "settings.json malformed: ${settings_error}"
+  elif [ ! -f "$settings_path" ]; then
     emit_result "$project_name" "H5" "null" "null" "1" "No settings.json"
   else
     local deny_has_env=false
@@ -1847,7 +1866,9 @@ EOF_H5
   fi
 
   # H6 — Hook scripts network access (static analysis, never executes scripts)
-  if [ ! -f "$settings_path" ]; then
+  if [ "$settings_malformed" = true ]; then
+    emit_result "$project_name" "H6" "null" "null" "0" "settings.json malformed: ${settings_error}"
+  elif [ ! -f "$settings_path" ]; then
     emit_result "$project_name" "H6" '{"hooks_with_network":0}' "null" "1" "No settings.json"
   else
     local all_hook_commands

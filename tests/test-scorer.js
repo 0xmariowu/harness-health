@@ -134,12 +134,18 @@ function runScorerRaw(inputStr, expectZeroExit = true) {
   return result;
 }
 
-runTest('empty stdin produces valid JSON with total_score=0', () => {
-  const result = runScorerRaw('\n');
-  const output = JSON.parse(result.stdout);
-  assert.equal(output.total_score, 0);
-  assert.ok(output.dimensions, 'dimensions should exist');
-  assert.deepEqual(output.by_project, {}, 'by_project should be empty');
+runTest('empty stdin refuses to compute a score', () => {
+  const result = runScorerRaw('\n', false);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '', 'empty input must not emit a JSON document');
+  assert.match(result.stderr, /scorer\.js: no valid scan records — refusing to compute score/);
+});
+
+runTest('all-malformed JSONL refuses to compute a score', () => {
+  const result = runScorerRaw('not-json\n{broken\n', false);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '', 'all-malformed input must not emit a JSON document');
+  assert.match(result.stderr, /scorer\.js: no valid scan records — refusing to compute score/);
 });
 
 runTest('malformed JSONL lines are skipped without crashing', () => {

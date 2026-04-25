@@ -98,7 +98,7 @@ CMD ["bash", "-c", "\
     \
     echo '--- 9. Error handling ---'; \
     bash src/scanner.sh --project-dir /nonexistent 2>/dev/null && { echo 'FAIL: should error on nonexistent'; exit 1; } || echo 'PASS: error on nonexistent dir'; \
-    echo '' | node src/scorer.js 2>/dev/null | jq -e '.total_score == 0' > /dev/null && echo 'PASS: empty input handled' || { echo 'FAIL: empty input'; exit 1; }; \
+    echo '' | node src/scorer.js >/tmp/empty-score.json 2>/tmp/empty-score.err && { echo 'FAIL: empty input'; exit 1; } || grep -q 'no valid scan records' /tmp/empty-score.err && [ ! -s /tmp/empty-score.json ] && echo 'PASS: empty input refused' || { echo 'FAIL: empty input'; exit 1; }; \
     echo ''; \
     \
     echo '=== All Docker E2E tests passed ===' \
