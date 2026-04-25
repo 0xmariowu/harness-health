@@ -232,6 +232,70 @@ runTest('package.json repository.url uses npm canonical git+https .git form', ()
     'package.json repository.url must use git+https://... .git form');
 });
 
+runTest('maintainer policy docs live under docs/internal/', () => {
+  // These are maintainer-only references. They must not live at docs/ root
+  // where readers might assume they are public product docs.
+  for (const stale of [
+    path.join(ROOT, 'docs', 'ship-boundary.md'),
+    path.join(ROOT, 'docs', 'rules-style.md'),
+  ]) {
+    assert.ok(!fs.existsSync(stale),
+      `${path.relative(ROOT, stale)} must live under docs/internal/, not docs/ root`);
+  }
+  for (const required of [
+    path.join(ROOT, 'docs', 'internal', 'ship-boundary.md'),
+    path.join(ROOT, 'docs', 'internal', 'rules-style.md'),
+    path.join(ROOT, 'docs', 'internal', 'local-artifacts.md'),
+  ]) {
+    assert.ok(fs.existsSync(required),
+      `${path.relative(ROOT, required)} must exist (PR4 reclassification)`);
+  }
+});
+
+runTest('user-facing docs use canonical 0xmariowu/AgentLint repo casing', () => {
+  // GitHub repo name is 0xmariowu/AgentLint (PascalCase). User-facing docs
+  // and badges must match. Lowercase agent-lint is reserved for the npm
+  // package name and the package.json repository.url field that npm canonicalizes.
+  const userFacingDocs = [
+    'README.md',
+    'README_CN.md',
+    'INSTALL.md',
+    'CONTRIBUTING.md',
+    'SECURITY.md',
+    path.join('docs', 'content', 'intro.md'),
+    path.join('docs', 'content', 'contributing.md'),
+    path.join('docs', 'content', 'security.md'),
+  ];
+  for (const file of userFacingDocs) {
+    const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    assert.doesNotMatch(src, /0xmariowu\/agent-lint(?!\b\.npmjs)/,
+      `${file} must use 0xmariowu/AgentLint (PascalCase) for GitHub repo references`);
+  }
+});
+
+runTest('local-artifact paths do not enter git ls-files', () => {
+  const tracked = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' })
+    .split('\n')
+    .filter(Boolean);
+  const PROHIBITED_PATHS = [
+    /^\.env$/,
+    /^\.claude\//,
+    /^coverage\//,
+    /^node_modules\//,
+    /^experience\//,
+    /^tests\/accuracy\/batch-input\//,
+    /^tests\/accuracy\/batch-output\//,
+    /^tests\/accuracy\/conflicts\.jsonl$/,
+    /^tests\/accuracy\/deterministic-labels\.jsonl$/,
+  ];
+  for (const file of tracked) {
+    for (const pat of PROHIBITED_PATHS) {
+      assert.doesNotMatch(file, pat,
+        `${file} matches local-only pattern ${pat}; it must be in .gitignore (see docs/internal/local-artifacts.md)`);
+    }
+  }
+});
+
 runTest('reporter.js report filenames include an HHMMSS time component', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src', 'reporter.js'), 'utf8');
   assert.match(src, /slice\(11,\s*19\)\.replace\(\s*\/:\/g,\s*['"]{2}\s*\)/,
@@ -1315,7 +1379,7 @@ runTest('docs GitHub Action quickstart is a complete copy-paste workflow', () =>
     'jobs:',
     'runs-on: ubuntu-latest',
     'actions/checkout@v4',
-    '0xmariowu/agent-lint@v1',
+    '0xmariowu/AgentLint@v1',
   ]) {
     assert.match(actionSection, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
       `docs GitHub Action quickstart must include ${needle}`);
@@ -1476,7 +1540,7 @@ runTest('INSTALL.md stays short and AI-native', () => {
     '## After install',
     '## Verify',
     'npm install -g agentlint-ai',
-    '0xmariowu/agent-lint@v1',
+    '0xmariowu/AgentLint@v1',
     'agentlint check',
   ]) {
     assert.match(install, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
