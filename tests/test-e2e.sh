@@ -497,7 +497,7 @@ malformed_out="$(mktemp)"
 malformed_err="$(mktemp)"
 if echo 'not json at all' | node "${SCORER}" >"${malformed_out}" 2>"${malformed_err}"; then
   fail "scorer rejects malformed input" "$(cat "${malformed_out}")"
-elif [ ! -s "${malformed_out}" ] && grep -q 'no valid scan records' "${malformed_err}"; then
+elif [ ! -s "${malformed_out}" ] && grep -qE 'no valid scan records|malformed JSONL' "${malformed_err}"; then
   pass "scorer rejects malformed input"
 else
   fail "scorer rejects malformed input" "$(cat "${malformed_err}")"
