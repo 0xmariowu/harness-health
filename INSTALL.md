@@ -56,15 +56,40 @@ Inside Claude Code:
 
 ## Uninstall
 
+Choose the steps that match how you installed AgentLint.
+
+Remove the persistent npm CLI:
+
 ```bash
 npm uninstall -g agentlint-ai
 ```
 
-If `/al` was registered, remove the plugin manually inside Claude Code:
+If you used `npx agentlint-ai init`, there may be no global npm package to
+remove. `npx` only used its cache to run init; npm manages that cache
+automatically.
 
-```text
-/claude plugin marketplace remove 0xmariowu/agent-lint
+Remove the Claude Code marketplace registration and cached plugin files:
+
+```bash
+claude plugin marketplace remove agent-lint
+rm -rf "$HOME/.claude/plugins/cache/agent-lint"
 ```
+
+Remove the copied `/al` command file if it exists:
+
+```bash
+rm -f "$HOME/.claude/commands/al.md"
+```
+
+Remove AgentLint run data and reports if you no longer need them:
+
+```bash
+rm -rf "$HOME/.al"
+```
+
+Remove files that `agentlint setup` added to a repo only after reviewing them.
+Common paths are `.github/workflows/`, `.claude/settings.json`, `CLAUDE.md`,
+`HANDOFF.md`, `plan.md`, and project-specific hook/config files.
 
 ## Requirements
 

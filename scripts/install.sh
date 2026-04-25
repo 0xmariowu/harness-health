@@ -60,9 +60,21 @@ CMD_SRC="$PLUGIN_CACHE/$LATEST/commands/al.md"
 CMD_DST="$HOME/.claude/commands/al.md"
 
 if [ -f "$CMD_SRC" ]; then
-  mkdir -p "$HOME/.claude/commands"
-  cp "$CMD_SRC" "$CMD_DST"
-  ok "/al command" "[installed]"
+  MKDIR_OUT=""
+  COPY_OUT=""
+  if ! MKDIR_OUT=$(mkdir -p "$HOME/.claude/commands" 2>&1); then
+    warn "/al command" "[not installed]"
+    info "Could not create $HOME/.claude/commands"
+    [ -n "$MKDIR_OUT" ] && info "$MKDIR_OUT"
+    PLUGIN_INSTALL_OK=false
+  elif ! COPY_OUT=$(cp "$CMD_SRC" "$CMD_DST" 2>&1); then
+    warn "/al command" "[not installed]"
+    info "Could not copy $CMD_SRC to $CMD_DST"
+    [ -n "$COPY_OUT" ] && info "$COPY_OUT"
+    PLUGIN_INSTALL_OK=false
+  else
+    ok "/al command" "[installed]"
+  fi
 else
   warn "/al command" "[not installed]"
   info "npm CLI works, but /al will not be available until the Claude plugin install succeeds."
