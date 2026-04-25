@@ -24,3 +24,5 @@ __pycache__/
 *.pyc
 state/
 tests/e2b/results/
+tests/fixer-safety/results/*
+!tests/fixer-safety/results/.gitkeep
