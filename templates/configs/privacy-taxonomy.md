@@ -26,20 +26,20 @@ Different dimensions leak through different channels, so different gates enforce
 | Code | Subcategory | Positive examples | Edge case (still OK) | Enforcement |
 |---|---|---|---|---|
 | **A.1** | Person identity | real name, avatar, personal email | maintainer's public GitHub handle via noreply (e.g. `12345+handle@users.noreply.github.com`) | `author-email.yml` workflow rejects non-noreply emails |
-| **A.2** | Machine identity | tailnet hostname (`foo.ts.net`), mDNS local hostname (`MyMac-Studio.local`), internal IP | public product name reference (e.g. "e2b.dev" as a service you may use) | `hygiene.yml` + `standards/ship-boundary.json` SB-N-06 |
+| **A.2** | Machine identity | tailnet hostname (`foo.ts.net`), mDNS local hostname (`MyMac-Studio.local`), internal IP | public product name reference (e.g. "e2b.dev" as a service you may use) | `hygiene.yml` + `commit-message-scan.yml` SB-N-06 |
 | **A.3** | Account identity | previous GitHub handle, team member personal names appearing only in template fixtures | current handle in CODEOWNERS (product-facing) | manual review (no automatic gate today) |
-| **B.1** | Internal project names | maintainer's other private repo names (codename-shaped and specific) | VibeKit itself, or public products named with the same shape | SB-N-02 (categorical regex) + `.ship-boundary-deny.local` (project-specific exact-match extension) |
-| **B.2** | Credentials | API keys, OAuth tokens, SSH private keys, session cookies | `.env.example` with placeholder values | `gitleaks.yml` + `detect-secrets` + SB-N-01 + SB-N-04 |
+| **B.1** | Internal project names | maintainer's other private repo names (codename-shaped and specific) | public product names, or project-owned names deliberately added to the workflow allowlist | SB-N-02 (categorical regex in `commit-message-scan.yml`) + `.ship-boundary-deny.local` (project-specific exact-match extension) |
+| **B.2** | Credentials | API keys, OAuth tokens, SSH private keys, session cookies | `.env.example` with placeholder values | `gitleaks.yml` + `detect-secrets` + `commit-message-scan.yml` |
 | **B.3** | Personal filesystem paths | `/Users/<name>/`, `/home/<name>/`, hardcoded home paths in scripts | `$HOME`, `$(cd "$(dirname "$0")"; pwd)`, repo-relative paths | SB-N-03 regex + `hygiene.yml` |
 | **B.4** | Business judgement | real customer names in tests, competitor assessments in commit bodies, strategic-direction commentary | generic product category references ("CI templates", "PR gates") | manual review (no pattern-based gate exists) |
-| **C.1** | Tracked file content | everything in `src/`, `configs/`, `standards/`, root-level docs | `.env.example`, example fixtures with synthetic values | `hygiene.yml` + `semgrep.yml` + `trivy.yml` + `gitleaks.yml` |
-| **C.2** | Commit messages (subject + body) | `feat: absorb genes from <internal-project>`, `fix paths after migrating off /Volumes/4TB/` | `feat: improve bootstrap`, plain English describing behavior | `commit-message-scan.yml` workflow |
-| **C.3** | Scrub phrasing | `removed X reference`, `previously private Y paths`, `dropped the Z mention` in CHANGELOG or commit messages | current-state phrasing: "now points at the public repo", "check renamed for clarity" | SB-N-05 pattern + manual review |
+| **C.1** | Tracked file content | everything in `src/`, `scripts/`, `.github/`, `docs/`, root-level docs | `.env.example`, example fixtures with synthetic values | `hygiene.yml` + `semgrep.yml` + `trivy.yml` + `gitleaks.yml` |
+| **C.2** | Commit messages (subject + body) | `feat: absorb genes from <internal-project>`, `fix paths after migrating off /Volumes/4TB/` | `feat: improve setup`, plain English describing behavior | `commit-message-scan.yml` workflow |
+| **C.3** | Scrub phrasing | `removed X reference`, `previously private Y paths`, `dropped the Z mention` in CHANGELOG or commit messages | current-state phrasing: "now points at the public repo", "check renamed for clarity" | SB-N-05 pattern in `commit-message-scan.yml` + manual review |
 | **C.4** | Timing patterns | commit timezone revealing personal geo, commit cadence revealing working hours | — (not enforced; would require git history rewrite with bogus timestamps, high cost) | explicit non-goal |
 
-## Canonical mapping — ship-boundary NEVER rules tagged by dimension
+## Canonical mapping - commit-message scan rules tagged by dimension
 
-Every rule in `standards/ship-boundary.json` `checks.never[]` carries a `category` field mapping to the codes above. A linter on `standards/*.json` can verify this invariant.
+The shipped `commit-message-scan.yml` workflow uses the SB-N labels below for deterministic commit-message enforcement. File-content enforcement mirrors the same intent through `hygiene.yml`, gitleaks, semgrep, and manual review.
 
 | Rule | Category |
 |---|---|
@@ -74,13 +74,13 @@ IMPORTANT: `.ship-boundary-deny.local` itself must never end up in a tracked fil
 
 ## When the taxonomy gets revised
 
-- **A new dimension of leak** (not covered by A/B/C) → PR to this doc + add column to `standards/ship-boundary.json` schema
-- **A new subcategory** within A/B/C → add row here + new SB-N-XX in `standards/ship-boundary.json`
-- **A rule's category needs reclassification** → update both `category` field and this table in one PR
+- **A new dimension of leak** (not covered by A/B/C) -> update this doc and the workflows or hooks that enforce it.
+- **A new subcategory** within A/B/C -> add a row here and add a matching SB-N-XX check where mechanical enforcement is practical.
+- **A rule's category needs reclassification** -> update this table and the relevant workflow messages in one change.
 
 ## Related
 
-- Machine-readable contract: `standards/ship-boundary.json` (module `m4`)
-- File-provenance tier rules: `configs/ship-boundary.md`
+- Commit-message enforcement: `templates/universal/commit-message-scan.yml`
+- File-provenance tier rules: `templates/configs/ship-boundary.md`
 - History rewrite playbook (for when a leak already reached `origin`): `docs/history-rewrite-runbook.md`
 - Public-repo identity rules: `~/.claude/standards/public-repo.md` (for this maintainer's own harness)
