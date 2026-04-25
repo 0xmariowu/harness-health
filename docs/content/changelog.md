@@ -2,6 +2,122 @@
 
 ## Unreleased
 
+## v1.1.4 (2026-04-25)
+
+Production-quality release — 23 fixes from a deep five-agent audit.
+Subsumes the never-tagged v1.1.3 (merged into main but never published).
+
+### You can now…
+
+- **Trust accuracy CI to fail closed on coverage gaps.** Empty scanner
+  output, naming drift, missing labels — all fail loud now instead of
+  silently passing. (#182, #183, #184)
+- **Run `agentlint setup --lang ts .`** without `cp: no such file` after
+  `npm install -g`. Language `gitignore` templates now ship in the npm
+  tarball (npm strips dotfiles, so source files are now `gitignore`
+  without leading dot, copied to `.gitignore` at destination). (#182)
+- **Trust `agentlint fix` exit codes** when called from CI scripts —
+  non-zero on any failed item. (already in v1.1.1, hardened here)
+- **Trust the GitHub Action's `--fail-below` gate** — empty value is
+  rejected instead of silently treated as 0. (#184)
+- **See multi-project SARIF results with project identity** — URIs now
+  carry `project_path` so reviewers can tell which repo a finding
+  belongs to. (#184)
+- **Backup of overwritten files** — `setup.sh` writes
+  `<file>.al-backup-<timestamp>` before overwriting differing user
+  content. Mirrors the fixer's existing backup pattern. (#185)
+
+### Fixed — safety / data correctness
+
+- **P0-2 Symlink escape** — `setup.sh` + `fixer.js` use `realpath()` to
+  enforce writes inside `$PROJECT_ROOT`. Symlinks pointing outside are
+  refused with a clear error. (#185)
+- **P0-3 `/al` wrong project root** — Project selection canonicalises
+  to real path + verifies the directory is a git repo before invoking
+  fixer. Ambiguous candidates surface for the user instead of silent
+  pick. (#185)
+- **P0-5 Malformed `settings.json` full-credit** — `scanner.sh` H1-H6
+  now emit `score: 0` with a clear `detail` when `.claude/settings.json`
+  is unparseable JSON. (#183)
+- **P1-5 fixer git validation strict** — Requires `.git/HEAD` as a
+  regular file, validates the project is inside the working tree, and
+  refuses dirty trees by default (opt-out: `--force-dirty`). (#185)
+- **P1-12 SS3 same-basename collision** — `session-analyzer.js`
+  `buildS3Findings` keys by `project_path` not basename. Mirrors
+  SS1/SS2/SS4 fixes from #168/#179. (#183)
+
+### Fixed — CI / quality gates
+
+- **P0-4 Empty `--fail-below=`** — `reporter.js` rejects empty value
+  instead of coercing to 0. `action.yml` input also validated. (#184)
+- **P0-6 Branch protection canonical set** —
+  `.github/branch-protection.yml` declares required checks;
+  `scripts/setup-branch-protection.sh` applies them via `gh api`. CI
+  exposes stable `npm-e2e` + `Semgrep` check contexts. (#184)
+- **P0-7 Release workflow npm-first** — `release.yml` publishes npm
+  BEFORE creating GitHub release. Failed npm publish no longer leaves
+  orphan GH release. (#184)
+- **P1-8 Scorer empty/malformed input fails loud** — `scorer.js`
+  exits 1 with stderr error on zero valid records. Was: silent 0/100
+  indistinguishable from a clean repo. (#183)
+- **P1-9 SARIF preserves project identity** — Multi-project URIs
+  encode `project_path`. (#184)
+- **P1-10 Release version validation complete** — `release.yml`
+  validates tag matches all 4 version-carrying files (package.json +
+  plugin.json + marketplace.json + release-metadata.json). (#184)
+- **P1 (#182) Accuracy compare 0-match guard** — `compare-results.js`
+  exits 1 when `matchedRepos < 90% of labeledRepos` OR any core check
+  has `total=0` after matching. (#182)
+
+### Fixed — setup / install / UX
+
+- **P1-1 `setup.sh` overwrites user files** — Backup-before-overwrite
+  for any differing content. (#185)
+- **P1-2 `npx init` not persistent** — Banner + README + INSTALL.md
+  clarify the npx flow does not install a persistent CLI. (#185)
+- **P1-3 Plugin install failure silent** — `install.sh` distinguishes
+  `✓ npm CLI installed` from `⚠ Claude plugin install failed` instead
+  of one ambiguous OK. (#185)
+- **P1-6 `setup.sh` auto-init non-git** — Refuses non-git directory
+  by default; opt-in via `--init-git`. (#185)
+- **P1-7 Default auto-push workflow** — `autofix.yml` workflow is now
+  opt-in via `--with-auto-push` (was: default-installed). (#185)
+- **P1-13 Deep flow not fully executable** — `commands/al.md` Deep
+  section rewritten with concrete per-project + per-check filenames
+  and conversion steps. (#185)
+- **`agentlint fix` without check id fails fast** — already in
+  v1.1.1; doc + postinstall examples updated to match. (#182)
+- **Reporter HTML/MD filename collision** — Reports now include
+  `HHMMSS` suffix (`al-2026-04-25-153022.html`). Two runs same day no
+  longer overwrite. (#182)
+- **`package.json repository.url`** — Now `git+https://...git` per
+  npm canonical form. (#182)
+
+### Fixed — plan / session
+
+- **P1-11 Session findings appear in plan** — `plan-generator.js`
+  retains session findings as plan items including `fix_type: null`
+  informational entries. Was: silently dropped despite affecting
+  score. (#183)
+
+### Removed
+
+- v1.1.3 was never tagged or npm-published. Its diff was merged to
+  main (commit `e419268`) and is folded into v1.1.4.
+
+### Production effect
+
+Any future PR that:
+- Adds a core check without labels → CI fails (#182)
+- Has scanner output that fails to match labels → CI fails (#182)
+- Has `setup --protect` (removed in v1.1.1) → CLI rejects (#176)
+- Tries to write outside `$PROJECT_ROOT` via symlink → setup/fixer
+  refuses (#185)
+- Tries to publish a release where tag mismatches any version file
+  → release.yml fails (#184)
+
+These were all silent-pass paths in v1.1.1 and earlier.
+
 ## v1.1.2 (2026-04-25)
 
 Patch release closing the two known follow-ups from v1.1.1.
