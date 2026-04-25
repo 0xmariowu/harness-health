@@ -9,7 +9,7 @@
 {% tabs %}
 {% tab title="npx (recommended)" %}
 ```bash
-npx agentlint-ai
+npx agentlint-ai init
 ```
 {% endtab %}
 {% tab title="curl" %}
@@ -20,10 +20,15 @@ curl -fsSL https://raw.githubusercontent.com/0xmariowu/agent-lint/main/scripts/i
 {% tab title="npm" %}
 ```bash
 npm install -g agentlint-ai
-agentlint-ai
+agentlint-ai init
 ```
 {% endtab %}
 {% endtabs %}
+
+`npx agentlint-ai init` runs the init UI from the npx cache. It configures
+the Claude Code plugin when Claude Code is present, but it does **not** install
+a persistent `agentlint` binary for later shell sessions. For persistent CLI
+commands, use `npm install -g agentlint-ai`.
 
 Then start a new Claude Code session:
 
@@ -49,13 +54,30 @@ agentlint setup --lang ts .                       # bootstrap CI/hooks/templates
 
 ## GitHub Action
 
-Add AgentLint to your CI in three lines:
+Create `.github/workflows/agentlint.yml`:
 
 ```yaml
-- uses: 0xmariowu/agent-lint@v0
-  with:
-    fail-below: '60'  # optional: fail the build if score drops below 60
+name: AgentLint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  agentlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: 0xmariowu/agent-lint@v0
 ```
+
+This runs the default local-only core scan and does not fail the build on score
+thresholds. Add `fail-below` after the first passing run if you want a hard
+quality gate.
 
 ### SARIF integration
 
@@ -67,6 +89,7 @@ permissions:
   security-events: write  # required for SARIF upload
 
 steps:
+  - uses: actions/checkout@v4
   - uses: 0xmariowu/agent-lint@v0
     with:
       sarif-upload: 'true'

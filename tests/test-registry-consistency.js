@@ -1281,5 +1281,141 @@ runTest('release workflow is idempotent for existing npm versions and GitHub Rel
     'release.yml must explain the existing-release path clearly');
 });
 
+runTest('docs GitHub Action quickstart is a complete copy-paste workflow', () => {
+  const intro = fs.readFileSync(path.join(ROOT, 'docs', 'content', 'intro.md'), 'utf8');
+  const actionSection = intro.slice(intro.indexOf('## GitHub Action'), intro.indexOf('### SARIF integration'));
+  assert.match(actionSection, /Create `\.github\/workflows\/agentlint\.yml`/,
+    'docs quickstart must tell users which workflow file to create');
+  for (const needle of [
+    'name: AgentLint',
+    'on:',
+    'pull_request:',
+    'push:',
+    'permissions:',
+    'contents: read',
+    'jobs:',
+    'runs-on: ubuntu-latest',
+    'actions/checkout@v4',
+    '0xmariowu/agent-lint@v0',
+  ]) {
+    assert.match(actionSection, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      `docs GitHub Action quickstart must include ${needle}`);
+  }
+  assert.doesNotMatch(actionSection, /fail-below:\s*['"]60['"]/,
+    'copy-paste quickstart must not include a score threshold that can fail a fresh repo before the first baseline');
+});
+
+runTest('/al scan reads persisted config for root and selected modules', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
+  assert.match(src, /CONFIG_FILE="\$\{CLAUDE_PLUGIN_DATA:-\$HOME\/\.al\}\/config\.json"/,
+    '/al must use the persisted config file as the scan contract');
+  assert.match(src, /jq -er '\.projects_root' "\$CONFIG_FILE"/,
+    '/al scan must read projects_root back from config before invoking scanner.sh');
+  assert.match(src, /jq -r '\.modules\.deep \/\/ false' "\$CONFIG_FILE"/,
+    '/al scan must read the persisted Deep selection');
+  assert.match(src, /jq -r '\.modules\.session \/\/ false' "\$CONFIG_FILE"/,
+    '/al scan must read the persisted Session selection');
+  assert.match(src, /PROJECTS_ROOT="\$PROJECTS_ROOT" bash "\$AL_DIR\/src\/scanner\.sh"/,
+    '/al scan must apply the config-derived PROJECTS_ROOT to scanner execution');
+  assert.match(src, /If `RUN_DEEP` read from/,
+    '/al Deep branch must be driven by the config-derived RUN_DEEP value');
+  assert.match(src, /If `RUN_SESSION` read from/,
+    '/al Session branch must be driven by the config-derived RUN_SESSION value');
+});
+
+runTest('branch protection script has a verify mode that compares live protection to YAML', () => {
+  const script = fs.readFileSync(path.join(ROOT, 'scripts', 'setup-branch-protection.sh'), 'utf8');
+  assert.match(script, /--verify/,
+    'setup-branch-protection.sh must expose a --verify mode');
+  assert.match(script, /gh api "repos\/\$\{repo\}\/branches\/\$\{branch\}\/protection"/,
+    '--verify must fetch live branch protection via gh api');
+  assert.match(script, /required_status_checks/,
+    '--verify must inspect required_status_checks from the live response');
+  assert.match(script, /strict mismatch/,
+    '--verify must fail on strictness drift');
+  assert.match(script, /missing live checks/,
+    '--verify must fail on missing required checks');
+  assert.match(script, /extra live checks/,
+    '--verify must fail on extra required checks');
+
+  const contributing = fs.readFileSync(path.join(ROOT, 'docs', 'content', 'contributing.md'), 'utf8');
+  assert.match(contributing, /scripts\/setup-branch-protection\.sh --verify/,
+    'docs must describe the manual branch-protection verification command');
+  assert.match(contributing, /gh api repos\/\.\.\.\/branches\/main\/protection/,
+    'docs must state that verification checks live GitHub branch protection');
+});
+
+runTest('install.sh reports /al copy failures instead of unconditional success', () => {
+  const install = fs.readFileSync(path.join(ROOT, 'scripts', 'install.sh'), 'utf8');
+  const commandBlock = install.slice(install.indexOf('# /al global command'));
+  assert.match(commandBlock, /elif ! COPY_OUT=\$\(cp "\$CMD_SRC" "\$CMD_DST" 2>&1\); then/,
+    'install.sh must capture cp failure when installing /al command');
+  assert.match(commandBlock, /Could not copy \$CMD_SRC to \$CMD_DST/,
+    'install.sh must surface the failed copy source and destination');
+  assert.match(commandBlock, /PLUGIN_INSTALL_OK=false/,
+    'install.sh must mark plugin install unhealthy when /al copy fails');
+  const copyIdx = commandBlock.indexOf('COPY_OUT=$(cp "$CMD_SRC" "$CMD_DST" 2>&1)');
+  const okIdx = commandBlock.indexOf('ok "/al command" "[installed]"');
+  assert.ok(copyIdx >= 0 && okIdx > copyIdx,
+    'install.sh must only print /al installed after the cp branch succeeds');
+});
+
+runTest('public install docs distinguish npx cache init from persistent CLI install', () => {
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const cn = fs.readFileSync(path.join(ROOT, 'README_CN.md'), 'utf8');
+  const intro = fs.readFileSync(path.join(ROOT, 'docs', 'content', 'intro.md'), 'utf8');
+  for (const [name, src] of [['README.md', readme], ['docs/content/intro.md', intro]]) {
+    assert.match(src, /npx agentlint-ai init/,
+      `${name} must use the explicit npx init command`);
+    assert.match(src, /persistent `agentlint`/,
+      `${name} must say npx init does not install a persistent agentlint CLI`);
+    assert.match(src, /npm install -g agentlint-ai/,
+      `${name} must point users to npm install -g for persistent CLI use`);
+  }
+  assert.match(cn, /npx agentlint-ai init/,
+    'README_CN.md must use the explicit npx init command');
+  assert.match(cn, /持久的 `agentlint`/,
+    'README_CN.md must say npx init does not install a persistent agentlint CLI');
+  assert.match(cn, /npm install -g agentlint-ai/,
+    'README_CN.md must point users to npm install -g for persistent CLI use');
+  assert.doesNotMatch(intro, /```bash\nnpx agentlint-ai\n```/,
+    'docs/content/intro.md must not reintroduce the ambiguous bare npx command');
+});
+
+runTest('/al shell snippets quote paths with spaces and special characters', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'commands', 'al.md'), 'utf8');
+  assert.doesNotMatch(src, /< \$RUN_DIR\//,
+    '/al snippets must quote redirected RUN_DIR paths');
+  assert.doesNotMatch(src, /mkdir -p \$\{CLAUDE_PLUGIN_DATA\}/,
+    '/al snippets must quote CLAUDE_PLUGIN_DATA-derived paths');
+  assert.doesNotMatch(src, /cp \$RUN_DIR\//,
+    '/al snippets must quote cp sources under RUN_DIR');
+  assert.match(src, /< "\$RUN_DIR\/plan\.filtered\.json"/,
+    'fixer invocation must quote the filtered plan path');
+  assert.match(src, /REPORT_DIR="\$\{CLAUDE_PLUGIN_DATA:-\$HOME\/\.al\}\/reports"/,
+    'report path must be built in a quoted variable with a fallback');
+  assert.match(src, /--session-root "\$HOME\/\.claude\/projects"/,
+    'session analyzer must quote the session-root path');
+});
+
+runTest('INSTALL.md documents cleanup for npm, Claude plugin, command file, run data, and setup files', () => {
+  const install = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
+  const uninstall = install.slice(install.indexOf('## Uninstall'), install.indexOf('## Requirements'));
+  for (const needle of [
+    'npm uninstall -g agentlint-ai',
+    'claude plugin marketplace remove agent-lint',
+    'rm -rf "$HOME/.claude/plugins/cache/agent-lint"',
+    'rm -f "$HOME/.claude/commands/al.md"',
+    'rm -rf "$HOME/.al"',
+    'agentlint setup',
+    '.github/workflows/',
+    'CLAUDE.md',
+    'HANDOFF.md',
+  ]) {
+    assert.match(uninstall, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      `INSTALL.md uninstall section must include ${needle}`);
+  }
+});
+
 process.stdout.write(`${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);

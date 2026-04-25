@@ -35,6 +35,16 @@ Extended (opt-in, runtime-dependent):
 show as `n/a` in the output unless explicitly checked. User presses Enter →
 runs immediately.
 
+Record the normalized choices in shell variables for the config write in
+Step 2. Core is currently all-or-nothing and defaults on; Deep/Session are
+the only runtime-selectable modules.
+
+```bash
+RUN_CORE=true
+RUN_DEEP=false     # set true only if Deep Analysis was selected
+RUN_SESSION=false  # set true only if Session Analysis was selected
+```
+
 ### Step 2: Init (first run only)
 
 If `${CLAUDE_PLUGIN_DATA}/config.json` doesn't exist, ask with default:
@@ -43,7 +53,47 @@ If `${CLAUDE_PLUGIN_DATA}/config.json` doesn't exist, ask with default:
 Where are your projects? [~/Projects]: ↵
 ```
 
-Press Enter → uses `~/Projects`. Save to `${CLAUDE_PLUGIN_DATA}/config.json`. Never ask again.
+Press Enter → uses `~/Projects`. Save to `${CLAUDE_PLUGIN_DATA}/config.json`.
+Never ask for the projects root again.
+
+After Step 1, always persist the selected scan options back into the same
+config file. The scan and verify steps must read this file instead of relying
+on stale shell variables; otherwise the config is dead state and Deep/Session
+choices are ignored.
+
+```bash
+CONFIG_DIR="${CLAUDE_PLUGIN_DATA:-$HOME/.al}"
+CONFIG_FILE="$CONFIG_DIR/config.json"
+mkdir -p "$CONFIG_DIR"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+  PROJECTS_ROOT_INPUT="${PROJECTS_ROOT_INPUT:-$HOME/Projects}"
+  node -e '
+    const fs = require("fs");
+    const file = process.argv[1];
+    const projectsRoot = process.argv[2];
+    fs.writeFileSync(file, JSON.stringify({
+      projects_root: projectsRoot,
+      modules: { core: true, deep: false, session: false }
+    }, null, 2) + "\n");
+  ' "$CONFIG_FILE" "$PROJECTS_ROOT_INPUT"
+fi
+
+CONFIG_TMP="$(mktemp "$CONFIG_DIR/config.XXXXXX")"
+node -e '
+  const fs = require("fs");
+  const [file, out, core, deep, session] = process.argv.slice(1);
+  const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
+  cfg.modules = {
+    ...(cfg.modules || {}),
+    core: core === "true",
+    deep: deep === "true",
+    session: session === "true"
+  };
+  fs.writeFileSync(out, JSON.stringify(cfg, null, 2) + "\n");
+' "$CONFIG_FILE" "$CONFIG_TMP" "$RUN_CORE" "$RUN_DEEP" "$RUN_SESSION"
+mv "$CONFIG_TMP" "$CONFIG_FILE"
+```
 
 ### Step 3: Core scan (no interaction, no scoring yet)
 
@@ -52,6 +102,10 @@ flow, use the env-var path so the scanner auto-discovers every git repo under
 `PROJECTS_ROOT`:
 
 ```bash
+CONFIG_FILE="${CLAUDE_PLUGIN_DATA:-$HOME/.al}/config.json"
+PROJECTS_ROOT="$(jq -er '.projects_root' "$CONFIG_FILE")"
+RUN_DEEP="$(jq -r '.modules.deep // false' "$CONFIG_FILE")"
+RUN_SESSION="$(jq -r '.modules.session // false' "$CONFIG_FILE")"
 AL_DIR="${CLAUDE_PLUGIN_ROOT}"
 RUN_ROOT="${CLAUDE_PLUGIN_DATA:-$HOME/.al}/runs"
 mkdir -p "$RUN_ROOT"
@@ -74,11 +128,12 @@ sessions on the same machine don't overwrite each other's runs.
 
 ### Step 3b: Extended analyzers (conditional)
 
-If **Deep** was selected in Step 1, run the Deep Analysis flow now (see
-"Deep Analysis" section further below) to produce `$RUN_DIR/deep.jsonl`.
+If `RUN_DEEP` read from `${CLAUDE_PLUGIN_DATA}/config.json` is `true`, run
+the Deep Analysis flow now (see "Deep Analysis" section further below) to
+produce `$RUN_DIR/deep.jsonl`.
 
-If **Session** was selected, run the Session Analysis flow to produce
-`$RUN_DIR/session.jsonl`.
+If `RUN_SESSION` read from `${CLAUDE_PLUGIN_DATA}/config.json` is `true`,
+run the Session Analysis flow to produce `$RUN_DIR/session.jsonl`.
 
 Neither produces output when not selected — that's fine, the merge step
 handles a missing file gracefully.
@@ -284,7 +339,7 @@ Run fixer against the filtered plan + resolved project dir. `$PROJECT_DIR`
 must be set by Step 5c — never reference it before that step has run.
 
 ```bash
-node "$AL_DIR/src/fixer.js" --items "1,2,3" --project-dir "$PROJECT_DIR" < $RUN_DIR/plan.filtered.json
+node "$AL_DIR/src/fixer.js" --items "1,2,3" --project-dir "$PROJECT_DIR" < "$RUN_DIR/plan.filtered.json"
 ```
 
 Present results:
@@ -306,12 +361,15 @@ delta is apples-to-apples. Core-only: just re-scan. With Deep or Session
 selected: re-run those analyzers too before merging and scoring.
 
 ```bash
+CONFIG_FILE="${CLAUDE_PLUGIN_DATA:-$HOME/.al}/config.json"
+PROJECTS_ROOT="$(jq -er '.projects_root' "$CONFIG_FILE")"
+RUN_DEEP="$(jq -r '.modules.deep // false' "$CONFIG_FILE")"
+RUN_SESSION="$(jq -r '.modules.session // false' "$CONFIG_FILE")"
 PROJECTS_ROOT="$PROJECTS_ROOT" bash "$AL_DIR/src/scanner.sh" > "$RUN_DIR/verify-scan.jsonl"
 
-# If Deep ran in the initial flow, re-run it here against the fixed repo
+# If RUN_DEEP is true, re-run Deep here against the fixed repo
 # (reuse the Deep Analysis section below, writing to verify-deep.jsonl).
-# Same for Session → verify-session.jsonl. Skip when the corresponding
-# module was not selected.
+# Same for RUN_SESSION → verify-session.jsonl.
 
 : > "$RUN_DIR/verify-combined.jsonl"
 cat "$RUN_DIR/verify-scan.jsonl" >> "$RUN_DIR/verify-combined.jsonl"
@@ -340,9 +398,10 @@ Show delta:
 
 Save report:
 ```bash
-mkdir -p ${CLAUDE_PLUGIN_DATA}/reports
-cp $RUN_DIR/verify-scores.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F).json
-cp $RUN_DIR/plan.json ${CLAUDE_PLUGIN_DATA}/reports/$(date +%F)-plan.json
+REPORT_DIR="${CLAUDE_PLUGIN_DATA:-$HOME/.al}/reports"
+mkdir -p "$REPORT_DIR"
+cp "$RUN_DIR/verify-scores.json" "$REPORT_DIR/$(date +%F).json"
+cp "$RUN_DIR/plan.json" "$REPORT_DIR/$(date +%F)-plan.json"
 ```
 
 Clean up temp files.
@@ -495,7 +554,7 @@ merge/score step (Step 3c). No scoring happens until `session.jsonl`
 ```bash
 node "$AL_DIR/src/session-analyzer.js" \
   --projects-root "$PROJECTS_ROOT" \
-  --session-root ~/.claude/projects \
+  --session-root "$HOME/.claude/projects" \
   --max-sessions 30 \
   > "$RUN_DIR/session.jsonl"
 ```
@@ -505,7 +564,7 @@ If the user opted into raw snippets:
 ```bash
 node "$AL_DIR/src/session-analyzer.js" \
   --projects-root "$PROJECTS_ROOT" \
-  --session-root ~/.claude/projects \
+  --session-root "$HOME/.claude/projects" \
   --max-sessions 30 \
   --include-raw-snippets \
   > "$RUN_DIR/session.jsonl"

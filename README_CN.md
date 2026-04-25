@@ -40,6 +40,12 @@ npx agentlint-ai init
 
 就这样。AgentLint 会扫描你的 repo，从 6 个核心维度打分（Deep / Session 两个扩展维度可选开启），告诉你哪里有问题，能自动修的直接修。
 
+`npx agentlint-ai init` 是从 npx 缓存里跑初始化。它会配置 Claude Code 插件，但不会把持久的 `agentlint` 命令留在 PATH 上。以后想在 shell 里直接跑 CLI，先装全局包：
+
+```bash
+npm install -g agentlint-ai
+```
+
 **其它安装路径**（npm 全局、curl、企业 / CI 无副作用模式）：看 **[INSTALL.md](./INSTALL.md)** —— 标准安装参考，写得短小专供 AI agent 直接读。
 
 **关于 `npm install -g` 的一个提醒**：npm 9+ 默认屏蔽 `postinstall` 的 stdout，所以 `npm install -g agentlint-ai` 跑完你看不到 logo 和环境检查。用上面的 `npx agentlint-ai init`，或者给 npm 命令加 `--foreground-scripts`。完整原因见 [INSTALL.md](./INSTALL.md)。
@@ -47,6 +53,7 @@ npx agentlint-ai init
 **没有 Claude Code？** CLI 独立可用：
 
 ```bash
+npm install -g agentlint-ai
 agentlint check
 agentlint fix W11
 agentlint setup --lang ts .
