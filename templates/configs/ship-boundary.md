@@ -30,7 +30,7 @@ Don't commit a file until you have answered the three decision-tree questions. I
 
 ## How this is enforced today
 
-- **`.husky/pre-commit`** scans staged files for personal paths and contributor-specific patterns when installed by `agentlint setup`.
+- **`.husky/pre-commit`** (TS / Node projects) or **`.pre-commit-config.yaml`** (Python projects) scans staged files for personal paths and contributor-specific patterns. `agentlint setup` installs whichever matches the project language.
 - **`.github/workflows/hygiene.yml`** re-runs personal-path and container-image-pin checks in CI.
 - **`.github/workflows/commit-message-scan.yml`** scans PR commit subjects and bodies for NEVER-tier patterns.
 - **`.github/workflows/gitleaks.yml`** and **`semgrep.yml`** catch leaked secrets and common insecure patterns.
