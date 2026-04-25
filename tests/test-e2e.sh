@@ -381,6 +381,7 @@ gamma_dir="${PROJECTS}/project-gamma"
 fixer_out="$(node "${FIXER}" "${plan_file}" \
   --project-dir "${gamma_dir}" \
   --items "$(jq -r '.items[] | select(.check_id == "F5" and .project == "project-gamma") | .id' "${plan_file}" | head -1)" \
+  --force-dirty \
   2>/dev/null)"
 
 if echo "${fixer_out}" | jq -e '.executed[0].status == "fixed"' >/dev/null 2>&1; then
@@ -411,6 +412,7 @@ if [ -n "${i5_id}" ]; then
   i5_out="$(node "${FIXER}" "${plan_file}" \
     --project-dir "${gamma_dir}" \
     --items "${i5_id}" \
+    --force-dirty \
     2>/dev/null)"
   if echo "${i5_out}" | jq -e '.executed[0].status == "fixed"' >/dev/null 2>&1; then
     pass "I5 auto-fix executed on gamma"
@@ -436,6 +438,7 @@ if [ -n "${f1_id}" ]; then
   node "${FIXER}" "${plan_file}" \
     --project-dir "${PROJECTS}/project-beta" \
     --items "${f1_id}" \
+    --force-dirty \
     >/dev/null 2>&1
   if [ -f "${PROJECTS}/project-beta/CLAUDE.md" ]; then
     pass "F1 assisted fix created CLAUDE.md for beta"
@@ -517,7 +520,8 @@ fi
 # not abort the script before we inspect the JSON output.
 invalid_fixer="$(echo '{"items":[{"id":1,"check_id":"F5","fix_type":"auto"}]}' | node "${FIXER}" \
   --project-dir "${PROJECTS}/project-alpha" \
-  --items "999" 2>/dev/null || true)"
+  --items "999" \
+  --force-dirty 2>/dev/null || true)"
 if echo "${invalid_fixer}" | jq -e '.executed[0].status == "failed"' >/dev/null 2>&1; then
   pass "fixer handles invalid item ID gracefully"
 else

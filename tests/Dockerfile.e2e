@@ -84,7 +84,7 @@ CMD ["bash", "-c", "\
     echo '--- 7. Fixer: auto-fix on empty-project ---'; \
     f1_id=$(jq -r '.items[] | select(.check_id==\"F1\" and .project==\"empty-project\") | .id' /tmp/plan.json | head -1); \
     if [ -n \"$f1_id\" ]; then \
-      node src/fixer.js /tmp/plan.json --project-dir /home/testuser/Projects/empty-project --items $f1_id > /tmp/fix.json 2>/dev/null; \
+      node src/fixer.js /tmp/plan.json --project-dir /home/testuser/Projects/empty-project --items $f1_id --force-dirty > /tmp/fix.json 2>/dev/null; \
       test -f /home/testuser/Projects/empty-project/CLAUDE.md && echo 'PASS: F1 created CLAUDE.md' || { echo 'FAIL: CLAUDE.md not created'; exit 1; }; \
     else \
       echo 'SKIP: F1 not in plan for empty-project'; \
