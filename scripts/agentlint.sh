@@ -272,9 +272,25 @@ USAGE
       local hint_linux="$4"
       local hint_win="$5"
       if command -v "$name" >/dev/null 2>&1; then
+        # Smoke-test: a binary on PATH may still be broken (corrupted,
+        # wrong arch, missing shared lib). Require the version command
+        # to exit 0 AND emit non-empty output before declaring OK.
         local ver
-        ver="$(eval "$version_cmd" 2>/dev/null | head -1 || echo "version unknown")"
-        printf '  \033[32m✓\033[0m %-8s  %s\n' "$name" "$ver"
+        local rc
+        ver="$(eval "$version_cmd" 2>/dev/null | head -1)"
+        rc=$?
+        if [ "$rc" -ne 0 ] || [ -z "$ver" ]; then
+          missing=$((missing + 1))
+          printf '  \033[31m✗\033[0m %-8s  on PATH but broken (exit=%d, no version output)\n' "$name" "$rc"
+          case "$platform" in
+            Darwin) printf '            reinstall: %s\n' "$hint_mac" ;;
+            Linux)  printf '            reinstall: %s\n' "$hint_linux" ;;
+            MINGW*|MSYS*|CYGWIN*) printf '            reinstall: %s\n' "$hint_win" ;;
+            *)      printf '            reinstall: %s\n' "$hint_linux" ;;
+          esac
+        else
+          printf '  \033[32m✓\033[0m %-8s  %s\n' "$name" "$ver"
+        fi
       else
         missing=$((missing + 1))
         printf '  \033[31m✗\033[0m %-8s  not found on PATH\n' "$name"
