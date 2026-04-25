@@ -2,6 +2,118 @@
 
 ## Unreleased
 
+## v1.1.1 (2026-04-25)
+
+Patch release — 29 fixes following v1.1.0's contract-correctness pass. The
+headline theme is completing the same-basename multi-project migration:
+two repos named `app` under different parents no longer collide silently
+anywhere in the pipeline (scanner → scorer → plan-generator → /al filter →
+Deep → Session → fixer).
+
+### You can now…
+
+- **Scan two projects with the same basename** (`org1/app` + `org2/app`)
+  and see them as distinct buckets everywhere. Previously collapsed into
+  one entry; findings averaged or silently lost. (#162, #163, #165, #168)
+- **Run `agentlint doctor`** to preflight your environment — checks Node
+  version, jq, git, plugin install path, common config surprises. (#155)
+- **Pass comma-separated check IDs**: `agentlint fix W11,F5,S1`. (#158)
+- **Install via `npx agentlint-ai init`** (now the documented primary
+  path) or `--ignore-scripts` for zero postinstall side effects. (#149)
+- **Trust CI accuracy gates to fail closed** — missing corpus or > 10%
+  scanner failures now fail the build instead of silently passing. (#161)
+- **Trust `agentlint fix` exit codes** — non-zero when any item failed,
+  not always 0 as before. (#166)
+- **Trust `setup --protect`** to fail loud when the branch-protection
+  helper is missing, instead of claiming protection was applied. (#166)
+- **Trust the GitHub Action to fail closed** on plan errors +
+  invalid `--fail-below`. (#150)
+- **Discover nested git worktrees** (`.git` files, not just `.git`
+  dirs) under `PROJECTS_ROOT`. (#168)
+
+### Fixed — CLI
+
+- `agentlint fix` without a check id fails fast with a clear message
+  instead of crashing. (#151)
+- `setup` requires values on `--flag VALUE`; non-destructive by default.
+  (#153)
+- F5 reference resolution aligned with scanner behavior. (#154)
+
+### Fixed — /al
+
+- Creates `RUN_DIR` parent before mktemp. (#143)
+- Resolves `$PROJECT_DIR` before fixer invocation. (#145)
+- Filters top-level `.items` array (not just the grouped display). (#148)
+- Scores **once** after Deep/Session merge, not before. (#156)
+- Session section position + Deep per-project filenames via path hash.
+  (#157, #168)
+- Step 3b Deep flow uses `project_path` directly — no `find + grep
+  basename` resolution. (#168)
+
+### Fixed — Session / Deep
+
+- "Ran, no issue" sentinels now flip `score_scope` to `core+extended`
+  on clean repos, and emit explicit `project: null` + `project_path: null`
+  so scorer never creates a phantom `byProject['unknown']` bucket.
+  (#160, #168)
+- SS1 (Repeated instructions) attributes per-project instead of
+  hardcoded `'global'`; SS2 (Ignored rules) hit key is absolute path,
+  not basename. (#168)
+- Deep `--format-result` rejects check IDs outside `{D1, D2, D3}`
+  (instead of silently defaulting to D1). (#159)
+
+### Fixed — scanner
+
+- Resolves symlinks (npm global-install paths), tilde-expands
+  `PROJECTS_ROOT='~/Projects'` literals, guards empty project arrays on
+  bash 3.2 (macOS). (#164)
+- Auto-discovery now matches both `.git` directories AND `.git` files,
+  so nested git worktrees are no longer missed. (#168)
+
+### Fixed — CI / release gates
+
+- Accuracy workflow: `ALL_CHECKS` derived from `evidence.json` instead of
+  hardcoded array; fails closed on missing corpus + scanner failure
+  threshold; scanner loop parallelized (xargs -P 8) to fit the 60-min
+  job timeout. (#142, #161)
+- Full `npm test` runs on Linux (not just a subset). (#144)
+- E2B gate treats `PARTIAL` as `FAILURE`. (#147)
+- GitHub Action fails closed on plan errors + validates `--fail-below`
+  range. (#150)
+- `package.json` declares `engines.node >= 20` to match docs +
+  installer. (#152)
+- Terminal reporter score line shows `(core)` vs `(core+extended)`
+  suffix, matching Markdown / HTML outputs. (#152)
+
+### Fixed — tests
+
+- `tests/test-install-script.sh` replaces `grep -c … \|\| echo 0`
+  false-green anti-pattern with safe capture. (#168)
+
+### Docs
+
+- Privacy FAQ replaced with per-mode data-flow table (Default / Deep /
+  Session modes clearly labeled). (#146)
+- `INSTALL.md` added as canonical install reference; README links to it
+  and documents the postinstall side-effect design. (#149)
+
+### Dev infrastructure
+
+- New `test-required` workflow gates `feat/fix` PRs on paired `test`
+  commits (opt-out via PR body checkbox). (#167)
+
+### Dependencies
+
+- `aquasecurity/trivy-action` bump. (#169)
+- `actions/download-artifact` 4.3.0 → 8.0.1. (#170)
+
+### Known follow-ups
+
+- SS4 (Missing rule suggestions) still emits `project: 'global'` —
+  deferred; narrowing requires separate analysis.
+- `corpus-v1` release published (53 MB, 4533 public repos) as the
+  canonical benchmark dataset for the accuracy gate.
+
 ## v1.1.0 (2026-04-24)
 
 Minor bump — the default score number changes for most repos because
