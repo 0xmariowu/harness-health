@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/_shared-push.sh" ]]; then
+  source "$SCRIPT_DIR/_shared-push.sh"
+elif [[ -f "$SCRIPT_DIR/../_shared-push.sh" ]]; then
+  source "$SCRIPT_DIR/../_shared-push.sh"
+else
+  echo "error: _shared-push.sh is required by pre-push template" >&2
+  exit 1
+fi
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+if [[ -f "$PROJECT_ROOT/package.json" ]] && \
+   node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.exit(d.scripts&&d.scripts.test?0:1)" \
+   "$PROJECT_ROOT/package.json"; then
+  (cd "$PROJECT_ROOT" && npm test)
+  exit 0
+fi
+
+if [[ -f "$PROJECT_ROOT/pyproject.toml" || -f "$PROJECT_ROOT/requirements.txt" || -f "$PROJECT_ROOT/setup.py" ]]; then
+  (cd "$PROJECT_ROOT" && pytest)
+  exit 0
+fi
+
+echo "no test command"
