@@ -846,14 +846,21 @@ function buildS3Findings(sessions) {
   const projectStats = new Map();
 
   for (const session of sessions) {
-    const project = session.project || 'global';
+    const project = session.project_path ? session.project : null;
+    const projectPath = session.project_path || null;
+    const projectKey = projectPath || `global:${session.project || 'global'}`;
     const friction = session.friction;
     totalFriction += friction;
     totalSessions += 1;
-    const current = projectStats.get(project) || { project, friction: 0, sessions: 0 };
+    const current = projectStats.get(projectKey) || {
+      project,
+      project_path: projectPath,
+      friction: 0,
+      sessions: 0,
+    };
     current.friction += friction;
     current.sessions += 1;
-    projectStats.set(project, current);
+    projectStats.set(projectKey, current);
   }
 
   if (totalSessions === 0) return [];
@@ -866,16 +873,18 @@ function buildS3Findings(sessions) {
     if (avg > globalAverage && stat.friction > 0) {
       findings.push({
         project: stat.project,
+        project_path: stat.project_path,
         dimension: 'session',
         check_id: 'SS3',
         name: 'Friction hotspots',
         measured_value: {
           project: stat.project,
+          project_path: stat.project_path,
           friction_count: stat.friction,
           session_count: stat.sessions,
         },
         score: 0,
-        detail: `Above-average friction in ${stat.project}: ${avg.toFixed(2)} corrections/session (global ${globalAverage.toFixed(2)})`,
+        detail: `Above-average friction in ${stat.project || 'global'}: ${avg.toFixed(2)} corrections/session (global ${globalAverage.toFixed(2)})`,
         evidence_id: 'SS3',
       });
     }

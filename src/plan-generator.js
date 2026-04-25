@@ -153,9 +153,13 @@ function inferSeverity(score) {
   return 'low';
 }
 
-function inferFixType(checkId, score) {
+function inferFixType(checkId, score, evidenceRecord = {}) {
   if (score >= 0.8 || !Number.isFinite(score)) {
     return null;
+  }
+
+  if (evidenceRecord.dimension === 'session' && Object.prototype.hasOwnProperty.call(evidenceRecord, 'fix_type')) {
+    return evidenceRecord.fix_type;
   }
 
   const registered = FIX_REGISTRY[checkId];
@@ -272,7 +276,7 @@ function normalizeRecord(rawRecord, projectHint, evidence) {
     dimension,
     name,
     severity: inferSeverity(score),
-    fix_type: inferFixType(checkId, score),
+    fix_type: inferFixType(checkId, score, evidenceRecord),
     description: inferDescription({ ...rawRecord, check_id: checkId, detail: rawRecord.detail }),
     evidence: evidenceRecord.evidence_text || '',
     measured_value: rawRecord.measured_value ?? rawRecord.measured ?? null,
@@ -298,7 +302,7 @@ function buildItemsFromDimensionState(dimensionState, projectHint, evidence, tem
         projectHint,
         evidence,
       );
-      if (!normalized || !normalized.fix_type) continue;
+      if (!normalized || (!normalized.fix_type && normalized.dimension !== 'session')) continue;
       // Dedupe by project_path (absolute) when available — basename alone
       // collides when two repos with the same dir name live under different
       // parents. Fall back to basename for records without a path (legacy
@@ -340,7 +344,7 @@ function extractChecks(parsed, evidence, templates) {
   if (Array.isArray(parsed.checks)) {
     for (const record of parsed.checks) {
       const normalized = normalizeRecord(record, 'unknown', evidence);
-      if (!normalized || !normalized.fix_type) continue;
+      if (!normalized || (!normalized.fix_type && normalized.dimension !== 'session')) continue;
       // Dedupe by project_path (absolute) when available — basename alone
       // collides when two repos with the same dir name live under different
       // parents. Fall back to basename for records without a path (legacy
@@ -362,7 +366,9 @@ function sortItems(items) {
   const sorted = items.slice().sort((left, right) => {
     const severitySort = SEVERITY_ORDER[left.severity] - SEVERITY_ORDER[right.severity];
     if (severitySort !== 0) return severitySort;
-    const fixTypeSort = FIX_TYPE_ORDER[left.fix_type] - FIX_TYPE_ORDER[right.fix_type];
+    const leftFixOrder = left.fix_type == null ? 3 : (FIX_TYPE_ORDER[left.fix_type] ?? 3);
+    const rightFixOrder = right.fix_type == null ? 3 : (FIX_TYPE_ORDER[right.fix_type] ?? 3);
+    const fixTypeSort = leftFixOrder - rightFixOrder;
     if (fixTypeSort !== 0) return fixTypeSort;
     if (left.project < right.project) return -1;
     if (left.project > right.project) return 1;
@@ -386,7 +392,7 @@ function sortItems(items) {
       description: item.description,
       evidence: item.evidence,
       fix_action: item.fix_action,
-      fix_command: `agentlint fix ${item.check_id}`,
+      fix_command: item.fix_type ? `agentlint fix ${item.check_id}` : null,
       measured_value: item.measured_value,
       reference_value: item.reference_value,
       score: item.score,

@@ -249,6 +249,13 @@ async function run() {
   const byProject = {};
 
   const targets = { global: globalState, byProject };
+  let validRecordCount = 0;
+
+  function acceptRecord(record) {
+    if (!record) return;
+    validRecordCount += 1;
+    mergeRecord(targets, record, checkWeights, dimensionsConfig, thresholds);
+  }
 
   rl.on('line', (line) => {
     const text = line.trim();
@@ -267,7 +274,7 @@ async function run() {
       for (const raw of parsed) {
         if (!raw || typeof raw !== 'object') continue;
         const record = buildRecord(raw, thresholds, dimensionsConfig);
-        if (record) mergeRecord(targets, record, checkWeights, dimensionsConfig, thresholds);
+        acceptRecord(record);
       }
       return;
     }
@@ -278,16 +285,21 @@ async function run() {
       for (const raw of parsed.checks) {
         if (!raw || typeof raw !== 'object') continue;
         const record = buildRecord(raw, thresholds, dimensionsConfig);
-        if (record) mergeRecord(targets, record, checkWeights, dimensionsConfig, thresholds);
+        acceptRecord(record);
       }
       return;
     }
 
     const record = buildRecord(parsed, thresholds, dimensionsConfig);
-    if (record) mergeRecord(targets, record, checkWeights, dimensionsConfig, thresholds);
+    acceptRecord(record);
   });
 
   await new Promise((resolve) => rl.on('close', resolve));
+
+  if (validRecordCount === 0) {
+    process.stderr.write('scorer.js: no valid scan records — refusing to compute score\n');
+    process.exit(1);
+  }
 
   const dimensions = finalizeDimensions(globalState, dimensionsConfig);
 
