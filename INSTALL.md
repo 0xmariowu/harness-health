@@ -2,6 +2,10 @@
 
 > **For AI coding agents**: this file is the canonical install reference. Read once, act. Decision tables, not narrative.
 
+## Side effects
+
+`npm install -g agentlint-ai` writes to `~/.claude/` and registers the `/al` Claude Code plugin. To install without these side effects, use `npm install -g --ignore-scripts agentlint-ai` (also covered in Failure modes for read-only `~/.claude` environments).
+
 ## Default
 
 ```bash
@@ -22,13 +26,30 @@ Success signal: `agentlint --version` prints a version string.
 
 ## GitHub Action
 
+Complete copy-paste workflow:
+
 ```yaml
-- uses: 0xmariowu/AgentLint@v1
-  with:
-    fail-below: 80
+name: AgentLint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  agentlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: 0xmariowu/AgentLint@v1
+        with:
+          fail-below: 80
 ```
 
-`@v1` is a moving major-version tag. Pin to a specific release (e.g. `@v1.1.5`) if you need reproducibility.
+`@v1` is a moving major-version tag. Pin to a specific release (e.g. `@v1.1.5`) if you need reproducibility. The `actions/checkout@v4` step is required — without it, AgentLint scans an empty workspace.
 
 ## After install
 
@@ -44,7 +65,7 @@ In Claude Code, run `/al` for the interactive scan-fix-report flow.
 
 ```bash
 agentlint --version
-agentlint check --help
+agentlint help
 ```
 
 ## Uninstall

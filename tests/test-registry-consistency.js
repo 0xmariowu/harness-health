@@ -1530,7 +1530,7 @@ runTest('/al shell snippets quote paths with spaces and special characters', () 
 
 runTest('INSTALL.md stays short and AI-native', () => {
   const install = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
-  assert.ok(install.split(/\r?\n/).length < 80,
+  assert.ok(install.split(/\r?\n/).length < 100,
     'INSTALL.md must stay short enough for agents to read once and act');
   for (const needle of [
     'For AI coding agents',
@@ -1634,6 +1634,78 @@ runTest('copilot-instructions.md product summary stays in sync with evidence.jso
   }
   assert.match(src, /58 (?:total|checks?)|51 (?:deterministic )?(?:core )?checks?|6 core dimensions/i,
     'copilot-instructions.md must reference current check/dimension counts');
+});
+
+runTest('public docs GitHub Action snippets include actions/checkout', () => {
+  const USER_FACING_DOCS = [
+    'README.md',
+    'README_CN.md',
+    'INSTALL.md',
+    path.join('docs', 'content', 'intro.md'),
+  ];
+  const actionRefPattern = /0xmariowu\/(?:AgentLint|agent-lint)@[A-Za-z0-9._/-]+/;
+  const fencedBlockPattern = /^```([A-Za-z0-9_-]+)[^\n]*\n([\s\S]*?)^```/gm;
+
+  for (const file of USER_FACING_DOCS) {
+    const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    let match;
+    while ((match = fencedBlockPattern.exec(src)) !== null) {
+      const language = match[1].toLowerCase();
+      if (language !== 'yaml' && language !== 'yml') continue;
+
+      const snippet = match[2];
+      if (!actionRefPattern.test(snippet)) continue;
+
+      assert.match(snippet, /actions\/checkout/,
+        `${file}: GitHub Action snippet references AgentLint without actions/checkout:\n` +
+        snippet.split(/\r?\n/).slice(0, 3).join('\n'));
+    }
+  }
+});
+
+runTest('INSTALL.md Verify section uses commands that actually exit 0', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
+  const verifyHeading = src.match(/^## Verify[ \t]*$/m);
+  assert.ok(verifyHeading,
+    'expected command missing: INSTALL.md must contain a ## Verify section with verifiable commands');
+
+  const sectionStart = verifyHeading.index;
+  const sectionRemainder = src.slice(sectionStart + verifyHeading[0].length);
+  const nextH2 = sectionRemainder.search(/\n##\s+/);
+  const verifySection = src.slice(
+    sectionStart,
+    nextH2 < 0 ? src.length : sectionStart + verifyHeading[0].length + nextH2,
+  );
+
+  assert.doesNotMatch(verifySection, /agentlint check --help/,
+    'broken command present: INSTALL.md Verify section must not include agentlint check --help');
+  assert.ok(verifySection.includes('agentlint --version'),
+    'expected command missing: INSTALL.md Verify section must include agentlint --version');
+  assert.ok(
+    verifySection.includes('agentlint help') ||
+      verifySection.includes('agentlint check --project-dir'),
+    'expected command missing: INSTALL.md Verify section must include agentlint help or agentlint check --project-dir',
+  );
+});
+
+runTest('INSTALL.md Side effects section is present and lists ~/.claude + --ignore-scripts', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'INSTALL.md'), 'utf8');
+  const sideEffectsHeading = src.match(/^## Side effects[ \t]*$/m);
+  assert.ok(sideEffectsHeading,
+    'Side effects header assertion failed: INSTALL.md must contain a line starting with ## Side effects');
+
+  const sectionStart = sideEffectsHeading.index;
+  const sectionRemainder = src.slice(sectionStart + sideEffectsHeading[0].length);
+  const nextH2 = sectionRemainder.search(/\n##\s+/);
+  const sideEffectsSection = src.slice(
+    sectionStart,
+    nextH2 < 0 ? src.length : sectionStart + sideEffectsHeading[0].length + nextH2,
+  );
+
+  assert.match(sideEffectsSection, /~\/\.claude\/?/,
+    '~/.claude assertion failed: INSTALL.md Side effects section must mention ~/.claude or ~/.claude/');
+  assert.ok(sideEffectsSection.includes('--ignore-scripts'),
+    '--ignore-scripts assertion failed: INSTALL.md Side effects section must mention --ignore-scripts');
 });
 
 process.stdout.write(`${passed}/${total} tests passed\n`);

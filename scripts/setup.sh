@@ -634,13 +634,24 @@ if [[ "$LANG" != "python" ]]; then
   chmod +x "$PROJECT/scripts/committer"
 
   # Husky hooks
+  copied=0
   safe_mkdir "$PROJECT/.husky"
   for hook in "$TEMPLATE_DIR/hooks/husky/"*; do
     [ -f "$hook" ] || continue
     hook_name="$(basename "$hook")"
     copy_template "$hook" "$PROJECT/.husky/$hook_name" ".husky/$hook_name"
     chmod +x "$PROJECT/.husky/$hook_name"
+    copied=$((copied+1))
   done
+  for helper in "$TEMPLATE_DIR/hooks/_shared.sh" "$TEMPLATE_DIR/hooks/_shared-push.sh"; do
+    [ -f "$helper" ] || continue
+    helper_name="$(basename "$helper")"
+    copy_template "$helper" "$PROJECT/.husky/$helper_name" ".husky/$helper_name"
+    chmod +x "$PROJECT/.husky/$helper_name"
+  done
+  if [[ "$copied" -eq 0 ]]; then
+    die "no husky hooks generated; refusing to set core.hooksPath. check templates/hooks/husky/ exists and has files"
+  fi
 
   # Commitlint config — use .cjs if project has "type": "module"
   if python3 -c "import json,sys; sys.exit(0 if json.load(open('$PROJECT/package.json')).get('type')=='module' else 1)" 2>/dev/null; then
@@ -785,12 +796,12 @@ if [[ "$LANG" == "python" ]]; then
   info "Python: commit-gate via pre-commit (no husky / no npm)"
 elif [[ "$LANG" == "node" ]] && [[ ! -f package.json ]]; then
   # Node projects without package.json: use git config directly
-  git config core.hooksPath .husky
+  [[ $copied -gt 0 ]] && git config core.hooksPath .husky
   info "hooks activated via core.hooksPath (no npm)"
 elif [[ "$NO_INSTALL" == true ]]; then
   # User asked us not to touch their install state. Wire husky via
   # git config so hooks still fire once they run `$PKG_MANAGER install`.
-  git config core.hooksPath .husky
+  [[ $copied -gt 0 ]] && git config core.hooksPath .husky
   info "hooks activated via core.hooksPath (--no-install; run '$PKG_MANAGER install' to complete setup)"
 else
   # Run the detected PM's install. Modern monorepo PMs (pnpm / bun / yarn
@@ -800,15 +811,15 @@ else
   if command -v "$PKG_MANAGER" >/dev/null 2>&1; then
     if ! pm_install; then
       warn "$PKG_MANAGER install failed — wiring husky via git core.hooksPath as fallback"
-      git config core.hooksPath .husky
+      [[ $copied -gt 0 ]] && git config core.hooksPath .husky
     fi
   else
     warn "$PKG_MANAGER not on PATH — wiring husky via git core.hooksPath (install $PKG_MANAGER later to enable lint-staged / commitlint)"
-    git config core.hooksPath .husky
+    [[ $copied -gt 0 ]] && git config core.hooksPath .husky
   fi
   npx --no -- husky 2>/dev/null || true
   # Fallback: if husky didn't set hooksPath, set it directly
-  if ! git config core.hooksPath >/dev/null 2>&1; then
+  if [[ $copied -gt 0 ]] && ! git config core.hooksPath >/dev/null 2>&1; then
     git config core.hooksPath .husky
   fi
   info "husky activated"

@@ -64,6 +64,7 @@ PY
     python3 - "$result_file" "$tmp_repo" <<'PY'
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -81,6 +82,26 @@ if claude_path.exists():
     content = claude_path.read_text(errors="replace")
     has_placeholder = "[your project" in content.lower() or "{{" in content
     checks["no_placeholder"] = {"pass": not has_placeholder, "value": "ok" if not has_placeholder else "has placeholder"}
+
+# P0-3: husky hooks must be generated + executable, core.hooksPath must point at .husky
+for hook in ["pre-commit", "pre-push", "commit-msg"]:
+    hook_path = os.path.join(repo, ".husky", hook)
+    exists = os.path.isfile(hook_path)
+    is_exec = exists and os.access(hook_path, os.X_OK)
+    checks[f"husky_{hook}_exists"] = {"pass": exists, "value": "present" if exists else "missing"}
+    checks[f"husky_{hook}_executable"] = {"pass": is_exec, "value": "exec" if is_exec else "not-executable"}
+
+try:
+    hooks_path = subprocess.check_output(
+        ["git", "-C", repo, "config", "--get", "core.hooksPath"],
+        text=True,
+    ).strip()
+except subprocess.CalledProcessError:
+    hooks_path = ""
+checks["core_hooksPath_husky"] = {
+    "pass": hooks_path in (".husky", ".husky/_"),
+    "value": hooks_path or "(unset)",
+}
 
 Path(result_path).write_text(json.dumps({"checks": checks, "data": {"repo": repo}}, indent=2))
 print("Checks:", {k: v["pass"] for k, v in checks.items()})

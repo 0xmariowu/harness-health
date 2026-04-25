@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/_shared.sh" ]]; then
+  source "$SCRIPT_DIR/_shared.sh"
+elif [[ -f "$SCRIPT_DIR/../_shared.sh" ]]; then
+  source "$SCRIPT_DIR/../_shared.sh"
+else
+  echo "error: _shared.sh is required by hook templates" >&2
+  exit 1
+fi
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+AUTHOR_EMAIL="$(git config user.email 2>/dev/null || true)"
+
+if [[ -z "$AUTHOR_EMAIL" ]]; then
+  fail_with_help \
+    "git author email is missing" \
+    "author-whitelist gate" \
+    "Set git config user.email before committing."
+fi
+
+# Placeholder allowlist. Replace these with repo-approved author emails, or
+# configure multiple values with:
+#   git config --add hooks.allowedAuthorEmail you@example.com
+AUTHOR_EMAIL_ALLOWLIST=(
+  "you@example.com"
+  "teammate@example.com"
+)
+
+while IFS= read -r allowed; do
+  [[ -n "$allowed" ]] && AUTHOR_EMAIL_ALLOWLIST+=("$allowed")
+done < <(git config --get-all hooks.allowedAuthorEmail 2>/dev/null || true)
+
+author_allowed=false
+for allowed in "${AUTHOR_EMAIL_ALLOWLIST[@]}"; do
+  if [[ "$AUTHOR_EMAIL" == "$allowed" ]]; then
+    author_allowed=true
+    break
+  fi
+done
+
+if [[ "$author_allowed" != true ]]; then
+  fail_with_help \
+    "author email is not whitelisted" \
+    "author-whitelist gate" \
+    "Add $AUTHOR_EMAIL to hooks.allowedAuthorEmail or edit .husky/pre-commit."
+fi
+
+STAGED_FILES=()
+while IFS= read -r -d '' file; do
+  STAGED_FILES+=("$file")
+done < <(git diff --cached --name-only -z --diff-filter=ACM)
+
+if [[ ${#STAGED_FILES[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+SCAN_FILES=()
+for file in "${STAGED_FILES[@]}"; do
+  case "$file" in
+    .gitleaks.toml|.husky/*|scripts/sanitize.sh|*'.md' ) continue ;;
+    *) SCAN_FILES+=("$file") ;;
+  esac
+done
+
+if [[ -x "$PROJECT_ROOT/scripts/sanitize.sh" ]]; then
+  if ! (cd "$PROJECT_ROOT" && bash scripts/sanitize.sh); then
+    fail_with_help \
+      "private-pattern scan failed" \
+      "codename / private-pattern scan" \
+      "Resolve private pattern matches before committing."
+  fi
+else
+  # No repository sanitize script found; skipping codename/private-pattern scan.
+  :
+fi
+
+if [[ ${#SCAN_FILES[@]} -gt 0 ]]; then
+  if command -v gitleaks >/dev/null 2>&1; then
+    if ! (cd "$PROJECT_ROOT" && gitleaks protect --staged --verbose); then
+      fail_with_help \
+        "potential secret detected in staged content" \
+        "secret scan (gitleaks)" \
+        "Remove leaked values from staged files, then amend and retry."
+    fi
+  else
+    SECRET_PATTERNS='(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----)'
+    if git diff --cached --no-ext-diff --unified=0 -- "${SCAN_FILES[@]}" \
+      | grep -E '^\+' \
+      | grep -vE '^\+\+\+' \
+      | grep -Eq "$SECRET_PATTERNS"; then
+      fail_with_help \
+        "potential secret detected in staged content" \
+        "secret scan (built-in patterns)" \
+        "Remove leaked AWS, GitHub, or private key material before committing."
+    fi
+  fi
+fi
+
+if [[ -f "$PROJECT_ROOT/package.json" ]] && command -v node >/dev/null 2>&1 && \
+   node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.exit(d.scripts&&d.scripts.lint?0:1)" \
+   "$PROJECT_ROOT/package.json"; then
+  if ! (cd "$PROJECT_ROOT" && npm run lint); then
+    fail_with_help \
+      "npm run lint failed" \
+      "repo lint gate" \
+      "Fix lint errors and rerun commit."
+  fi
+fi

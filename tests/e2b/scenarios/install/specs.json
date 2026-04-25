@@ -64,9 +64,20 @@
         "files_exist": [
           ".github/workflows",
           "CLAUDE.md",
-          "SECURITY.md"
+          "SECURITY.md",
+          ".husky/pre-commit",
+          ".husky/pre-push",
+          ".husky/commit-msg"
         ],
-        "claude_md_has_no_placeholder": true
+        "claude_md_has_no_placeholder": true,
+        "files_executable": [
+          ".husky/pre-commit",
+          ".husky/pre-push",
+          ".husky/commit-msg"
+        ],
+        "git_config_check": {
+          "core.hooksPath": ".husky"
+        }
       }
     },
     {
