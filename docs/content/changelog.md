@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+## v1.1.2 (2026-04-25)
+
+Patch release closing the two known follow-ups from v1.1.1.
+
+### You can now…
+
+- **Trust the accuracy CI gate to fail closed on missing labels.** Any
+  core check with 0 labeled repos in `labels-full.jsonl` now exits 1
+  instead of silently passing. Override per-check with
+  `ACCURACY_ALLOW_MISSING=<csv>` for legitimately unmeasurable checks.
+  (#180, closes #177)
+
+### Fixed
+
+- **SS4 (Missing rule suggestions)** now attributes per-project instead
+  of hardcoding `project: 'global'`. Multi-project session runs no longer
+  produce a phantom `byProject['global']` bucket alongside real repository
+  buckets. Mirrors the SS1/SS2 fix from #168. (#179, closes #178)
+- **18 previously unlabeled core checks now have deterministic labels**:
+  C6, F8, F9, H1–H8, I8, S9, W7–W11. `labels-full.jsonl` rows now carry
+  51 label keys (33 → 51), all 4533 rows preserved. New
+  `tests/accuracy/_merge-labels.js` is the canonical merger for future
+  label additions. (#180)
+- **S9 (no personal email in git history)** explicitly marked `na` for
+  the corpus snapshot (no `.git/` available); allow-listed in
+  `accuracy.yml` via `ACCURACY_ALLOW_MISSING=S9`. (#180)
+
+### Production effect
+
+Future PRs adding a core check without labels will fail CI loudly. The
+silent-skip path that allowed v1.1.0–v1.1.1 to ship 18 unmeasured checks
+is closed.
+
 ## v1.1.1 (2026-04-25)
 
 Patch release — 29 fixes following v1.1.0's contract-correctness pass. The
