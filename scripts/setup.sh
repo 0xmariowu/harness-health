@@ -659,7 +659,7 @@ fi
 
 # Copy language-specific .gitignore if project doesn't have one
 if [[ ! -f .gitignore ]]; then
-  cp "$TEMPLATE_DIR/configs/$LANG/.gitignore" .gitignore
+  cp "$TEMPLATE_DIR/configs/$LANG/gitignore" .gitignore
   info ".gitignore (from $LANG template)"
 else
   # Loose match — accept any form of node_modules entry (with/without slash, glob prefix, etc.)

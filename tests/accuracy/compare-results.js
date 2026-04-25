@@ -108,6 +108,7 @@ function wilsonInterval(successes, total, z = 1.96) {
 const labels = loadLabels();
 const scanner = loadScannerResults();
 const labeledReposByCheck = countLabeledRepos(labels);
+const labeledRepos = Object.keys(labels).length;
 
 const labelRepos = new Set(Object.keys(labels));
 const scannerRepos = new Set(Object.keys(scanner));
@@ -161,6 +162,17 @@ for (const labelRepo of Object.keys(labels)) {
   }
 }
 
+const minMatchedRepos = Math.ceil(0.9 * labeledRepos);
+let exitCode = 0;
+if (matchedRepos < 0.9 * labeledRepos) {
+  console.error(
+    `::error::Only ${matchedRepos} / ${labeledRepos} repos matched. ` +
+    `Threshold is 90% (>= ${minMatchedRepos}).`
+  );
+  console.error('        Likely scanner output empty or project naming drifted from labels.');
+  exitCode = 1;
+}
+
 // Calculate metrics
 const results = {};
 for (const check of ALL_CHECKS) {
@@ -181,6 +193,18 @@ for (const check of ALL_CHECKS) {
     accuracy_ci_low: accuracyCI.lower,
     accuracy_ci_high: accuracyCI.upper,
   };
+}
+
+const zeroMatchedCoreChecks = ALL_CHECKS.filter((check) =>
+  results[check].total === 0 && !ACCURACY_ALLOW_MISSING.has(check),
+);
+if (zeroMatchedCoreChecks.length > 0) {
+  console.error(
+    `::error::${zeroMatchedCoreChecks.length} core check(s) have total === 0 after matching: ` +
+    `${zeroMatchedCoreChecks.join(', ')}`
+  );
+  console.error('        Accuracy is unmeasurable for these checks; scanner output may be incomplete.');
+  exitCode = 1;
 }
 
 // Print table
@@ -275,7 +299,6 @@ fs.writeFileSync(jsonPath, JSON.stringify(outputJson, null, 2) + '\n');
 console.log(`\nResults saved to: ${jsonPath}`);
 
 // Regression check against baseline
-let exitCode = 0;
 if (baselinePath && fs.existsSync(baselinePath)) {
   const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
   console.log('\n=== REGRESSION CHECK ===');

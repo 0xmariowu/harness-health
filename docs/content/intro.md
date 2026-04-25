@@ -38,10 +38,9 @@ That's it. AgentLint scans your projects, scores them, shows what's wrong, and f
 Once installed, you can also use AgentLint from any shell:
 
 ```bash
-agentlint setup --lang python ~/Projects/my-repo   # bootstrap CI/hooks/templates
-agentlint check --project-dir ~/Projects/my-repo   # diagnose (51 core checks, 6 dimensions)
-agentlint fix   --project-dir ~/Projects/my-repo   # auto-fix issues found
-agentlint fix W11 --project-dir ~/Projects/my-repo # fix a specific check directly
+agentlint check                                    # diagnose (51 core checks, 6 dimensions)
+agentlint fix W11                                 # fix a specific check directly
+agentlint setup --lang ts .                       # bootstrap CI/hooks/templates
 ```
 
 **setup** installs the full AI-native stack: 12 CI workflows, git hooks, CLAUDE.md template, plan format, compliance tests.  

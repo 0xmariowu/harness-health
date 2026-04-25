@@ -19,7 +19,9 @@
 // (if it needs a handler). This test makes that requirement unambiguous.
 
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
@@ -177,6 +179,54 @@ runTest('accuracy compare-results.js fail-on-missing core checks with ACCURACY_A
     'compare-results.js must gate the missing-check fail path on core scope');
 });
 
+runTest('accuracy compare-results.js fails when fewer than 90% of labeled repos match scanner output', () => {
+  // Empty or drifted scanner output must not pass the accuracy gate just
+  // because every metric becomes unmeasurable.
+  const src = fs.readFileSync(
+    path.join(ROOT, 'tests', 'accuracy', 'compare-results.js'),
+    'utf8',
+  );
+  assert.match(src, /matchedRepos\s*<\s*0\.9\s*\*\s*labeledRepos/,
+    'compare-results.js must fail when matched repos are below 90% of labeled repos');
+  assert.match(src, /Only \$\{matchedRepos\} \/ \$\{labeledRepos\} repos matched/,
+    'compare-results.js must print a clear matched-repo threshold error');
+  assert.match(src, /Likely scanner output empty or project naming drifted from labels/,
+    'compare-results.js must explain the likely empty-output/project-name drift cause');
+});
+
+runTest('accuracy compare-results.js fails when matched core check totals are zero', () => {
+  // Labels-side coverage alone is not enough: a core check with 0 matched
+  // rows after scanner matching has no precision/recall denominator.
+  const src = fs.readFileSync(
+    path.join(ROOT, 'tests', 'accuracy', 'compare-results.js'),
+    'utf8',
+  );
+  assert.match(src, /zeroMatchedCoreChecks[\s\S]{0,200}results\[check\]\.total\s*===\s*0/,
+    'compare-results.js must detect core checks whose matched total === 0');
+  assert.match(src, /zeroMatchedCoreChecks[\s\S]{0,200}ACCURACY_ALLOW_MISSING\.has\(check\)/,
+    'matched-side zero-total gate must honor ACCURACY_ALLOW_MISSING');
+  assert.match(src, /core check\(s\) have total === 0 after matching/,
+    'compare-results.js must print a clear zero matched-total error');
+});
+
+runTest('package.json repository.url uses npm canonical git+https .git form', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.match(pkg.repository && pkg.repository.url, /^git\+https:\/\/.*\.git$/,
+    'package.json repository.url must use git+https://... .git form');
+});
+
+runTest('reporter.js report filenames include an HHMMSS time component', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'reporter.js'), 'utf8');
+  assert.match(src, /slice\(11,\s*19\)\.replace\(\s*\/:\/g,\s*['"]{2}\s*\)/,
+    'reporter.js must derive an HHMMSS time component for report filenames');
+  assert.match(src, /fileStamp\s*=\s*`\$\{date\}-\$\{time\}`/,
+    'reporter.js must append the time component to the date stamp');
+  assert.match(src, /`al-\$\{fileStamp\}\.html`/,
+    'reporter.js HTML filename must use the date+time stamp');
+  assert.match(src, /`al-\$\{fileStamp\}\.md`/,
+    'reporter.js Markdown filename must use the date+time stamp');
+});
+
 runTest('README "is my code sent" FAQ does not overclaim local-only', () => {
   // Prior wording answered "No. AgentLint runs locally." flat-out, which is
   // inaccurate: Deep (opt-in) sends selected entry files to a Claude
@@ -315,6 +365,35 @@ runTest('setup.sh validates flag values and is non-destructive by default', () =
     'setup.sh must use copy_guarded (or equivalent) to avoid overwriting existing files by default');
   assert.match(src, /--force/,
     'setup.sh must document a --force flag to allow explicit overwrite');
+});
+
+runTest('setup gitignore templates ship in npm package and install as .gitignore', () => {
+  const langs = ['ts', 'node', 'python'];
+  for (const lang of langs) {
+    const templatePath = path.join(ROOT, 'templates', 'configs', lang, 'gitignore');
+    assert.ok(fs.existsSync(templatePath),
+      `templates/configs/${lang}/gitignore must exist without a leading dot so npm ships it`);
+  }
+
+  const setup = fs.readFileSync(path.join(ROOT, 'scripts', 'setup.sh'), 'utf8');
+  assert.match(setup, /cp "\$TEMPLATE_DIR\/configs\/\$LANG\/gitignore" \.gitignore/,
+    'setup.sh must copy from configs/$LANG/gitignore to destination .gitignore');
+  assert.doesNotMatch(setup, /configs\/\$LANG\/\.gitignore/,
+    'setup.sh must not copy from configs/$LANG/.gitignore because npm strips that file');
+
+  const npmCache = fs.mkdtempSync(path.join(os.tmpdir(), 'agentlint-npm-cache-'));
+  const packJson = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, npm_config_cache: npmCache },
+  });
+  const pack = JSON.parse(packJson);
+  const files = new Set((pack[0] && pack[0].files || []).map((file) => file.path));
+  for (const lang of langs) {
+    const packagePath = `templates/configs/${lang}/gitignore`;
+    assert.ok(files.has(packagePath),
+      `npm pack must include ${packagePath}`);
+  }
 });
 
 runTest('fixer.js F5 reference resolution aligns with scanner semantics', () => {

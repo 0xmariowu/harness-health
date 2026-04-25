@@ -924,7 +924,10 @@ function main() {
   }
   const beforeScores = beforeFile ? readJson(beforeFile) : null;
   const plan = planFile ? readJson(planFile) : null;
-  const date = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const date = now.toISOString().split('T')[0];
+  const time = now.toISOString().slice(11, 19).replace(/:/g, '');
+  const fileStamp = `${date}-${time}`;
   let failBelow = null;
   if (failBelowPresent) {
     failBelow = Number(failBelowRaw);
@@ -941,22 +944,22 @@ function main() {
   if (outputDir || format === 'all' || format === 'md' || format === 'jsonl' || format === 'html' || format === 'sarif') {
     if (format === 'md' || format === 'all') {
       const md = generateMarkdownReport(scores, plan, date);
-      writeOutput(outputDir, `al-${date}.md`, md, 'Report');
+      writeOutput(outputDir, `al-${fileStamp}.md`, md, 'Report');
     }
 
     if (format === 'jsonl' || format === 'all') {
       const jsonl = generateJsonl(scores, date);
-      writeOutput(outputDir, `al-${date}.jsonl`, jsonl, 'Data');
+      writeOutput(outputDir, `al-${fileStamp}.jsonl`, jsonl, 'Data');
     }
 
     if (format === 'html' || format === 'all') {
       const html = generateHtmlReport(scores, beforeScores, plan, date);
-      writeOutput(outputDir, `al-${date}.html`, html, 'HTML');
+      writeOutput(outputDir, `al-${fileStamp}.html`, html, 'HTML');
     }
 
     if (format === 'sarif' || format === 'all') {
       const sarif = generateSarif(scores, plan, { sarifIncludeAll });
-      writeOutput(outputDir, `al-${date}.sarif`, JSON.stringify(sarif, null, 2), 'SARIF');
+      writeOutput(outputDir, `al-${fileStamp}.sarif`, JSON.stringify(sarif, null, 2), 'SARIF');
     }
   }
 
