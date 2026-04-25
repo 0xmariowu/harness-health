@@ -33,11 +33,11 @@ fi
 echo ""
 
 # Marketplace
-if claude plugin marketplace add 0xmariowu/agent-lint 2>&1 | grep -q "already on disk\|Successfully added"; then
+if claude plugin marketplace add 0xmariowu/AgentLint 2>&1 | grep -q "already on disk\|Successfully added"; then
   ok "AgentLint marketplace" "[registered]"
 else
   claude plugin marketplace remove agent-lint 2>/dev/null || true
-  claude plugin marketplace add 0xmariowu/agent-lint 2>/dev/null \
+  claude plugin marketplace add 0xmariowu/AgentLint 2>/dev/null \
     && ok "AgentLint marketplace" "[refreshed]" \
     || { warn "AgentLint marketplace" "[failed]"; PLUGIN_INSTALL_OK=false; }
 fi

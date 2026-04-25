@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: 0xmariowu/agent-lint@v1
+      - uses: 0xmariowu/AgentLint@v1
 ```
 
 This runs the default local-only core scan and does not fail the build on score
@@ -72,7 +72,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v4
-  - uses: 0xmariowu/agent-lint@v1
+  - uses: 0xmariowu/AgentLint@v1
     with:
       sarif-upload: 'true'
 ```

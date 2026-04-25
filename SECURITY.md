@@ -10,7 +10,7 @@
 
 ## Reporting a vulnerability
 
-If you find a security issue, please email **security@0xmariowu.dev** instead of opening a public issue. You can also use [GitHub's private vulnerability reporting](https://github.com/0xmariowu/agent-lint/security/advisories/new).
+If you find a security issue, please email **security@0xmariowu.dev** instead of opening a public issue. You can also use [GitHub's private vulnerability reporting](https://github.com/0xmariowu/AgentLint/security/advisories/new).
 
 **Response times:**
 - Critical (code execution, data leakage): 24 hours

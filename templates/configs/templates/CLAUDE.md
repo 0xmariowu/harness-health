@@ -33,7 +33,7 @@ Every guard in this repo belongs to one of three layers. Misclassifying = false 
 | **AI** | Judgment — code review, security scan, build repair, test generation, architecture advice | Final approval of anything irreversible | The AI decides |
 | **Human** | Approve irreversible actions — push, merge, release, data deletion | Sustain mechanical repetition | At critical junctures |
 
-A reviewer agent's pass mark is **not** a substitute for a human approval on irreversible actions. See `docs/rules-style.md` §3.0 for the full explanation.
+A reviewer agent's pass mark is **not** a substitute for a human approval on irreversible actions. See `docs/internal/rules-style.md` §3.0 for the full explanation.
 
 ## Dangerous operations — ask before invoking
 
@@ -59,7 +59,7 @@ The agent must ASK the human and wait for explicit confirmation before running a
 
 ## Ship vs Local vs Never
 
-Every file belongs to exactly one tier. See `docs/ship-boundary.md` for the full rule set.
+Every file belongs to exactly one tier. See `docs/internal/ship-boundary.md` for the full rule set.
 
 - **SHIP** — tracked in git, published publicly. Product + governance (`configs/**`, root `README.md` / `CLAUDE.md` / `CHANGELOG.md` / `LICENSE`).
 - **LOCAL** — on disk, gitignored. Session / per-contributor state (`HANDOFF.md`, `.claude/`, `experience/`, `docs/reports/`, `.ship-boundary-deny.local`).

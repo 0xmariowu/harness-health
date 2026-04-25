@@ -20,7 +20,7 @@ warn()       { printf "${YELLOW}warning:${NC} %s\n" "$*" >&2; }
 info()       { printf "${GREEN}ok:${NC} %s\n" "$*"; }
 
 # die_format — emit a 4-part error (What / Rule / Fix / See) and exit 1.
-# See docs/rules-style.md §3.12 — every hook/script error answers
+# See docs/internal/rules-style.md §3.12 — every hook/script error answers
 # What failed, the Rule being enforced, the concrete Fix, and a See-pointer.
 die_format() {
   local what="$1" rule="$2" fix="$3" see="$4"
@@ -66,7 +66,7 @@ git rev-parse --git-dir >/dev/null 2>&1 || die_format \
   "not inside a git repository" \
   "committer only operates inside a git working tree" \
   "cd into your project repo root (or run 'git init' first) and retry" \
-  "scripts/committer --help · docs/rules-style.md §3.12"
+  "scripts/committer --help · docs/internal/rules-style.md §3.12"
 
 if [[ "$ALL_NEW" == true ]]; then
   [[ ${#ARGS[@]} -ne 1 ]] && die_usage \
@@ -101,7 +101,7 @@ fi
   "commit message cannot be empty" \
   "conventional-commit format requires a non-empty subject" \
   'scripts/committer "feat: <description>" <file>...' \
-  "configs/commitlint.config.cjs · docs/rules-style.md §3.1"
+  "configs/commitlint.config.cjs · docs/internal/rules-style.md §3.1"
 
 # Guard against swapped args: single word with file-like extension
 if [[ "$MSG" != *" "* ]] && [[ "$MSG" =~ \.(ts|js|md|json|sh)$ || "$MSG" == */* ]]; then
@@ -118,19 +118,19 @@ for file in "${FILES[@]}"; do
     "refusing to stage '.' (the whole working tree)" \
     "atomic-commit rule forbids sweep-staging; every commit lists exactly the files it touches" \
     "list files explicitly: scripts/committer \"<msg>\" <file>... · or use --all-new for the first bootstrap commit" \
-    "docs/rules-style.md §3.6 · CLAUDE.md Commit Rules"
+    "docs/internal/rules-style.md §3.6 · CLAUDE.md Commit Rules"
   if [[ "$file" == .env* ]] || [[ "$(basename "$file")" == .env* ]]; then
     die_format \
       "refusing to stage '$file' — .env files are blocked" \
       ".env / credential files never enter git; secrets go in ~/.config/ai-secrets.env and are referenced by name" \
       "add '$file' to .gitignore; move any secret to ~/.config/ai-secrets.env; reference with \$VAR_NAME in code" \
-      "docs/ship-boundary.md NEVER tier · ~/CLAUDE.md Secrets"
+      "docs/internal/ship-boundary.md NEVER tier · ~/CLAUDE.md Secrets"
   fi
   [[ "$file" == ".git" || "$file" == .git/* ]] && die_format \
     "refusing to stage '$file' — .git/ internals are blocked" \
     ".git/ is git's own storage; committing pieces of it corrupts the repo" \
     "if you meant to add a hook, put it under hooks/ (or .husky/) and stage that path instead" \
-    "docs/ship-boundary.md · git --help"
+    "docs/internal/ship-boundary.md · git --help"
   [[ "$file" == *node_modules* ]] && die_format \
     "refusing to stage '$file' — node_modules/ is blocked" \
     "installed dependencies are regenerated from the lockfile; they never ship in source" \
@@ -186,7 +186,7 @@ if [[ "$FORCE" == false ]]; then
       "mixed concerns: src/ and tests/ staged in the same commit" \
       "atomic-commit rule keeps source and test diffs separate so reviewers can verify tests cover the source change" \
       "commit src/ first (e.g. feat:), then tests/ next (test:); pass -f to override when you have a real reason" \
-      "CLAUDE.md Commit Rules · docs/rules-style.md §3.6"
+      "CLAUDE.md Commit Rules · docs/internal/rules-style.md §3.6"
   fi
 
   W=()

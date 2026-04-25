@@ -109,7 +109,7 @@ jobs:
           if [ "$FAIL" = "1" ]; then
             echo ""
             echo "::error::Commit-message scan FAILED. Fix: amend offending commits (git rebase -i + reword) before pushing again."
-            echo "Reference: this workflow's SB-N comments and docs/ship-boundary.md for the SHIP/LOCAL/NEVER boundary."
+            echo "Reference: this workflow's SB-N comments and docs/internal/ship-boundary.md for the SHIP/LOCAL/NEVER boundary."
             exit 1
           fi
 

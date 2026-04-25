@@ -4,14 +4,14 @@ Thanks for your interest in AgentLint! Here's how to help.
 
 ## Reporting bugs
 
-Open an [issue](https://github.com/0xmariowu/agent-lint/issues/new?template=bug_report.yml) with:
+Open an [issue](https://github.com/0xmariowu/AgentLint/issues/new?template=bug_report.yml) with:
 - What happened and what you expected
 - Steps to reproduce
 - Your OS and Node version
 
 ## Suggesting features
 
-Open an [issue](https://github.com/0xmariowu/agent-lint/issues/new?template=feature_request.yml) describing the problem you want to solve.
+Open an [issue](https://github.com/0xmariowu/AgentLint/issues/new?template=feature_request.yml) describing the problem you want to solve.
 
 ## Pull requests
 
@@ -34,7 +34,7 @@ AI-assisted PRs are welcome. Please note in the PR description if AI tools were 
 ## Development setup
 
 ```bash
-git clone https://github.com/0xmariowu/agent-lint.git
+git clone https://github.com/0xmariowu/AgentLint.git
 cd agent-lint
 # No npm install needed — no dependencies
 bash tests/test-scanner.sh  # verify scanner works
@@ -45,7 +45,7 @@ Requirements: `bash`, `jq`, `node` 20+
 ## Branch protection
 
 Required status checks for `main` are declared in
-[`.github/branch-protection.yml`](https://github.com/0xmariowu/agent-lint/blob/main/.github/branch-protection.yml).
+[`.github/branch-protection.yml`](https://github.com/0xmariowu/AgentLint/blob/main/.github/branch-protection.yml).
 The actual protection on the `main` branch is configured manually
 (GitHub UI or `gh api repos/.../branches/main/protection`) and can
 drift from the declared YAML.

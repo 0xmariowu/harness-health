@@ -23,7 +23,7 @@ Success signal: `agentlint --version` prints a version string.
 ## GitHub Action
 
 ```yaml
-- uses: 0xmariowu/agent-lint@v1
+- uses: 0xmariowu/AgentLint@v1
   with:
     fail-below: 80
 ```

@@ -559,13 +559,13 @@ if [[ ! -f "$PROJECT/INDEX.jsonl.example" ]]; then
   copy_template "$TEMPLATE_DIR/configs/templates/INDEX.jsonl.example" "$PROJECT/INDEX.jsonl.example" "INDEX.jsonl.example"
 fi
 
-safe_mkdir "$PROJECT/docs"
-if [[ ! -f "$PROJECT/docs/rules-style.md" ]]; then
-  copy_template "$TEMPLATE_DIR/configs/rules-style.md" "$PROJECT/docs/rules-style.md" "docs/rules-style.md (AI rule style guide)"
+safe_mkdir "$PROJECT/docs/internal"
+if [[ ! -f "$PROJECT/docs/internal/rules-style.md" ]]; then
+  copy_template "$TEMPLATE_DIR/configs/rules-style.md" "$PROJECT/docs/internal/rules-style.md" "docs/internal/rules-style.md (AI rule style guide)"
 fi
 
-if [[ ! -f "$PROJECT/docs/ship-boundary.md" ]]; then
-  copy_template "$TEMPLATE_DIR/configs/ship-boundary.md" "$PROJECT/docs/ship-boundary.md" "docs/ship-boundary.md (ship/local/never file-provenance boundary)"
+if [[ ! -f "$PROJECT/docs/internal/ship-boundary.md" ]]; then
+  copy_template "$TEMPLATE_DIR/configs/ship-boundary.md" "$PROJECT/docs/internal/ship-boundary.md" "docs/internal/ship-boundary.md (ship/local/never file-provenance boundary)"
 fi
 
 # --- 3. Generate labeler config ---
@@ -881,7 +881,7 @@ if [[ "$VISIBILITY" == "public" ]]; then
 fi
 printf "  • CODEOWNERS, PR template, issue templates, SECURITY.md\n"
 printf "  • release workflow (tag v* → GitHub Release)\n"
-printf "  • docs/ship-boundary.md (file-provenance ship/local/never rules)\n"
+printf "  • docs/internal/ship-boundary.md (file-provenance ship/local/never rules)\n"
 if [[ -z "$AUTO_OWNER" ]]; then
   warn "__OWNER__ placeholder left in generated docs — gh owner not detected"
   warn "  Fix: scripts/fill-placeholders.sh --owner <your-handle> . (or edit files by hand)"

@@ -5,8 +5,8 @@
 <p><strong>AI agent harness 的 linter。</strong></p>
 <p><em>ESLint 检查人类写的代码。<br/>AgentLint 检查 agent 读的上下文。</em></p>
 
-[![CI](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/agent-lint/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/0xmariowu/agent-lint)](https://github.com/0xmariowu/agent-lint/releases)
+[![CI](https://github.com/0xmariowu/AgentLint/actions/workflows/ci.yml/badge.svg)](https://github.com/0xmariowu/AgentLint/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/0xmariowu/AgentLint)](https://github.com/0xmariowu/AgentLint/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Checks](https://img.shields.io/badge/checks-58-00b48c)](#检查项目)
 [![npm](https://img.shields.io/npm/v/agentlint-ai)](https://www.npmjs.com/package/agentlint-ai)
