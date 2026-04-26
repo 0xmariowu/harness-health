@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.1.11 (2026-04-26)
+
+Post-release P0 from the same 6-agent production audit that produced v1.1.10. Two user-visible fixes plus a regression guard so the underlying drift class can't reach users again.
+
+### You can now…
+
+- **Run `npm install -g agentlint-ai` without it writing to `~/.claude/`** — `postinstall.js` now detects the npm `postinstall` lifecycle event (`process.env.npm_lifecycle_event === "postinstall"`) and exits with a one-line hint pointing at `npx agentlint-ai install` instead of silently invoking `scripts/install.sh`. CLI-only install on every npm path; Claude Code plugin registration is now strictly opt-in. Read-only `~/.claude/` environments (CI runners, sandboxes, enterprise locked-down setups) work without `--ignore-scripts`. README + INSTALL.md rewritten to describe the new contract.
+- **Run `npx agentlint-ai install` and have it actually work** — the v1.1.10 CHANGELOG told users to run `install` for the al.md backup-on-overwrite fix, but the previous arg parser only accepted `init` and rejected `install` with a Usage banner. `install` is now an alias for `init`; both run the same Claude-Code-detect + plugin install flow. The lifecycle hint also recommends `install` for UX continuity.
+- **Trust that releases can't ship a CHANGELOG referencing a non-existent CLI command again** — `tests/test-surface-sync.js` now parses the latest `## v...` section, extracts every `npx agentlint-ai <token>` mention, and asserts the token is in the `args[0] !== "X"` accepted set parsed from `postinstall.js`. CI fails before publish if the drift recurs.
+
+### Internal
+
+- `postinstall.js` switched the install.sh invocation from `execSync(\`bash "${path}"\`, ...)` (shell string with interpolated path) to `execFileSync("bash", [installPath], ...)` (array form, no shell). Defense-in-depth: today the path is from `__dirname` and contains no metacharacters, but install paths with quotes / `$` / backslash / spaces can no longer be reinterpreted by the shell. The Windows `bash --version` and `command -v claude` / `where claude` probes keep using `execSync` — those are literal-arg with no concatenation, no injection surface.
+
+### Tests added (regression pinning)
+
+- `tests/unit/test-postinstall-detection.js` extended from 5 → 8 scenarios:
+  - `lifecycle-no-write` — sets `npm_lifecycle_event=postinstall` + claude=ok, asserts exit 0 + stdout has `agentlint CLI is on PATH` + stdout does NOT contain `Configuring Claude Code plugin` (proves install.sh is never invoked from lifecycle).
+  - `install-alias-accepted` — passes `argv=["install"]`, asserts the install branch runs (proves the v1.1.10 CHANGELOG guidance now works).
+  - `shell-metachar-path` — forces the install.sh path through `path.join` to contain space + `$` + `'`, asserts the execFileSync mock receives the path verbatim (locks the F001 S3 array-form hardening).
+- `tests/test-surface-sync.js` — new "CHANGELOG command surface matches postinstall accepted args" assertion (described above).
+
 ## v1.1.10 (2026-04-26)
 
 P1 hardening bundle from the same 6-agent production audit that produced v1.1.9. One item — the missing `release.yml` security gates — is the same regression class as the v1.1.9 P0 (in-tree fix landed in v1.1.8, the user-facing template was never updated), so every repo that ran `agentlint setup` between v1.1.8 and v1.1.10 shipped with a release.yml that bypassed main's CI contract on tag push. The other items close fail-open paths in author hygiene checks, the install script, the version resolver, and the pre-push hook.
