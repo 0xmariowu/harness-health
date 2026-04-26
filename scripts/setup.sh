@@ -790,18 +790,57 @@ fi
 # was orphaned. Removed the template copy; users who want knip can add it
 # themselves (`npm i -D knip && npx knip --init`).
 
+# P0-3-followup (2026-04-26): refuse to overwrite an existing core.hooksPath
+# or non-husky executable git hook unless the caller explicitly opts in via
+# --force. Without this gate, agentlint setup silently disabled
+# organisation-level hook chains (compliance, secret scan, release gate)
+# when wiring its own .husky/ on top of an existing setup.
+_al_hooks_safe_to_write() {
+  # No husky hooks were generated → nothing to write, never blocked.
+  [[ $copied -le 0 ]] && return 0
+  # Explicit override.
+  [[ "$FORCE" == true ]] && return 0
+  # Must be inside a real project dir for git inspection.
+  [[ -d "$PROJECT/.git" ]] || return 0
+
+  local existing
+  existing=$(git -C "$PROJECT" config core.hooksPath 2>/dev/null || true)
+  if [[ -n "$existing" && "$existing" != ".husky" ]]; then
+    err "refusing to overwrite existing core.hooksPath=$existing (use --force to override)"
+    return 1
+  fi
+
+  if [[ -d "$PROJECT/.git/hooks" ]]; then
+    local hook
+    while IFS= read -r -d '' hook; do
+      # Skip the standard `*.sample` template files git ships with.
+      case "$(basename "$hook")" in *.sample) continue ;; esac
+      [[ -x "$hook" ]] || continue
+      err "refusing to overwrite existing executable git hook at $hook (use --force to override)"
+      return 1
+    done < <(find "$PROJECT/.git/hooks" -maxdepth 1 -type f -print0 2>/dev/null)
+  fi
+  return 0
+}
+
 # Install and activate husky — TS/node only. Python projects use pre-commit
 # (see the pre-commit-stack block below).
 if [[ "$LANG" == "python" ]]; then
   info "Python: commit-gate via pre-commit (no husky / no npm)"
 elif [[ "$LANG" == "node" ]] && [[ ! -f package.json ]]; then
   # Node projects without package.json: use git config directly
-  [[ $copied -gt 0 ]] && git config core.hooksPath .husky
+  if [[ $copied -gt 0 ]]; then
+    _al_hooks_safe_to_write || die "agentlint setup blocked from disabling existing hooks (P0-3-followup)"
+    git config core.hooksPath .husky
+  fi
   info "hooks activated via core.hooksPath (no npm)"
 elif [[ "$NO_INSTALL" == true ]]; then
   # User asked us not to touch their install state. Wire husky via
   # git config so hooks still fire once they run `$PKG_MANAGER install`.
-  [[ $copied -gt 0 ]] && git config core.hooksPath .husky
+  if [[ $copied -gt 0 ]]; then
+    _al_hooks_safe_to_write || die "agentlint setup blocked from disabling existing hooks (P0-3-followup)"
+    git config core.hooksPath .husky
+  fi
   info "hooks activated via core.hooksPath (--no-install; run '$PKG_MANAGER install' to complete setup)"
 else
   # Run the detected PM's install. Modern monorepo PMs (pnpm / bun / yarn
@@ -811,15 +850,22 @@ else
   if command -v "$PKG_MANAGER" >/dev/null 2>&1; then
     if ! pm_install; then
       warn "$PKG_MANAGER install failed — wiring husky via git core.hooksPath as fallback"
-      [[ $copied -gt 0 ]] && git config core.hooksPath .husky
+      if [[ $copied -gt 0 ]]; then
+        _al_hooks_safe_to_write || die "agentlint setup blocked from disabling existing hooks (P0-3-followup)"
+        git config core.hooksPath .husky
+      fi
     fi
   else
     warn "$PKG_MANAGER not on PATH — wiring husky via git core.hooksPath (install $PKG_MANAGER later to enable lint-staged / commitlint)"
-    [[ $copied -gt 0 ]] && git config core.hooksPath .husky
+    if [[ $copied -gt 0 ]]; then
+      _al_hooks_safe_to_write || die "agentlint setup blocked from disabling existing hooks (P0-3-followup)"
+      git config core.hooksPath .husky
+    fi
   fi
   npx --no -- husky 2>/dev/null || true
   # Fallback: if husky didn't set hooksPath, set it directly
   if [[ $copied -gt 0 ]] && ! git config core.hooksPath >/dev/null 2>&1; then
+    _al_hooks_safe_to_write || die "agentlint setup blocked from disabling existing hooks (P0-3-followup)"
     git config core.hooksPath .husky
   fi
   info "husky activated"
