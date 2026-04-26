@@ -137,11 +137,15 @@ jobs:
             echo "$result"
           }
 
-          # Try the gate up to 6 times with a 30s wait between attempts so a
-          # concurrent ci.yml on the same SHA has a chance to land. Exit
-          # success as soon as every required context resolves to success.
+          # Try the gate up to 20 times with a 30s wait between attempts
+          # (~10 min total) so a concurrent ci.yml on the same SHA has a
+          # chance to land. Windows npm-e2e in particular has been
+          # observed to lag behind Linux/macOS by several minutes (the
+          # v1.1.8 retag run hit `Still pending: npm-e2e (windows-latest)`
+          # at 3 min). Exit success as soon as every required context
+          # resolves to success.
           attempt=1
-          max_attempts=6
+          max_attempts=20
           while :; do
             tag_rows=$(fetch_runs_for_sha "$GITHUB_SHA")
             # Squash-merges sometimes don't fire `push` events on the new
