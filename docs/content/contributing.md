@@ -50,6 +50,9 @@ The actual protection on the `main` branch is configured manually
 (GitHub UI or `gh api repos/.../branches/main/protection`) and can
 drift from the declared YAML.
 
+Prerequisites: `gh` (authenticated as a user with read access to branch
+protection for `--verify`, or repo admin for `--apply`) and `python3`.
+
 To verify live branch protection matches the declared file:
 
 ```bash
