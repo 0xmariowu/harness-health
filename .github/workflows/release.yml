@@ -105,42 +105,100 @@ jobs:
             done
             printf '%s' "$rows"
           }
-          rows=$(fetch_runs_for_sha "$GITHUB_SHA")
-          # The release workflow itself is always present on $GITHUB_SHA;
-          # if we see ONLY the release line (i.e. no peer CI runs at all),
-          # fall back to first parent.
-          peer_count=$(printf '%s' "$rows" | grep -vE '^(release|)$' | wc -l | tr -d ' ')
-          if [ "$peer_count" -lt 2 ]; then
-            parent=$(git rev-parse "${GITHUB_SHA}^") || parent=""
-            if [ -n "$parent" ]; then
-              echo "::notice::Tag SHA $GITHUB_SHA has no peer check-runs; falling back to parent $parent for required-checks lookup"
-              rows=$(fetch_runs_for_sha "$parent")
-            fi
-          fi
+          # Resolve a single required context against a rows blob. Accepts:
+          #   - exact match: a check-run named exactly `$name`
+          #   - matrix children: a check-run whose name starts with `$name (`
+          #     (so required `lint` is satisfied by `lint (20)` / `lint (22)`,
+          #     required `npm-e2e` by `npm-e2e (ubuntu-latest)`, etc).
+          # Returns one of:
+          #   "success"    — at least one matching run reached success
+          #   "pending"    — at least one matching run exists but none success yet
+          #   "<other>"    — at least one matching run finished non-success
+          #   "missing"    — no matching run at all
+          # Picks the BEST result (success > pending > failure) so a passing
+          # matrix child outweighs a still-running peer.
+          resolve_required() {
+            local rows="$1" name="$2"
+            local prefix="${name} ("
+            local result="missing"
+            while IFS=$'\t' read -r run_name conclusion; do
+              [ -z "$run_name" ] && continue
+              if [ "$run_name" = "$name" ] || [ "${run_name#"$prefix"}" != "$run_name" ]; then
+                if [ "$conclusion" = "success" ]; then
+                  echo "success"; return
+                fi
+                if [ "$conclusion" = "pending" ] || [ -z "$conclusion" ]; then
+                  result="pending"
+                elif [ "$result" != "pending" ]; then
+                  result="$conclusion"
+                fi
+              fi
+            done < <(printf '%s' "$rows")
+            echo "$result"
+          }
 
-          # The same context name can have multiple check-runs (re-runs). Pick
-          # the latest one that has a terminal conclusion (i.e. != pending).
-          missing=()
-          failed=()
-          for name in "${REQUIRED[@]}"; do
-            line=$(printf '%s' "$rows" | awk -F'\t' -v n="$name" '$1==n && $2!="pending" {last=$0} END{print last}')
-            if [ -z "$line" ]; then
-              missing+=("$name")
-              continue
+          # Try the gate up to 6 times with a 30s wait between attempts so a
+          # concurrent ci.yml on the same SHA has a chance to land. Exit
+          # success as soon as every required context resolves to success.
+          attempt=1
+          max_attempts=6
+          while :; do
+            tag_rows=$(fetch_runs_for_sha "$GITHUB_SHA")
+            # Squash-merges sometimes don't fire `push` events on the new
+            # main commit (observed on PRs #211/#212/#213). Pull the parent
+            # SHA's check-runs as a SEPARATE blob — the ancestor check
+            # above already proved the tag SHA is on origin/main, so its
+            # parent is also on main. Parent results are used ONLY to fill
+            # gaps where the tag SHA has no matching run; a recorded
+            # failure on the tag SHA is never overridden by a parent
+            # success (PR #214 review feedback).
+            parent=$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || echo "")
+            parent_rows=""
+            [ -n "$parent" ] && parent_rows=$(fetch_runs_for_sha "$parent")
+
+            missing=(); failed=(); pending=()
+            for name in "${REQUIRED[@]}"; do
+              status=$(resolve_required "$tag_rows" "$name")
+              # Only fall back to the parent when the tag SHA had NO
+              # matching run at all. This keeps a tag-SHA failure from
+              # being masked by a parent-SHA success.
+              if [ "$status" = "missing" ] && [ -n "$parent_rows" ]; then
+                status=$(resolve_required "$parent_rows" "$name")
+              fi
+              case "$status" in
+                success) ;;
+                missing) missing+=("$name") ;;
+                pending) pending+=("$name") ;;
+                *)       failed+=("$name=$status") ;;
+              esac
+            done
+
+            if [ "${#missing[@]}" -eq 0 ] && [ "${#failed[@]}" -eq 0 ] && [ "${#pending[@]}" -eq 0 ]; then
+              echo "All ${#REQUIRED[@]} required CI checks reported success."
+              break
             fi
-            conclusion=$(printf '%s\n' "$line" | awk -F'\t' '{print $2}')
-            if [ "$conclusion" != "success" ]; then
-              failed+=("$name=$conclusion")
+
+            # Hard fail on a definitive non-success — pending alone we can wait out,
+            # but a recorded failure / cancellation will not get better by waiting.
+            if [ "${#failed[@]}" -gt 0 ]; then
+              echo "::error::Required-checks gate failed (attempt ${attempt}) for tag $GITHUB_REF_NAME on SHA $GITHUB_SHA"
+              echo "::error::Non-success required checks: ${failed[*]}"
+              [ "${#missing[@]}" -gt 0 ] && echo "::error::Also missing: ${missing[*]}"
+              [ "${#pending[@]}" -gt 0 ] && echo "::error::Also pending: ${pending[*]}"
+              exit 1
             fi
+
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "::error::Required-checks gate timed out after ${attempt} attempts for tag $GITHUB_REF_NAME on SHA $GITHUB_SHA"
+              [ "${#missing[@]}" -gt 0 ] && echo "::error::Still missing: ${missing[*]}"
+              [ "${#pending[@]}" -gt 0 ] && echo "::error::Still pending: ${pending[*]}"
+              exit 1
+            fi
+
+            echo "::notice::Required-checks gate attempt ${attempt}/${max_attempts}: missing=${#missing[@]} pending=${#pending[@]}; sleeping 30s before retry"
+            attempt=$((attempt + 1))
+            sleep 30
           done
-
-          if [ "${#missing[@]}" -gt 0 ] || [ "${#failed[@]}" -gt 0 ]; then
-            echo "::error::Required-checks gate failed for tag $GITHUB_REF_NAME on SHA $GITHUB_SHA"
-            [ "${#missing[@]}" -gt 0 ] && echo "::error::Missing required checks: ${missing[*]}"
-            [ "${#failed[@]}" -gt 0 ] && echo "::error::Non-success required checks: ${failed[*]}"
-            exit 1
-          fi
-          echo "All required CI checks reported success on $GITHUB_SHA."
 
       - name: Check if release already exists
         id: check
