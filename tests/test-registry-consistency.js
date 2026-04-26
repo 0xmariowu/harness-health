@@ -449,17 +449,27 @@ runTest('branch-protection.yml declares the canonical required checks', () => {
   assert.match(yml, /repository:\s*0xmariowu\/AgentLint/);
   assert.match(yml, /branch:\s*main/);
 
+  // Synced 2026-04-26 to live remote protection (queried via
+  // `gh api repos/.../branches/main/protection`). The previous list was
+  // stale from before the v1.1.6 protection restore. release.yml's
+  // P0-2-tag Checks-API gate reads these names and looks them up against
+  // each tag SHA's check-runs, so they must match what CI actually emits.
   const required = [
-    'lint (20)',
-    'lint (22)',
-    'test (20)',
-    'test (22)',
-    'scan',
-    'label',
-    'accuracy',
-    'npm-e2e',
+    'test (ubuntu-latest, 20)',
+    'test (ubuntu-latest, 22)',
+    'test (macos-latest, 20)',
+    'test (macos-latest, 22)',
+    'test (windows-latest, 20)',
+    'test (windows-latest, 22)',
+    'npm-e2e (ubuntu-latest)',
+    'npm-e2e (macos-latest)',
+    'npm-e2e (windows-latest)',
+    'lint',
+    'check-test-pairing',
     'analyze',
+    'CodeQL',
     'Semgrep',
+    'scan',
   ];
   assert.deepEqual(yamlList(yml, 'contexts'), required,
     'branch-protection.yml required_status_checks.contexts must match the canonical gate set');
