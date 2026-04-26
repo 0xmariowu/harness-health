@@ -2,14 +2,14 @@
 
 ## v1.1.8 (2026-04-26)
 
-Deferred-P0 follow-up bundle. Closes the 5 P0 blockers from `docs/p0-production-blocker-scan-2026-04-25.md` that Round 1 (v1.1.6 / v1.1.7) deferred, all reproduced by 老板 against the 1.1.7 tarball.
+Deferred-P0 follow-up bundle. Closes the 5 P0 blockers from `docs/p0-production-blocker-scan-2026-04-25.md` that Round 1 (v1.1.6 / v1.1.7) deferred, all reproduced against the 1.1.7 tarball.
 
 ### You can now…
 
 - **Install `agentlint-ai` on BSD / macOS without GNU coreutils** — the global CLI's symlink resolver no longer relies on `readlink -f`. New portable `_al_resolve_self` walks symlink chains via POSIX `readlink`, resolves relative targets against the symlink's containing directory (not the caller's cwd), and canonicalizes via `cd + pwd -P`. Mirrored inline in `scripts/agentlint.sh` and `src/scanner.sh`; canonical reference in `scripts/lib/resolve-self.sh` with regression test `tests/test-resolve-self.sh`. (P0-5)
 - **Run `/al` without short project names absorbing unrelated sessions** — `src/session-analyzer.js` no longer substring-matches encoded session names against project aliases. `matchProjectFromCatalog` now requires either realpath equality on the decoded session path or exact-equality on the sanitized alias (no `.includes()` fallback). Sessions with no project match are dropped by default; the new `--include-unmatched` flag opts back in. Even with `--include-unmatched --include-raw-snippets`, unmatched sessions stay redacted. (P0-8)
 - **Trust `agentlint setup` not to silently disable existing hooks** — when a repo already has `core.hooksPath` set (organisation-level hooks) or executable `.git/hooks/pre-commit`, setup now fails closed and tells the user to pass `--force` (or merge their hook chain manually). The check uses `git rev-parse --git-dir` so it covers worktrees and submodules where `.git` is a file. (P0-3-followup)
-- **Run `agentlint check` in a TTY without piped input and get Usage instead of a hang** — `src/reporter.js` checks `process.stdin.isTTY` before the blocking `fs.readFileSync(0)` and exits 1 with Usage when no input is piped. Pipeline use (`scorer | reporter`) is preserved. (P0-7)
+- **Run `agentlint check` in a TTY without piped input and get Usage instead of a hang** — `src/reporter.js` checks `require('node:tty').isatty(0)` before the blocking `fs.readFileSync(0)` and exits 1 with Usage when no input is piped. (Initially used `process.stdin.isTTY`, but accessing `process.stdin` instantiates Node's Readable wrapper around FD 0 and breaks the pipeline path with EAGAIN; `tty.isatty` is a pure ioctl check with no side effects.) Pipeline use (`scorer | reporter`) is preserved. (P0-7)
 - **Trust that v\* tags can only release from `main`** — `release.yml` now (a) refuses to publish unless the tag SHA is an ancestor of `origin/main`, (b) verifies every required CI check from `branch-protection.yml` reported `success` on that SHA before npm publish, and (c) ships under a new repo ruleset `tag-protection-v` (`target=tag`, `enforcement=active`, `refs/tags/v*`, blocks `non_fast_forward` + `deletion`). Apply once via `bash scripts/setup-tag-protection.sh --apply`. (P0-2-tag)
 
 ### Internal
