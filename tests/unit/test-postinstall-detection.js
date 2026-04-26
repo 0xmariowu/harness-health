@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const postinstallPath = path.join(__dirname, '..', '..', 'postinstall.js');
+const metacharInstallPath = "/tmp/al fix$/quote'\\install.sh";
 
 const scenarios = [
   {
@@ -18,7 +19,7 @@ const scenarios = [
     expectStderr: /^$/,
   },
   {
-    // Claude present, bundled installer fails: exit 1, show error
+    // Claude present, default init path, bundled installer fails: exit 1, show error
     name: 'darwin-claude-present-installer-fails',
     platform: 'darwin',
     mocks: { claude: 'ok', installer: 'fail' },
@@ -53,18 +54,73 @@ const scenarios = [
     expectStdout: /Configuring Claude Code plugin/i,
     expectStderr: /Installation failed: mock installer failed/i,
   },
+  {
+    // npm lifecycle postinstall must not write Claude Code plugin files.
+    name: 'lifecycle-no-write',
+    platform: 'linux',
+    env: { npm_lifecycle_event: 'postinstall' },
+    mocks: { claude: 'ok' },
+    expectExit: 0,
+    expectStdout: [/agentlint CLI is on PATH/i, /npx agentlint-ai install/i],
+    expectStdoutNot: /Configuring Claude Code plugin/i,
+    expectStderr: /^$/,
+  },
+  {
+    // `install` is accepted as an explicit alias for the init/install flow.
+    name: 'install-alias-accepted',
+    platform: 'linux',
+    argv: ['install'],
+    mocks: { claude: 'ok', installer: 'ok' },
+    expectExit: 0,
+    expectStdout: /Configuring Claude Code plugin/i,
+    expectStderr: /^$/,
+  },
+  {
+    // Installer path must be passed to execFileSync as one verbatim argv entry.
+    name: 'shell-metachar-path',
+    platform: 'linux',
+    argv: ['install'],
+    mocks: { claude: 'ok', installer: 'fail' },
+    mockInstallPath: metacharInstallPath,
+    expectInstallPath: metacharInstallPath,
+    expectExit: 1,
+    expectStdout: /Configuring Claude Code plugin/i,
+    expectStderr: /Installation failed: mock installer failed/i,
+    expectStderrNot: /PATH-MISMATCH:/i,
+  },
 ];
 
 const bootstrap = `
 'use strict';
 const childProcess = require('node:child_process');
+const path = require('path');
 
 const scenario = JSON.parse(process.env.AL_SCENARIO);
+
+process.argv.splice(1, 0, process.env.AL_POSTINSTALL);
+if (Array.isArray(scenario.argv)) {
+  process.argv.push(...scenario.argv);
+}
 
 Object.defineProperty(process, 'platform', {
   value: scenario.platform,
   configurable: true,
 });
+
+if (scenario.mockInstallPath) {
+  const originalJoin = path.join;
+  path.join = function mockPathJoin(...segments) {
+    if (
+      segments.length >= 2 &&
+      segments[segments.length - 2] === 'scripts' &&
+      segments[segments.length - 1] === 'install.sh'
+    ) {
+      return scenario.mockInstallPath;
+    }
+
+    return originalJoin.apply(this, segments);
+  };
+}
 
 childProcess.execSync = function mockExecSync(command) {
   const mocks = scenario.mocks || {};
@@ -105,6 +161,13 @@ childProcess.execFileSync = function mockExecFileSync(file, args) {
   const mocks = scenario.mocks || {};
 
   if (file === 'bash' && Array.isArray(args) && args[0] && args[0].endsWith('install.sh')) {
+    global.__installPathReceived__ = args[0];
+
+    if (scenario.expectInstallPath && args[0] !== scenario.expectInstallPath) {
+      process.stderr.write('PATH-MISMATCH:' + args[0] + '\\n');
+      process.exit(2);
+    }
+
     if (mocks.installer === 'fail') {
       const error = new Error('mock installer failed');
       error.status = 1;
@@ -121,24 +184,50 @@ require(process.env.AL_POSTINSTALL);
 
 let passed = 0;
 
+function list(value) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
+}
+
 for (const scenario of scenarios) {
+  const env = {
+    ...process.env,
+    AL_POSTINSTALL: postinstallPath,
+    AL_SCENARIO: JSON.stringify(scenario),
+    ...(scenario.env || {}),
+  };
+
   const result = spawnSync(process.execPath, ['-e', bootstrap], {
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      AL_POSTINSTALL: postinstallPath,
-      AL_SCENARIO: JSON.stringify(scenario),
-    },
+    env,
   });
 
   try {
-    assert.equal(
-      result.status,
-      scenario.expectExit,
-      `expected exit ${scenario.expectExit}, got ${result.status}`
+    const expectedExits = list(scenario.expectExit);
+    assert.ok(
+      expectedExits.includes(result.status),
+      `expected exit ${expectedExits.join(' or ')}, got ${result.status}`
     );
-    assert.match(result.stdout || '', scenario.expectStdout);
-    assert.match(result.stderr || '', scenario.expectStderr);
+
+    for (const expected of list(scenario.expectStdout)) {
+      assert.match(result.stdout || '', expected);
+    }
+
+    for (const unexpected of list(scenario.expectStdoutNot)) {
+      assert.doesNotMatch(result.stdout || '', unexpected);
+    }
+
+    for (const expected of list(scenario.expectStderr)) {
+      assert.match(result.stderr || '', expected);
+    }
+
+    for (const unexpected of list(scenario.expectStderrNot)) {
+      assert.doesNotMatch(result.stderr || '', unexpected);
+    }
+
     process.stdout.write(`PASS: ${scenario.name}\n`);
     passed += 1;
   } catch (error) {
