@@ -12,8 +12,25 @@ set -euo pipefail
 
 # Follow symlinks so SCRIPT_DIR resolves to the real scripts/ directory
 # when installed via npm -g (which creates a symlink in /usr/local/bin).
-_SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
-SCRIPT_DIR="$(cd "$(dirname "$_SELF")" && pwd)"
+# Portable resolver — works on BSD/macOS where `readlink -f` is unavailable.
+# Mirrors scripts/lib/resolve-self.sh; kept inline so the file is
+# self-contained when extracted by tests or copied during install.
+_al_resolve_self() {
+    local current="$1"; local target current_dir; local i=0
+    while [ -L "$current" ] && [ "$i" -lt 16 ]; do
+        target=$(readlink "$current")
+        case "$target" in
+            /*) current="$target" ;;
+            *) current_dir=$(dirname "$current"); current="$current_dir/$target" ;;
+        esac
+        i=$((i + 1))
+    done
+    local final_dir final_base
+    final_dir=$(dirname "$current"); final_base=$(basename "$current")
+    final_dir=$(CDPATH='' cd -- "$final_dir" 2>/dev/null && pwd -P) || return 1
+    if [ "$final_base" = "/" ]; then echo "$final_dir"; else echo "$final_dir/$final_base"; fi
+}
+SCRIPT_DIR="$(dirname "$(_al_resolve_self "${BASH_SOURCE[0]}")")"
 
 # ─── Transactional scan helper ─────────────────────────────────────────────
 # Runs src/scanner.sh with the given args and captures stdout/stderr to temp

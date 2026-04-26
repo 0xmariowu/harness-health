@@ -7,10 +7,25 @@ set -euo pipefail
 # `al-scan` at `/usr/local/bin/al-scan` → `.../node_modules/agentlint-ai/src/
 # scanner.sh`. Without this, SCRIPT_DIR ends up at the symlink location and
 # REPO_ROOT/standards/evidence.json is nowhere on disk.
-_SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null \
-  || readlink "${BASH_SOURCE[0]}" 2>/dev/null \
-  || echo "${BASH_SOURCE[0]}")"
-SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${_SELF}")" && pwd)"
+# Portable resolver — works on BSD/macOS where `readlink -f` is unavailable.
+# Mirrors scripts/lib/resolve-self.sh; kept inline so the file is
+# self-contained when extracted by tests or copied during install.
+_al_resolve_self() {
+    local current="$1"; local target current_dir; local i=0
+    while [ -L "$current" ] && [ "$i" -lt 16 ]; do
+        target=$(readlink "$current")
+        case "$target" in
+            /*) current="$target" ;;
+            *) current_dir=$(dirname "$current"); current="$current_dir/$target" ;;
+        esac
+        i=$((i + 1))
+    done
+    local final_dir final_base
+    final_dir=$(dirname "$current"); final_base=$(basename "$current")
+    final_dir=$(CDPATH='' cd -- "$final_dir" 2>/dev/null && pwd -P) || return 1
+    if [ "$final_base" = "/" ]; then echo "$final_dir"; else echo "$final_dir/$final_base"; fi
+}
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$(_al_resolve_self "${BASH_SOURCE[0]}")")" && pwd)"
 REPO_ROOT="$(CDPATH='' cd -- "${SCRIPT_DIR}/.." && pwd)"
 EVIDENCE_FILE="${REPO_ROOT}/standards/evidence.json"
 THRESHOLDS_FILE="${REPO_ROOT}/standards/reference-thresholds.json"
