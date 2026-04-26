@@ -34,6 +34,12 @@ function box(lines) {
 }
 
 function main() {
+  if (process.env.npm_lifecycle_event === "postinstall") {
+    console.log("AgentLint npm package installed; agentlint CLI is on PATH.");
+    console.log("To wire up the Claude Code plugin, run: npx agentlint-ai init");
+    process.exit(0);
+  }
+
   // Support both `npx agentlint-ai` and `npx agentlint-ai init`.
   const args = process.argv.slice(2);
   if (args.length > 0 && args[0] !== "init") {
