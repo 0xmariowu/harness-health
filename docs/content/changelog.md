@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.1.10 (2026-04-26)
+
+P1 hardening bundle from the same 6-agent production audit that produced v1.1.9. One item — the missing `release.yml` security gates — is the same regression class as the v1.1.9 P0 (in-tree fix landed in v1.1.8, the user-facing template was never updated), so every repo that ran `agentlint setup` between v1.1.8 and v1.1.10 shipped with a release.yml that bypassed main's CI contract on tag push. The other items close fail-open paths in author hygiene checks, the install script, the version resolver, and the pre-push hook.
+
+### You can now…
+
+- **Trust your generated `release.yml` to refuse unmerged-tag publishes** — the `merge-base --is-ancestor` and required-CI-checks gates from v1.1.8's in-tree release.yml are now in `templates/universal/release.yml`. Required contexts come from `.github/branch-protection.yml` first, the live branch protection API second, then a graceful skip-with-warning if neither source declares any. Same retry / parent-fallback semantics as the in-tree gate.
+- **Trust the generated `hygiene.yml` author check to fail loud, not silent** — the two PR author/email checks now use the explicit `github.event.pull_request.base.sha` and `head.sha` (not `origin/main..HEAD`), run under `set -euo pipefail`, and split `git log` from the grep filter. The previous form trailed `|| true` on the entire pipeline, so a `git log` failure (missing base, shallow clone, non-main PR target) silently emptied `BAD` and the check passed.
+- **Run `agentlint --version` through any symlink chain on macOS / BSD** — the version case now reuses `_al_resolve_self` (the portable mirror of `scripts/lib/resolve-self.sh`) instead of rolling its own `readlink -f || readlink` fallback that only handled one symlink hop.
+- **Re-run `npx agentlint-ai install` without losing your custom `~/.claude/commands/al.md`** — `scripts/install.sh` now runs a `cmp` check before the copy. Identical content is a no-op; different content is moved to `al.md.bak.<epoch>` (with a log line announcing the backup) before the new template lands; a backup-mv failure aborts the overwrite rather than risk data loss.
+- **Push from a behind-main branch and get a clear error instead of a silent rebase** — `templates/hooks/_shared-push.sh` no longer fetches and rebases inside the hook. It runs `git merge-base --is-ancestor origin/main HEAD`; if the branch is behind, the push is refused with a one-line instruction. Updating the branch is now a user decision, not a hook side effect.
+- **Get an `AgentLint` GitHub Action snippet that doesn't break green builds on day one** — `INSTALL.md`'s copy-paste workflow no longer ships with `fail-below: 80`. Setting that threshold before knowing your project's natural score turned every existing repo's first scan red. The snippet still scans every PR and reports score; `fail-below` is now inline guidance for after the user has a baseline.
+
+### Tests added (regression pinning)
+
+- `tests/test-setup-workflow-local-actions.sh` extended with `test_setup_locks_security_critical_workflow_content`. Asserts that release.yml contains `merge-base --is-ancestor` and `check-runs`, that hygiene.yml references the PR base SHA, runs under `set -euo pipefail`, and does NOT contain `origin/main..HEAD`. Closes the broader regression class of "in-tree fix landed, template forgotten."
+- `tests/test-install-al-backup.sh` (new, wired into `test:core`). Three sandboxed scenarios with a stub `claude` CLI: clobber backs up the original, identical content does not churn, fresh HOME installs cleanly with no stray .bak.
+
 ## v1.1.9 (2026-04-26)
 
 P0 hotfix for v1.1.8: `agentlint setup` generated a `hygiene.yml` that referenced `./.github/actions/ensure-base-commit`, but the composite action itself was never published as a setup template. New repos shipped with a broken local-action reference and CI failed on the first PR.
