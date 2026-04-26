@@ -57,7 +57,7 @@
   "scripts": {
     "postinstall": "node postinstall.js",
     "test": "npm run test:core && npm run test:js && npm run test:action",
-    "test:core": "bash tests/test_compliance.sh && bash tests/test-scanner.sh && bash tests/test-cli-wrapper.sh && node tests/test-registry-consistency.js && node tests/test-surface-sync.js && bash tests/test-session-analyzer.sh && bash tests/test-deep-analyzer.sh",
+    "test:core": "bash tests/test_compliance.sh && bash tests/test-scanner.sh && bash tests/test-cli-wrapper.sh && bash tests/test-resolve-self.sh && node tests/test-registry-consistency.js && node tests/test-surface-sync.js && bash tests/test-session-analyzer.sh && node tests/test-session-cross-project.js && bash tests/test-deep-analyzer.sh && bash tests/test-setup-hook-fail-closed.sh && bash tests/test-release-yaml-gates.sh",
     "test:js": "node tests/test-scorer.js && node tests/test-plan-generator.js && node tests/test-reporter.js && node tests/test-fixer.js && node tests/test-html-report.js && node tests/test-basename-collision.js",
     "test:action": "bash tests/test-action-smoke.sh && bash tests/test-sarif-output.sh",
     "lint:shell": "shellcheck -S warning src/scanner.sh scripts/*.sh && shellcheck -S warning -e SC2329 tests/*.sh"

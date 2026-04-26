@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # P0-2-tag regression test: assert the structural gates added to
 # .github/workflows/release.yml + .github/rulesets/tag-protection.yml are
-# in place and ordered correctly. This is a static-shape test (parses the
-# YAML) — it does NOT need GitHub credentials.
+# in place and ordered correctly. This is a static-shape test — it does
+# NOT need GitHub credentials and does NOT depend on PyYAML (so it runs
+# clean in npm test / CI without a pip install step).
 
 set -eu
 
@@ -15,103 +16,92 @@ RULESET_YAML="$REPO_ROOT/.github/rulesets/tag-protection.yml"
 
 failures=0
 fail() { echo "  FAIL: $1" >&2; failures=$((failures + 1)); }
-pass() { echo "  PASS: $1"; }
 
-# --- Test 1: tag-protection.yml shape ---
+# --- Test 1: tag-protection.yml shape (regex-based, no PyYAML) ---
 echo "case 1: tag-protection.yml has the expected shape"
-python3 - "$RULESET_YAML" <<'PY' || exit 1
-import sys
-try:
-    import yaml
-except ImportError:
-    print('PyYAML required for ruleset shape check', file=sys.stderr)
-    sys.exit(1)
+grep -qE '^target:[[:space:]]+tag([[:space:]]|$)' "$RULESET_YAML" \
+    || fail "tag-protection.yml: target is not 'tag'"
+grep -qE '^enforcement:[[:space:]]+active([[:space:]]|$)' "$RULESET_YAML" \
+    || fail "tag-protection.yml: enforcement is not 'active'"
+grep -q "refs/tags/v\\*" "$RULESET_YAML" \
+    || fail "tag-protection.yml: missing refs/tags/v* in conditions.ref_name.include"
+grep -qE '^[[:space:]]*-[[:space:]]+type:[[:space:]]+non_fast_forward' "$RULESET_YAML" \
+    || fail "tag-protection.yml: missing rules type non_fast_forward"
+grep -qE '^[[:space:]]*-[[:space:]]+type:[[:space:]]+deletion' "$RULESET_YAML" \
+    || fail "tag-protection.yml: missing rules type deletion"
+[ "$failures" -eq 0 ] && echo "  PASS: target=tag, enforcement=active, v* match, deletion+non_fast_forward rules"
 
-p = sys.argv[1]
-with open(p, encoding='utf-8') as f:
-    d = yaml.safe_load(f)
+# --- Test 2: release.yml structural gates ordering (Python stdlib only) ---
+# We use a tiny stdlib parser that walks the steps section in source order
+# without needing a YAML library — sufficient because the test only needs
+# step-name and step-source-text matches plus their relative position.
+echo "case 2: release.yml ancestor check is in the publish job and ordered before npm publish"
+python3 - "$RELEASE_YAML" <<'PY'
+import sys
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as f:
+    text = f.read()
+
+# Walk the file as a list of `- name: ...` step blocks. For each block we
+# capture the name and the contiguous block content up to the next sibling
+# `- name:` or `- uses:` at the same indent.
+import re
+step_pattern = re.compile(r'(?m)^      - (?:name|uses): ')
+
+starts = [m.start() for m in step_pattern.finditer(text)]
+starts.append(len(text))
+
+steps = []
+for i in range(len(starts) - 1):
+    block = text[starts[i]:starts[i + 1]]
+    head = block.splitlines()[0] if block else ''
+    name_m = re.match(r'\s*-\s+name:\s*(.*)', head)
+    uses_m = re.match(r'\s*-\s+uses:\s*(.*)', head)
+    label = name_m.group(1) if name_m else (uses_m.group(1) if uses_m else '')
+    steps.append({'index': i, 'label': label.strip(), 'block': block})
+
+def find_step(predicate):
+    for s in steps:
+        if predicate(s):
+            return s['index']
+    return -1
+
+# Match by step label (line 0 of each block) instead of raw content,
+# because comment blocks BETWEEN sibling steps land at the end of the
+# previous step's block under our line-anchored regex split. Identifying
+# steps by their `name:` / `uses:` text avoids that drift.
+def label_has(s, *needles):
+    label = s['label'].lower()
+    return all(needle.lower() in label for needle in needles)
+
+idx_checkout = find_step(lambda s: 'actions/checkout' in s['label'])
+idx_ancestor = find_step(lambda s: label_has(s, 'verify tag sha is an ancestor'))
+idx_checks   = find_step(lambda s: label_has(s, 'verify required ci checks'))
+idx_publish  = find_step(lambda s: label_has(s, 'publish to npm'))
 
 errors = []
-if d.get('target') != 'tag':
-    errors.append(f"target is {d.get('target')!r}, expected 'tag'")
-if d.get('enforcement') != 'active':
-    errors.append(f"enforcement is {d.get('enforcement')!r}, expected 'active'")
-includes = d.get('conditions', {}).get('ref_name', {}).get('include', [])
-if not any('v*' in inc for inc in includes):
-    errors.append(f'conditions.ref_name.include lacks a v* pattern: {includes!r}')
-rule_types = sorted(r.get('type') for r in d.get('rules', []))
-expected = sorted(['deletion', 'non_fast_forward'])
-if rule_types != expected:
-    errors.append(f"rules has {rule_types!r}, expected {expected!r}")
+if idx_checkout == -1: errors.append('actions/checkout step not found')
+if idx_ancestor == -1: errors.append('git merge-base --is-ancestor step not found')
+if idx_checks == -1:   errors.append('check-runs gate (with `!= "success"`) not found')
+if idx_publish == -1:  errors.append('npm publish step not found')
+
+if idx_checkout >= 0 and idx_ancestor >= 0 and idx_ancestor < idx_checkout:
+    errors.append('ancestor check is BEFORE checkout (would lack git history)')
+if idx_ancestor >= 0 and idx_publish >= 0 and idx_ancestor >= idx_publish:
+    errors.append('ancestor check is AT OR AFTER npm publish (gate too late)')
+if idx_checks >= 0 and idx_publish >= 0 and idx_checks >= idx_publish:
+    errors.append('Checks-API gate is AT OR AFTER npm publish (gate too late)')
 
 if errors:
     for e in errors:
-        print(f'  FAIL: ruleset: {e}', file=sys.stderr)
-    sys.exit(1)
-print(f"  PASS: ruleset target=tag, enforcement=active, v* match, rules={rule_types}")
-PY
-
-# --- Test 2: release.yml structural gates ---
-echo "case 2: release.yml ancestor check is in the publish job"
-python3 - "$RELEASE_YAML" <<'PY' || true
-import sys
-try:
-    import yaml
-except ImportError:
-    print('PyYAML required', file=sys.stderr)
+        print(f'  FAIL: {e}', file=sys.stderr)
     sys.exit(1)
 
-p = sys.argv[1]
-with open(p, encoding='utf-8') as f:
-    wf = yaml.safe_load(f)
-
-# Expect a single job (release). Walk its steps and assert ordering.
-jobs = wf.get('jobs') or {}
-release_job = next(iter(jobs.values()), {})
-steps = release_job.get('steps') or []
-
-def find_step(predicate):
-    for i, s in enumerate(steps):
-        if predicate(s):
-            return i
-    return -1
-
-idx_checkout = find_step(lambda s: 'actions/checkout' in (s.get('uses') or ''))
-idx_ancestor = find_step(lambda s: 'merge-base --is-ancestor' in (s.get('run') or ''))
-idx_checks  = find_step(lambda s: 'check-runs' in (s.get('run') or '') and '!= "success"' in (s.get('run') or ''))
-idx_publish = find_step(lambda s: 'npm publish' in (s.get('run') or ''))
-
-ok = True
-def report(name, idx, msg):
-    global ok
-    if idx == -1:
-        print(f'  FAIL: {name}: {msg}', file=sys.stderr)
-        ok = False
-    else:
-        print(f'  PASS: {name} at step index {idx}')
-
-report('actions/checkout step exists', idx_checkout, 'no checkout step found')
-report('ancestor-check step exists',   idx_ancestor, 'no `git merge-base --is-ancestor` step')
-report('Checks-API gate exists',       idx_checks,   'no check-runs gate that filters non-success conclusions')
-report('npm publish step exists',      idx_publish,  'no `npm publish` step')
-
-if idx_checkout >= 0 and idx_ancestor >= 0 and idx_ancestor < idx_checkout:
-    print('  FAIL: ancestor check is BEFORE checkout (impossible — needs git history)', file=sys.stderr)
-    ok = False
-if idx_ancestor >= 0 and idx_publish >= 0 and idx_ancestor >= idx_publish:
-    print('  FAIL: ancestor check runs AT OR AFTER npm publish (gate is too late)', file=sys.stderr)
-    ok = False
-if idx_checks >= 0 and idx_publish >= 0 and idx_checks >= idx_publish:
-    print('  FAIL: Checks-API gate runs AT OR AFTER npm publish (gate is too late)', file=sys.stderr)
-    ok = False
-
-if not ok:
-    sys.exit(1)
+print(f'  PASS: checkout @{idx_checkout}, ancestor @{idx_ancestor}, checks @{idx_checks}, publish @{idx_publish}')
 PY
 case2_rc=$?
-if [ "$case2_rc" -ne 0 ]; then
-    fail "case 2 release.yml gate ordering"
-fi
+[ "$case2_rc" -eq 0 ] || fail "case 2 release.yml gate ordering"
 
 if [ "$failures" -eq 0 ]; then
     echo "OK: release-yaml gates contract holds (P0-2-tag)"

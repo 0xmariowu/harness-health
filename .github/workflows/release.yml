@@ -53,10 +53,37 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          REQUIRED='lint (20) lint (22) test (ubuntu-latest, 20) test (ubuntu-latest, 22) test (macos-latest, 20) test (macos-latest, 22) test (windows-latest, 20) test (windows-latest, 22) npm-e2e (ubuntu-latest) npm-e2e (macos-latest) npm-e2e (windows-latest) check-test-pairing analyze CodeQL Semgrep scan'
-          # Fetch every check-run for this SHA and the conclusion of each.
-          # Pages of 100 are the max GitHub returns; AgentLint typically has
-          # < 30, but loop just in case.
+          # Read the required-context names from branch-protection.yml so
+          # this gate stays in sync with the declared main protection
+          # automatically (PR #209 review feedback: hard-coded list drifted
+          # from the actual `contexts:` block, and a space-delimited string
+          # word-split names like `lint (20)` into 3 tokens).
+          mapfile -t REQUIRED < <(python3 - <<'PY'
+          path = '.github/branch-protection.yml'
+          in_contexts = False
+          with open(path, encoding='utf-8') as f:
+              for raw in f:
+                  line = raw.rstrip()
+                  s = line.strip()
+                  if s.startswith('#') or not s:
+                      continue
+                  if s.startswith('contexts:'):
+                      in_contexts = True
+                      continue
+                  if in_contexts and s.startswith('- '):
+                      print(s[2:].strip())
+                  elif in_contexts and not line.startswith(' '):
+                      in_contexts = False
+          PY
+          )
+          if [ "${#REQUIRED[@]}" -eq 0 ]; then
+            echo "::error::Could not read required contexts from .github/branch-protection.yml"
+            exit 1
+          fi
+          echo "Required contexts (${#REQUIRED[@]}): ${REQUIRED[*]}"
+
+          # Fetch every check-run for this SHA. Pages of 100 are the max
+          # GitHub returns; loop until we get a partial page.
           page=1
           rows=""
           while :; do
@@ -69,12 +96,12 @@ jobs:
             page=$((page + 1))
           done
 
+          # The same context name can have multiple check-runs (re-runs). Pick
+          # the latest one that has a terminal conclusion (i.e. != pending).
           missing=()
           failed=()
-          for name in $REQUIRED; do
-            # Match either an exact name or one suffixed (older runs) — pick
-            # the latest non-pending conclusion, fall back to the latest line.
-            line=$(printf '%s' "$rows" | awk -F'\t' -v n="$name" '$1==n {last=$0} END{print last}')
+          for name in "${REQUIRED[@]}"; do
+            line=$(printf '%s' "$rows" | awk -F'\t' -v n="$name" '$1==n && $2!="pending" {last=$0} END{print last}')
             if [ -z "$line" ]; then
               missing+=("$name")
               continue

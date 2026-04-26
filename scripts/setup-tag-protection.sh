@@ -77,6 +77,9 @@ PY
 if [ "$MODE" = "verify" ]; then
   echo "Verifying tag ruleset on ${REPO} against ${CONFIG}" >&2
   gh api "repos/${REPO}/rulesets" > "$actual"
+  # PR #209 review fix: extend verification to compare conditions/rules in
+  # addition to enforcement and target — without this, --verify would
+  # report a match on a ruleset whose ref filter or rule list had drifted.
   python3 - "$CONFIG" "$payload" "$actual" <<'PY'
 import json
 import sys
@@ -87,28 +90,52 @@ with open(expected_path, encoding='utf-8') as f:
 with open(actual_path, encoding='utf-8') as f:
     actual_list = json.load(f)
 
-# Find the live ruleset by name; fall back to first tag-target ruleset.
 matching = [r for r in actual_list if r.get('name') == expected['name']]
 if not matching:
-    matching = [r for r in actual_list if r.get('target') == 'tag']
-if not matching:
     raise SystemExit(f'{config_path}: no tag ruleset named "{expected["name"]}" found on remote')
+if len(matching) > 1:
+    raise SystemExit(f'{config_path}: {len(matching)} live rulesets named "{expected["name"]}" — duplicate; clean up via UI')
 
 live = matching[0]
+errors = []
 if live.get('enforcement') != expected.get('enforcement'):
-    raise SystemExit(
-        f'{config_path}: enforcement mismatch: expected {expected["enforcement"]}, '
-        f'live {live.get("enforcement")}'
-    )
-if live.get('target') != 'tag':
-    raise SystemExit(f'{config_path}: live ruleset target is {live.get("target")}, expected tag')
+    errors.append(f'enforcement: expected {expected["enforcement"]}, live {live.get("enforcement")}')
+if live.get('target') != expected.get('target'):
+    errors.append(f'target: expected {expected["target"]}, live {live.get("target")}')
+
+# Conditions: ref_name.include must be a superset/equal — GitHub may
+# normalize patterns, but the v* match must remain.
+exp_inc = sorted(expected.get('conditions', {}).get('ref_name', {}).get('include', []))
+liv_inc = sorted((live.get('conditions') or {}).get('ref_name', {}).get('include', []))
+if not all(any(p == lp or p in lp for lp in liv_inc) for p in exp_inc):
+    errors.append(f'conditions.ref_name.include: expected superset of {exp_inc}, live {liv_inc}')
+
+# Rule types must include each expected one (live may have extra rules).
+exp_rules = sorted(r.get('type') for r in expected.get('rules', []))
+liv_rules = sorted(r.get('type') for r in (live.get('rules') or []))
+missing_rules = [r for r in exp_rules if r not in liv_rules]
+if missing_rules:
+    errors.append(f'rules: live missing required types {missing_rules}')
+
+if errors:
+    print(f'{config_path}: live ruleset drift — ' + '; '.join(errors), file=sys.stderr)
+    sys.exit(1)
 
 print(f'tag ruleset on remote matches: {live.get("name")} ({live.get("enforcement")})')
 PY
 else
+  # PR #209 review fix: --apply must be idempotent. Re-running should
+  # update the existing ruleset instead of POSTing a duplicate (which
+  # leaves the live API with two rulesets of the same name and makes
+  # --verify pick an arbitrary one).
   echo "Applying tag ruleset to ${REPO} from ${CONFIG}" >&2
-  gh api \
-    --method POST \
-    "repos/${REPO}/rulesets" \
-    --input "$payload"
+  expected_name=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['name'])" "$payload")
+  existing_id=$(gh api "repos/${REPO}/rulesets" --jq ".[] | select(.name == \"${expected_name}\") | .id" | head -1)
+  if [ -n "$existing_id" ]; then
+    echo "Updating existing ruleset id=${existing_id}" >&2
+    gh api --method PUT "repos/${REPO}/rulesets/${existing_id}" --input "$payload"
+  else
+    echo "Creating new ruleset" >&2
+    gh api --method POST "repos/${REPO}/rulesets" --input "$payload"
+  fi
 fi
