@@ -39,25 +39,26 @@ echo "$out" | grep -q "^Usage: reporter.js" || {
 }
 echo "  PASS: case 1 prints Usage and exits"
 
-# Case 2: simulated TTY via a node wrapper that overrides
-# process.stdin.isTTY = true before requiring reporter.js. If the TTY
-# branch is missing or fails to exit, the wrapper would block trying to
-# read stdin. We bound the run with a perl alarm watchdog (macOS has no
-# GNU `timeout`).
+# Case 2: simulated TTY via a node wrapper that monkey-patches
+# require('node:tty').isatty so isatty(0) returns true. (Production code
+# checks fd 0 with tty.isatty rather than process.stdin.isTTY because
+# process.stdin instantiation puts FD 0 into non-blocking mode and
+# breaks the pipeline path with EAGAIN.) If the TTY branch is missing
+# or fails to exit, the wrapper would block trying to read stdin. We
+# bound the run with a perl alarm watchdog (macOS has no GNU `timeout`).
 echo "case 2: TTY no stdin — must exit (not hang) and print Usage"
 WRAPPER="$TMP/tty-wrapper.js"
 cat > "$WRAPPER" <<EOF
 'use strict';
 // Force the TTY branch in reporter.js without a real PTY: monkey-patch
-// fs.fstatSync(0) to report a character device so the production check
-// (fs.fstatSync(0).isCharacterDevice()) returns true.
-const fs = require('fs');
-const realFstatSync = fs.fstatSync;
-fs.fstatSync = function (fd, ...rest) {
-  if (fd === 0) {
-    return { isCharacterDevice: () => true };
-  }
-  return realFstatSync.call(this, fd, ...rest);
+// require('node:tty').isatty so isatty(0) returns true. Production code
+// uses tty.isatty(0) (not process.stdin.isTTY) so the FD is not
+// instantiated as a Readable and the pipeline path keeps working.
+const tty = require('node:tty');
+const realIsatty = tty.isatty;
+tty.isatty = function (fd) {
+  if (fd === 0) return true;
+  return realIsatty.call(this, fd);
 };
 require('$REPORTER');
 EOF

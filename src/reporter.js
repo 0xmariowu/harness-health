@@ -945,27 +945,29 @@ function main() {
 
   // Accept scores from stdin when no file argument given (e.g. pipeline: scorer.js | reporter.js)
   let scores;
+  const USAGE = 'Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|sarif|all] [--sarif-include-all] [--fail-below 0-100]\n';
   if (!scoresFile) {
     // P0-7 (2026-04-26): when invoked in a TTY with no piped scores, fail
     // fast instead of blocking on fs.readFileSync(0) — that read waits for
     // the user to type/Ctrl-D, which looks like an indefinite hang.
     //
-    // We check FD 0 via fs.fstatSync rather than `process.stdin.isTTY`
+    // We use require('node:tty').isatty(0) rather than `process.stdin.isTTY`
     // because accessing process.stdin instantiates Node's Readable wrapper
     // around FD 0, which puts the fd into non-blocking mode and breaks
     // the subsequent `fs.readFileSync(0)` on the pipeline path with EAGAIN
     // (test-cli-wrapper.sh #6 was failing in CI for this exact reason).
-    // fstatSync(0) is a pure stat — no side effects on fd state.
+    // tty.isatty is a pure ioctl(TIOCGWINSZ) check — true ONLY for terminal
+    // devices, not for /dev/null or other character devices.
     let stdinIsTTY = false;
-    try { stdinIsTTY = fs.fstatSync(0).isCharacterDevice(); } catch (_) { /* fd 0 unusable */ }
+    try { stdinIsTTY = require('node:tty').isatty(0); } catch (_) { /* fd 0 unusable */ }
     if (stdinIsTTY) {
-      process.stderr.write('Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|sarif|all] [--sarif-include-all] [--fail-below 0-100]\n');
+      process.stderr.write(USAGE);
       process.stderr.write('reporter.js: no scores file argument and stdin is a TTY (no piped input). Provide a path or pipe scorer output.\n');
       process.exit(1);
     }
     const stdinData = fs.readFileSync(0, 'utf8').trim();
     if (!stdinData) {
-      process.stderr.write('Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|sarif|all] [--sarif-include-all] [--fail-below 0-100]\n');
+      process.stderr.write(USAGE);
       process.exit(1);
     }
     try {
