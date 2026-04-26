@@ -41,14 +41,18 @@ run_test() {
 }
 
 # Extract every `uses: ./<path>` reference from generated workflow files.
-# Strips the `./` prefix and any trailing `@ref`. Sort + uniq for stability.
+# Matches both step forms — `  uses: ./path` (separate-line) and
+# `  - uses: ./path` (inline list-item). Strips `./` and any trailing
+# `@ref`. The trailing `|| true` keeps the pipeline tolerant of
+# `set -o pipefail` when grep finds no matches at all (a workflows
+# directory with zero local-action references is a valid empty result).
 list_local_action_paths() {
   local workflows_dir="$1"
   if [[ ! -d "$workflows_dir" ]]; then
     return 0
   fi
-  grep -rhE '^[[:space:]]*uses:[[:space:]]*\./[^[:space:]]+' "$workflows_dir" 2>/dev/null \
-    | sed -E 's|^[[:space:]]*uses:[[:space:]]*\./([^[:space:]@]+).*|\1|' \
+  { grep -rhE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*\./[^[:space:]]+' "$workflows_dir" 2>/dev/null || true; } \
+    | sed -E 's|^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*\./([^[:space:]@]+).*|\2|' \
     | sort -u
 }
 
@@ -102,7 +106,7 @@ test_setup_actually_emits_ensure_base_commit() {
     return 1
   fi
 
-  if ! grep -qE '^[[:space:]]*uses:[[:space:]]*\./\.github/actions/ensure-base-commit([[:space:]]|$)' \
+  if ! grep -qE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*\./\.github/actions/ensure-base-commit([[:space:]]|$)' \
         "$repo/.github/workflows/hygiene.yml"; then
     TEST_ERROR="hygiene.yml does not reference ./.github/actions/ensure-base-commit (template drift)"
     return 1
