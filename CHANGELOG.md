@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.9 (2026-04-26)
+
+P0 hotfix for v1.1.8: `agentlint setup` generated a `hygiene.yml` that referenced `./.github/actions/ensure-base-commit`, but the composite action itself was never published as a setup template. New repos shipped with a broken local-action reference and CI failed on the first PR.
+
+### You can now…
+
+- **Run `agentlint setup --workflows-only` and get a CI workflow that actually starts** — the `ensure-base-commit` composite action is now published under `templates/workflows/actions/ensure-base-commit/action.yml`, so `scripts/setup.sh` emits it alongside `hygiene.yml` instead of leaving a dangling `uses: ./...` reference.
+
+### Tests added (regression pinning)
+
+- `tests/test-setup-workflow-local-actions.sh` — wired into `npm run test:core`. Walks every `uses: ./<path>` reference in the generated workflows and fails if the target action is missing; an extra targeted assertion locks in the exact `ensure-base-commit` path so a future template refactor cannot regress it silently.
+
 ## v1.1.8 (2026-04-26)
 
 Deferred-P0 follow-up bundle. Closes the 5 P0 blockers from `docs/p0-production-blocker-scan-2026-04-25.md` that Round 1 (v1.1.6 / v1.1.7) deferred, all reproduced against the 1.1.7 tarball.
