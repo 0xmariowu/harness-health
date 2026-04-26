@@ -109,3 +109,12 @@ if [[ -f "$PROJECT_ROOT/package.json" ]] && command -v node >/dev/null 2>&1 && \
       "Fix lint errors and rerun commit."
   fi
 fi
+
+# Template sync drift guard — informational, never blocks. Warns when
+# .github/workflows/*.yml and templates/universal/*.yml drift on
+# security-related keyword counts. Only runs in repos that ship the
+# helper script (i.e., AgentLint itself + repos that copy this hook
+# alongside the lib directory).
+if [[ -x "$PROJECT_ROOT/scripts/lib/check-template-sync.sh" ]]; then
+  bash "$PROJECT_ROOT/scripts/lib/check-template-sync.sh" || true
+fi

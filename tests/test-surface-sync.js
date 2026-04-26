@@ -9,10 +9,14 @@
 // up before merge, not after users complain.
 
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
+const POSTINSTALL_PATH = path.join(ROOT, 'postinstall.js');
+const POSTINSTALL_USAGE_BANNER = 'Usage: npx agentlint-ai';
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const readJson = (rel) => JSON.parse(read(rel));
 
@@ -57,15 +61,44 @@ function postinstallAcceptedArgs(postinstall) {
       && /args\[0\]\s*!==\s*"/.test(line)
     ));
 
-  assert.ok(
-    guardLine,
-    'postinstall.js is missing the accepted-args guard line for npx agentlint-ai usage',
-  );
+  if (!guardLine) {
+    return null;
+  }
 
   const args = [...guardLine.matchAll(/args\[0\]\s*!==\s*"([a-z][a-z0-9-]*)"/g)]
     .map((match) => match[1]);
-  assert.ok(args.length > 0, `could not extract accepted args from postinstall.js guard: ${guardLine}`);
+  if (args.length === 0) {
+    return null;
+  }
   return new Set(args);
+}
+
+function spawnPostinstallArg(arg) {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'al-test-'));
+  try {
+    return spawnSync(process.execPath, [POSTINSTALL_PATH, arg], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        HOME: home,
+        USERPROFILE: home,
+        npm_lifecycle_event: '',
+        PATH: '',
+        Path: '',
+      },
+      timeout: 2000,
+    });
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
+function assertPostinstallSpawnCompleted(result, arg) {
+  assert.ok(
+    !result.error,
+    `postinstall subprocess failed for "${arg}": ${result.error && result.error.message}`,
+  );
 }
 
 // ─── release-metadata.json reflects current evidence count ────────────────
@@ -156,17 +189,43 @@ runTest('CHANGELOG command surface matches postinstall accepted args', () => {
 
   if (changelogCommands.length === 0) {
     process.stdout.write('OK: latest CHANGELOG section has no npx agentlint-ai command tokens\n');
-    return;
+  } else {
+    const acceptedArgs = postinstallAcceptedArgs(read('postinstall.js'));
+    if (acceptedArgs) {
+      const missing = changelogCommands.filter((command) => !acceptedArgs.has(command));
+      assert.equal(
+        missing.length, 0,
+        [
+          'latest CHANGELOG section mentions npx agentlint-ai commands rejected by postinstall.js:',
+          `  missing: ${missing.join(', ')}`,
+          `  accepted: ${[...acceptedArgs].join(', ')}`,
+        ].join('\n'),
+      );
+    } else {
+      process.stdout.write('OK: static postinstall accepted-args pre-check skipped; falling back to subprocess contract\n');
+    }
+
+    for (const command of changelogCommands) {
+      const result = spawnPostinstallArg(command);
+      assertPostinstallSpawnCompleted(result, command);
+      assert.ok(
+        !result.stderr.includes(POSTINSTALL_USAGE_BANNER),
+        [
+          `postinstall.js rejected CHANGELOG command token "${command}" with the Usage banner`,
+          `stderr:\n${result.stderr || '<empty>'}`,
+        ].join('\n'),
+      );
+    }
   }
 
-  const acceptedArgs = postinstallAcceptedArgs(read('postinstall.js'));
-  const missing = changelogCommands.filter((command) => !acceptedArgs.has(command));
-  assert.equal(
-    missing.length, 0,
+  const unknownCommand = 'definitely-not-a-real-command';
+  const unknownResult = spawnPostinstallArg(unknownCommand);
+  assertPostinstallSpawnCompleted(unknownResult, unknownCommand);
+  assert.ok(
+    unknownResult.stderr.includes(POSTINSTALL_USAGE_BANNER),
     [
-      'latest CHANGELOG section mentions npx agentlint-ai commands rejected by postinstall.js:',
-      `  missing: ${missing.join(', ')}`,
-      `  accepted: ${[...acceptedArgs].join(', ')}`,
+      `postinstall.js accepted unknown command token "${unknownCommand}"`,
+      `stderr:\n${unknownResult.stderr || '<empty>'}`,
     ].join('\n'),
   );
 });

@@ -307,11 +307,21 @@ def main() -> None:
         except FileNotFoundError as e:
             print(f"[warn] {e}", file=sys.stderr)
     
-    # Filter: npx-init scenarios only run in npx-mode; skip them otherwise
+    # Filter: npx-init scenarios only run in npx-mode; skip them otherwise.
+    # Surface the skip count so a 21-of-23 result doesn't look like
+    # something silently disappeared.
+    total_loaded = len(all_scenarios)
     if args.from_npx:
-        all_scenarios = [s for s in all_scenarios if s.get("scenario_type") == "npx-init"]
+        kept = [s for s in all_scenarios if s.get("scenario_type") == "npx-init"]
+        skipped_kind = "non-npx scenarios in npx-mode"
     else:
-        all_scenarios = [s for s in all_scenarios if s.get("scenario_type") != "npx-init"]
+        kept = [s for s in all_scenarios if s.get("scenario_type") != "npx-init"]
+        skipped_kind = "npx-only scenarios in npm/tarball-mode"
+    skipped_count = total_loaded - len(kept)
+    all_scenarios = kept
+
+    if skipped_count > 0:
+        print(f"[orchestrator] Loaded {total_loaded} scenarios; skipping {skipped_count} {skipped_kind} (running {len(all_scenarios)})")
 
     if not all_scenarios:
         print("No scenarios found.", file=sys.stderr)

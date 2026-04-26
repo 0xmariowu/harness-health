@@ -59,7 +59,8 @@ jobs:
 ```bash
 agentlint check                    # scan current repo
 agentlint fix W11                  # fix a specific check by ID
-agentlint setup --lang ts .        # bootstrap CI / hooks / templates for a project
+agentlint setup --lang ts .        # bootstrap CI / hooks / templates for a project (uses --ignore-scripts by default)
+# agentlint setup --lang ts --with-scripts .   # opt-in: also run dependency lifecycle hooks
 ```
 
 In Claude Code (after `npx agentlint-ai install`): run `/al` for the interactive scan-fix-report flow.

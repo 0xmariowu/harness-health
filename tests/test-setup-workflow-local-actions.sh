@@ -171,6 +171,18 @@ test_setup_locks_security_critical_workflow_content() {
   check_must_contain "$repo/.github/workflows/release.yml" \
     'check-runs' \
     "release.yml must enforce required-checks-API gate (v1.1.8 P0-2-tag)"
+  check_must_contain "$repo/.github/workflows/release.yml" \
+    'AGENTLINT_RELEASE_GATE_OPT_OUT' \
+    "release.yml must default fail-closed with explicit opt-out env var (v1.1.12 F002)"
+  check_must_contain "$repo/.github/workflows/release.yml" \
+    'Refusing to publish without a check-runs gate' \
+    "release.yml must fail closed when required check-runs gate is absent (v1.1.12 F002)"
+  check_must_not_contain "$repo/.github/workflows/release.yml" \
+    'Skipping check-runs gate' \
+    "release.yml must not keep the old fail-open check-runs warning (v1.1.12 F002)"
+  check_must_contain "$repo/.github/branch-protection.yml" \
+    'required_status_checks' \
+    "branch-protection.yml must include required_status_checks wiring (F002 S3)"
 
   # hygiene.yml must use the PR base SHA composite action AND must not
   # use the `origin/main..HEAD` author-check that ate git log failures

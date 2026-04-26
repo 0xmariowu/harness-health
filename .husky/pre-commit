@@ -69,3 +69,11 @@ SH_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' || tru
 if [ -n "$SH_FILES" ] && command -v shellcheck >/dev/null 2>&1; then
   echo "$SH_FILES" | xargs shellcheck 2>/dev/null || true
 fi
+
+# Template sync drift guard (v1.1.12 F004) — informational, never blocks.
+# Warns when .github/workflows/* and templates/universal/* drift on
+# security keywords. See scripts/lib/check-template-sync.sh.
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -x "$REPO_ROOT/scripts/lib/check-template-sync.sh" ]; then
+  bash "$REPO_ROOT/scripts/lib/check-template-sync.sh" || true
+fi

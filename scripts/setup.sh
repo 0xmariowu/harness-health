@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup.sh — Initialize project automation from templates
-# Usage: agentlint setup --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--project-dir <path>] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--force] [--init-git] [--with-auto-push] [project-path]
+# Usage: agentlint setup --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--project-dir <path>] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--with-scripts] [--force] [--init-git] [--with-auto-push] [project-path]
 
 set -euo pipefail
 
@@ -26,6 +26,7 @@ require_value() {
 # --- Parse args ---
 LANG=""; RUNNER=""; WORKFLOWS_ONLY=false; VISIBILITY="private"; PROJECT=""
 PKG_MANAGER_OVERRIDE=""; NO_INSTALL=false; FORCE=false; INIT_GIT=false; WITH_AUTO_PUSH=false
+WITH_SCRIPTS=false  # default: --ignore-scripts; --with-scripts opts in
 PROJECT_DIR_EXPLICIT=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -36,6 +37,7 @@ while [[ $# -gt 0 ]]; do
     --visibility)     require_value --visibility "${2-}"; VISIBILITY="$2"; shift 2 ;;
     --pkg-manager)    require_value --pkg-manager "${2-}"; PKG_MANAGER_OVERRIDE="$2"; shift 2 ;;
     --no-install)     NO_INSTALL=true; shift ;;
+    --with-scripts)   WITH_SCRIPTS=true; shift ;;
     --force)          FORCE=true; shift ;;
     --init-git)       INIT_GIT=true; shift ;;
     --with-auto-push) WITH_AUTO_PUSH=true; shift ;;
@@ -50,7 +52,7 @@ done
 # future hook that wants to read it without another parser pass.
 export RUNNER
 
-[[ -z "$LANG" ]] && die "usage: agentlint setup --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--project-dir <path>] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--force] [--init-git] [--with-auto-push] [project-path]"
+[[ -z "$LANG" ]] && die "usage: agentlint setup --lang <ts|python|node> [--runner bun] [--visibility public|private] [--workflows-only] [--project-dir <path>] [--pkg-manager <auto|npm|pnpm|yarn|bun>] [--no-install] [--with-scripts] [--force] [--init-git] [--with-auto-push] [project-path]"
 [[ -z "$PROJECT" ]] && PROJECT="."
 [[ "$LANG" != "ts" && "$LANG" != "python" && "$LANG" != "node" ]] && die "lang must be 'ts', 'python', or 'node'"
 [[ "$VISIBILITY" != "public" && "$VISIBILITY" != "private" ]] && die "--visibility must be 'public' or 'private'"
@@ -292,20 +294,31 @@ info "detected package manager: $PKG_MANAGER"
 # below stay readable. Any arguments are forwarded verbatim after 'install'.
 # shellcheck disable=SC2120 # callers pass no args today; $@ stays for future wiring
 pm_install() {
+  local extra_flags=()
+  local status=0
+  [[ "$WITH_SCRIPTS" != true ]] && extra_flags+=("--ignore-scripts")
   case "$PKG_MANAGER" in
-    npm)  npm install --no-audit --no-fund "$@" ;;
-    pnpm) pnpm install "$@" ;;
-    yarn) yarn install "$@" ;;
-    bun)  bun install "$@" ;;
+    npm)  npm install --no-audit --no-fund "${extra_flags[@]}" "$@" || status=$? ;;
+    pnpm) pnpm install "${extra_flags[@]}" "$@" || status=$? ;;
+    yarn) yarn install "${extra_flags[@]}" "$@" || status=$? ;;
+    bun)  bun install "${extra_flags[@]}" "$@" || status=$? ;;
     *)    warn "pm_install called with unsupported manager '$PKG_MANAGER' — skipping"; return 0 ;;
   esac
+  if [[ "$status" -eq 0 && "$WITH_SCRIPTS" != true ]]; then
+    info "(used --ignore-scripts; pass --with-scripts to run dependency lifecycle hooks)"
+  fi
+  return "$status"
 }
 
 # Add dev-dependencies using the detected PM. Falls back to a no-op + warn
 # when --no-install is set or when the PM binary isn't on PATH.
 pm_add_dev() {
   local pkgs=("$@")
+  local extra_flags=()
+  local did_install=false
+  local status=0
   [[ ${#pkgs[@]} -eq 0 ]] && return 0
+  [[ "$WITH_SCRIPTS" != true ]] && extra_flags+=("--ignore-scripts")
   if [[ "$NO_INSTALL" == true ]]; then
     warn "--no-install set; skipping install of: ${pkgs[*]}"
     warn "  run later: $PKG_MANAGER add -D ${pkgs[*]}"
@@ -317,11 +330,15 @@ pm_add_dev() {
     return 0
   fi
   case "$PKG_MANAGER" in
-    npm)  npm install --save-dev --no-audit --no-fund "${pkgs[@]}" ;;
-    pnpm) pnpm add -D "${pkgs[@]}" ;;
-    yarn) yarn add -D "${pkgs[@]}" ;;
-    bun)  bun add -d "${pkgs[@]}" ;;
+    npm)  did_install=true; npm install --save-dev --no-audit --no-fund "${extra_flags[@]}" "${pkgs[@]}" || status=$? ;;
+    pnpm) did_install=true; pnpm add -D "${extra_flags[@]}" "${pkgs[@]}" || status=$? ;;
+    yarn) did_install=true; yarn add -D "${extra_flags[@]}" "${pkgs[@]}" || status=$? ;;
+    bun)  did_install=true; bun add -d "${extra_flags[@]}" "${pkgs[@]}" || status=$? ;;
   esac
+  if [[ "$did_install" == true && "$status" -eq 0 && "$WITH_SCRIPTS" != true ]]; then
+    info "(used --ignore-scripts; pass --with-scripts to run dependency lifecycle hooks)"
+  fi
+  return "$status"
 }
 
 # Check whether a package is already declared (dep or devDep). Uses Node to
@@ -403,8 +420,20 @@ copy_workflow() {
 
 # Universal workflows
 for f in "$TEMPLATE_DIR/universal/"*.yml; do
+  [[ "$(basename "$f")" == "branch-protection.yml" ]] && continue
   copy_workflow "$f" ""
 done
+
+# Branch protection contract (NOT a workflow file — goes to .github/, not .github/workflows/).
+# Required by templates/universal/release.yml's fail-closed gate.
+if [[ -f "$TEMPLATE_DIR/universal/branch-protection.yml" ]]; then
+  bp_dest="$PROJECT/.github/branch-protection.yml"
+  if [[ -e "$bp_dest" ]]; then
+    info "skipped branch-protection.yml (exists)"
+  else
+    copy_template "$TEMPLATE_DIR/universal/branch-protection.yml" "$bp_dest" "branch-protection.yml (required-checks contract for release.yml gate)"
+  fi
+fi
 
 # Language-specific workflows (empty directory is fine — e.g., node pack)
 for f in "$TEMPLATE_DIR/$LANG/"*.yml; do

@@ -1,0 +1,36 @@
+# Branch protection contract for AgentLint-bootstrapped repos.
+#
+# Goal: declare which CI check-runs must report `success` before a commit
+# can land on `main` and before `release.yml` is allowed to publish a tag.
+# Without this file (or an equivalent live protection on the remote),
+# `release.yml`'s required-checks gate exits 1 by default — that's
+# intentional fail-closed behavior added in v1.1.12.
+#
+# Apply to the live remote with:
+#   gh api -X PATCH /repos/$OWNER/$REPO/branches/main/protection \
+#     --input - <<EOF
+#   {"required_status_checks": $(yq -o json .required_status_checks branch-protection.yml),
+#    "enforce_admins": null, "required_pull_request_reviews": null, "restrictions": null}
+#   EOF
+#
+# Or — if the AgentLint repo template ships a `setup-branch-protection.sh`
+# helper — `bash scripts/setup-branch-protection.sh --apply`.
+#
+# To bypass the release-side gate without editing this file (e.g. in
+# CI-less repos), set the repo variable AGENTLINT_RELEASE_GATE_OPT_OUT=1:
+#   gh variable set AGENTLINT_RELEASE_GATE_OPT_OUT --body "1"
+#
+# The default contexts list below is the minimum AgentLint-bootstrapped
+# repos emit. Customize freely — this is your repo's contract, not a
+# template lock. Add matrix rows / language-specific test names / extra
+# scanners as your CI grows.
+
+repository: OWNER/REPO          # replace OWNER/REPO with the live identifier
+branch: main
+required_status_checks:
+  strict: true                  # require branches to be up to date before merging
+  contexts:
+    - lint                      # `agentlint setup` ships an actionlint/shellcheck job
+    - Semgrep                   # `agentlint setup` ships SAST scan
+    - analyze                   # CodeQL analysis (job name, NOT workflow name "CodeQL")
+    - scan                      # Trivy / image scan job

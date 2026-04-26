@@ -40,10 +40,11 @@ jobs:
       # bypasses branch protection by design, so this gate restores the
       # same contract on the tag flow. Required contexts come from (in
       # order): `.github/branch-protection.yml`, the live branch
-      # protection API, then a graceful skip with a warning.
+      # protection API, then a fail-closed error unless explicitly opted out.
       - name: Verify required CI checks passed on tag SHA
         env:
           GH_TOKEN: ${{ github.token }}
+          AGENTLINT_RELEASE_GATE_OPT_OUT: ${{ vars.AGENTLINT_RELEASE_GATE_OPT_OUT }}
         run: |
           set -euo pipefail
 
@@ -80,8 +81,13 @@ jobs:
           fi
 
           if [ "${#REQUIRED[@]}" -eq 0 ]; then
-            echo "::warning::No required CI contexts declared for main. Skipping check-runs gate; rely on the ancestor gate above."
-            exit 0
+            if [ "${AGENTLINT_RELEASE_GATE_OPT_OUT:-0}" = "1" ]; then
+              echo "::warning::No required CI contexts declared for main; AGENTLINT_RELEASE_GATE_OPT_OUT=1 set, bypassing required-checks gate (rely on the ancestor gate above)."
+              exit 0
+            fi
+            echo "::error::No required CI contexts declared for main. Refusing to publish without a check-runs gate."
+            echo "::error::Either configure required status checks (add .github/branch-protection.yml + apply via 'gh api -X PATCH /repos/$GITHUB_REPOSITORY/branches/main/protection'), or set repo variable AGENTLINT_RELEASE_GATE_OPT_OUT=1 to explicitly skip this gate."
+            exit 1
           fi
           echo "Required contexts: ${REQUIRED[*]}"
 

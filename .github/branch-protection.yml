@@ -3,16 +3,22 @@ branch: main
 required_status_checks:
   strict: true
   # Names match the actual check-runs CI emits on `push: main` events.
-  # Removed two contexts that never appear on tag SHAs (so release.yml's
-  # P0-2-tag gate could never satisfy them):
-  #   - `check-test-pairing` — produced by .github/workflows/test-required.yml
-  #     which only runs on pull_request events.
-  #   - `CodeQL` — duplicates `analyze`. The CodeQL workflow's only job is
-  #     `analyze`, so the actual check-run name on every commit is
-  #     `analyze`. Listing both made one of them perpetually missing.
-  # Live remote protection should be re-applied via
-  # `bash scripts/setup-branch-protection.sh --apply` after this lands so
-  # the same drift doesn't reappear.
+  #
+  # 2026-04-26 (v1.1.12 F003): re-added `CodeQL` and `check-test-pairing`
+  # to align this YAML with live main protection. Earlier versions had
+  # removed them because neither produces a check-run on tag SHAs (so
+  # release.yml's required-checks gate could never satisfy them on a
+  # tag push). Two changes since make the re-addition safe:
+  #   1. release.yml's required-checks step now does parent-SHA fallback
+  #      (v1.1.8 PR #213) — when the tag SHA itself has no matching
+  #      check-run, it falls back to the parent commit's check-runs.
+  #      That covers `CodeQL` and `check-test-pairing` because both
+  #      ARE emitted on the parent (squash-merge target) commit.
+  #   2. `bash scripts/setup-branch-protection.sh --verify` now
+  #      runs in the local release gate; with these two contexts in
+  #      the YAML, --verify reports clean against live main.
+  # If a future audit shows the parent-SHA fallback is unreliable,
+  # remove these two and accept the YAML/live drift trade-off again.
   contexts:
     - test (ubuntu-latest, 20)
     - test (ubuntu-latest, 22)
@@ -25,5 +31,7 @@ required_status_checks:
     - npm-e2e (windows-latest)
     - lint
     - analyze
+    - CodeQL
     - Semgrep
     - scan
+    - check-test-pairing

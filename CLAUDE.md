@@ -24,6 +24,7 @@ Compliance (4 checks, ~1s) + scanner unit tests. Full matrix (multi-OS) runs in 
 - Don't modify scanner output format without updating scorer + plan-generator + reporter. Because: the JSONL schema is a contract between all pipeline stages.
 - Don't hardcode paths in skills/*.md. Instead, use `${CLAUDE_PLUGIN_ROOT}` to reference bundled files. Because: plugin install path varies per user.
 - Don't write persistent data to `${CLAUDE_PLUGIN_ROOT}`. Instead, use `${CLAUDE_PLUGIN_DATA}` or `~/.al/`. Because: plugin root is replaced on update.
+- When you change a file under `.github/workflows/`, also check whether `templates/universal/<basename>` exists and needs the same change. Instead of relying on memory, run `bash scripts/lib/check-template-sync.sh` against your staged diff (the pre-commit hook already does this informally) — it counts security-keyword occurrences in both files and warns when they drift. Because: v1.1.9 / v1.1.10 / v1.1.11 each shipped a regression where the in-tree workflow got a security fix but the user-facing template did not, exposing every fresh `agentlint setup` repo to the same bug.
 
 ## Workflow
 
