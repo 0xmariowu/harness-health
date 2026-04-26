@@ -266,11 +266,10 @@ USAGE
       | node "${SCRIPT_DIR}/../src/fixer.js" --checks "$check_ids" "${path_args[@]}"
     ;;
   version|--version|-v)
-    # Resolve symlinks to find real script location (handles npm global installs)
-    _REAL="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
-    _DIR="$(cd "$(dirname "$_REAL")" 2>/dev/null && pwd)"
-    node -e "console.log(require('$_DIR/../package.json').version)" 2>/dev/null \
-      || python3 -c "import json; print(json.load(open('$_DIR/../package.json'))['version'])" 2>/dev/null \
+    # SCRIPT_DIR is already resolved through symlinks via _al_resolve_self
+    # at the top of this file, which is portable across BSD/GNU readlink.
+    node -e "console.log(require('${SCRIPT_DIR}/../package.json').version)" 2>/dev/null \
+      || python3 -c "import json; print(json.load(open('${SCRIPT_DIR}/../package.json'))['version'])" 2>/dev/null \
       || echo "unknown"
     ;;
   doctor)
