@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-const { execSync } = require("child_process");
+const { execFileSync, execSync } = require("child_process");
 const path = require("path");
 
 const { version: PKG_VERSION } = require("./package.json");
@@ -34,10 +34,16 @@ function box(lines) {
 }
 
 function main() {
-  // Support both `npx agentlint-ai` and `npx agentlint-ai init`.
+  if (process.env.npm_lifecycle_event === "postinstall") {
+    console.log("AgentLint npm package installed; agentlint CLI is on PATH.");
+    console.log("To wire up the Claude Code plugin, run: npx agentlint-ai install");
+    process.exit(0);
+  }
+
+  // Support `npx agentlint-ai`, `npx agentlint-ai init`, and `npx agentlint-ai install`.
   const args = process.argv.slice(2);
-  if (args.length > 0 && args[0] !== "init") {
-    console.error("Usage: npx agentlint-ai [init]");
+  if (args.length > 0 && args[0] !== "init" && args[0] !== "install") {
+    console.error("Usage: npx agentlint-ai [init|install]");
     process.exit(1);
   }
 
@@ -118,14 +124,16 @@ function main() {
   console.log("Configuring Claude Code plugin...");
   console.log();
 
+  const installPath = path.join(__dirname, "scripts", "install.sh");
+
   try {
-    execSync(`bash "${path.join(__dirname, "scripts", "install.sh")}"`, { stdio: "inherit" });
+    execFileSync("bash", [installPath], { stdio: "inherit" });
   } catch (err) {
     console.error(`\n  Installation failed: ${err.message}`);
     console.error("  npm package installed; CLI works when agentlint is on PATH.");
     console.error("  Claude plugin install failed, so /al is not available yet.");
     console.error("  Manual install:");
-    console.error(`    bash "${path.join(__dirname, "scripts", "install.sh")}"`);
+    console.error(`    bash "${installPath}"`);
     console.error();
     process.exit(1);
   }

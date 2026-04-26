@@ -4,25 +4,30 @@
 
 ## Side effects
 
-`npm install -g agentlint-ai` writes to `~/.claude/` and registers the `/al` Claude Code plugin. To install without these side effects, use `npm install -g --ignore-scripts agentlint-ai` (also covered in Failure modes for read-only `~/.claude` environments).
+`npm install -g agentlint-ai` installs the `agentlint` CLI to npm's global prefix. It does **not** write to `~/.claude/` and does **not** register the Claude Code plugin — the postinstall lifecycle hook just prints a one-line hint and exits.
+
+To register the `/al` Claude Code plugin (one-time, opt-in), run `npx agentlint-ai install` after the global install. That command detects Claude Code, copies the slash command into `~/.claude/commands/al.md`, and adds the marketplace plugin entry. Skip it on CI runners, sandboxed environments, or read-only `~/.claude` setups; the CLI works without it.
+
+If you previously installed via `--ignore-scripts` to avoid the old auto-write, that flag is no longer needed (lifecycle install no longer writes anywhere outside `node_modules`). Keep it if your environment policy requires it; the resulting CLI is identical.
 
 ## Default
 
 ```bash
-npm install -g agentlint-ai
+npm install -g agentlint-ai           # CLI only — no Claude plugin
+npx agentlint-ai install              # opt-in: register /al Claude Code plugin
 ```
 
-Success signal: `agentlint --version` prints a version string.
+Success signals: `agentlint --version` prints a version string after the first command; the second command prints `✓ /al command [installed]` when Claude Code is detected.
 
 ## Failure modes
 
 | Symptom | Fix |
 |---|---|
 | `EACCES: permission denied` on global install | `npm install -g --prefix=$HOME/.npm-global agentlint-ai` and add `$HOME/.npm-global/bin` to PATH |
-| Read-only `~/.claude` (CI runner / sandbox / enterprise security review) | `npm install -g --ignore-scripts agentlint-ai` (skips Claude Code plugin registration) |
-| `bash: command not found` on Windows | Install Git for Windows (https://git-scm.com/download/win) or WSL, then re-run |
+| Read-only `~/.claude` (CI runner / sandbox / enterprise security review) | Skip `npx agentlint-ai install`; the CLI from `npm install -g` works without writing to `~/.claude/` |
+| `bash: command not found` on Windows | Install Git for Windows (https://git-scm.com/download/win) or WSL, then re-run `npx agentlint-ai install` |
 | `agentlint: command not found` after install | Add `$(npm prefix -g)/bin` to PATH |
-| Installed but `/al` plugin missing in Claude Code | Re-run install without `--ignore-scripts`, or manually add the plugin via `claude plugin marketplace add` |
+| `/al` plugin missing in Claude Code | Run `npx agentlint-ai install`, or manually add the plugin via `claude plugin marketplace add 0xmariowu/AgentLint` |
 
 ## GitHub Action
 
@@ -57,7 +62,7 @@ agentlint fix W11                  # fix a specific check by ID
 agentlint setup --lang ts .        # bootstrap CI / hooks / templates for a project
 ```
 
-In Claude Code, run `/al` for the interactive scan-fix-report flow.
+In Claude Code (after `npx agentlint-ai install`): run `/al` for the interactive scan-fix-report flow.
 
 ## Verify
 

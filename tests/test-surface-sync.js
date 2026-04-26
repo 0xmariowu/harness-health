@@ -40,6 +40,34 @@ function checkIdRegex(id) {
   return new RegExp(`\\b${id}\\b`);
 }
 
+function latestChangelogVersionSection(changelog) {
+  const headingRegex = /^## v([0-9.]+).*$/gm;
+  const first = headingRegex.exec(changelog);
+  assert.ok(first, 'CHANGELOG.md has no version heading matching /^## v([0-9.]+).*$/');
+
+  const second = headingRegex.exec(changelog);
+  return changelog.slice(first.index, second ? second.index : changelog.length);
+}
+
+function postinstallAcceptedArgs(postinstall) {
+  const guardLine = postinstall
+    .split('\n')
+    .find((line) => (
+      /if\s*\(\s*args\.length\s*>\s*0\b/.test(line)
+      && /args\[0\]\s*!==\s*"/.test(line)
+    ));
+
+  assert.ok(
+    guardLine,
+    'postinstall.js is missing the accepted-args guard line for npx agentlint-ai usage',
+  );
+
+  const args = [...guardLine.matchAll(/args\[0\]\s*!==\s*"([a-z][a-z0-9-]*)"/g)]
+    .map((match) => match[1]);
+  assert.ok(args.length > 0, `could not extract accepted args from postinstall.js guard: ${guardLine}`);
+  return new Set(args);
+}
+
 // ─── release-metadata.json reflects current evidence count ────────────────
 runTest('release-metadata.json check_count matches evidence.json', () => {
   const meta = readJson('release-metadata.json');
@@ -116,6 +144,31 @@ runTest('live docs do not mention stale "42 checks" count', () => {
     }
   }
   assert.equal(stale.length, 0, `stale surface text found:\n  ${stale.join('\n  ')}`);
+});
+
+// ─── CHANGELOG npx commands stay accepted by postinstall.js ───────────────
+runTest('CHANGELOG command surface matches postinstall accepted args', () => {
+  const section = latestChangelogVersionSection(read('CHANGELOG.md'));
+  const changelogCommands = [...new Set(
+    [...section.matchAll(/npx agentlint-ai ([a-z][a-z0-9-]*)\b/g)]
+      .map((match) => match[1]),
+  )];
+
+  if (changelogCommands.length === 0) {
+    process.stdout.write('OK: latest CHANGELOG section has no npx agentlint-ai command tokens\n');
+    return;
+  }
+
+  const acceptedArgs = postinstallAcceptedArgs(read('postinstall.js'));
+  const missing = changelogCommands.filter((command) => !acceptedArgs.has(command));
+  assert.equal(
+    missing.length, 0,
+    [
+      'latest CHANGELOG section mentions npx agentlint-ai commands rejected by postinstall.js:',
+      `  missing: ${missing.join(', ')}`,
+      `  accepted: ${[...acceptedArgs].join(', ')}`,
+    ].join('\n'),
+  );
 });
 
 // ─── action.yml exposes 6 core dims, not deep/session ─────────────────────
