@@ -143,21 +143,28 @@ jobs:
           attempt=1
           max_attempts=6
           while :; do
-            rows=$(fetch_runs_for_sha "$GITHUB_SHA")
+            tag_rows=$(fetch_runs_for_sha "$GITHUB_SHA")
             # Squash-merges sometimes don't fire `push` events on the new
-            # main commit (observed on PRs #211/#212/#213). Always also pull
-            # the parent SHA's check-runs and merge — the ancestor check
+            # main commit (observed on PRs #211/#212/#213). Pull the parent
+            # SHA's check-runs as a SEPARATE blob — the ancestor check
             # above already proved the tag SHA is on origin/main, so its
-            # parent is also on main.
+            # parent is also on main. Parent results are used ONLY to fill
+            # gaps where the tag SHA has no matching run; a recorded
+            # failure on the tag SHA is never overridden by a parent
+            # success (PR #214 review feedback).
             parent=$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || echo "")
-            if [ -n "$parent" ]; then
-              parent_rows=$(fetch_runs_for_sha "$parent")
-              rows="${rows}${parent_rows}"
-            fi
+            parent_rows=""
+            [ -n "$parent" ] && parent_rows=$(fetch_runs_for_sha "$parent")
 
             missing=(); failed=(); pending=()
             for name in "${REQUIRED[@]}"; do
-              status=$(resolve_required "$rows" "$name")
+              status=$(resolve_required "$tag_rows" "$name")
+              # Only fall back to the parent when the tag SHA had NO
+              # matching run at all. This keeps a tag-SHA failure from
+              # being masked by a parent-SHA success.
+              if [ "$status" = "missing" ] && [ -n "$parent_rows" ]; then
+                status=$(resolve_required "$parent_rows" "$name")
+              fi
               case "$status" in
                 success) ;;
                 missing) missing+=("$name") ;;
