@@ -1,22 +1,56 @@
 name: Auto merge
 
+# Trigger only after a review is submitted. We then check whether both
+# required bot reviewers (codex + copilot) have reviewed; if so, enable
+# auto-merge so GitHub finishes the merge once all CI / thread-resolution
+# requirements are met.
+#
+# Why not `on: pull_request: [opened]`? That fires before any review can
+# arrive, and GitHub's auto-merge cleared `required_conversation_resolution`
+# while bot review threads were still in flight (race window observed on
+# PR 412 / 417 / AgentLint 204).
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+
+permissions: {}
 
 jobs:
   enable:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
-      # enablePullRequestAutoMerge (the GraphQL mutation `gh pr merge --auto`
-      # calls) needs contents:write to write the resulting merge commit —
-      # pull-requests:write alone fails with "Resource not accessible by
-      # integration." Verified empirically across three sibling repos where
-      # only the contents:write repo (lazie) could enable auto-merge.
+      # enablePullRequestAutoMerge (called by `gh pr merge --auto`) needs
+      # contents:write — pull-requests:write alone returns "Resource not
+      # accessible by integration."
       contents: write
       pull-requests: write
     steps:
-      - run: gh pr merge --auto --squash --repo "${{ github.repository }}" "${{ github.event.pull_request.number }}"
+      - name: Enable auto-merge once codex + copilot have both reviewed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+          existing=$(gh pr view "$PR" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest')
+          if [ "$existing" != "null" ] && [ -n "$existing" ]; then
+            echo "Auto-merge already enabled."
+            exit 0
+          fi
+          # Bot user.login from /pulls/<n>/reviews carries the [bot] suffix
+          # (REST format) — without it the comparison silently never matches and
+          # the gate stays permanently "missing", verified against PR 417 reviews.
+          required="chatgpt-codex-connector[bot] copilot-pull-request-reviewer[bot]"
+          missing=()
+          for r in $required; do
+            n=$(gh api "/repos/$REPO/pulls/$PR/reviews" \
+                  --jq "[.[] | select(.user.login == \"$r\")] | length")
+            [ "$n" -lt 1 ] && missing+=("$r")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Waiting for review from: ${missing[*]}"
+            exit 0
+          fi
+          echo "Both required reviewers have reviewed. Enabling auto-merge."
+          gh pr merge --auto --squash --repo "$REPO" "$PR"
