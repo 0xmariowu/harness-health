@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.1.12 (2026-04-26)
+
+Follow-up bundle from the v1.1.11 retro: tightens the release-side gate template, locks fail-closed by default, defaults to safer dependency installs, and adds a generic in-tree-vs-template drift guard.
+
+### You can now…
+
+- **Trust generated `release.yml` to refuse publish without a check-runs gate** — the no-required-context branch is now `exit 1` by default. To explicitly skip the gate (CI-less repos, single-developer workflows), set the repo variable `AGENTLINT_RELEASE_GATE_OPT_OUT=1`. The previous fail-OPEN behavior (warn + skip) silently downgraded the security posture for every fresh `agentlint setup` repo. Migration note: existing v1.1.10 repos are unaffected until they regenerate their release.yml; new repos inherit the safer default.
+- **Bootstrap fresh repos with a satisfiable check-runs gate** — `agentlint setup --workflows-only` now emits `templates/universal/branch-protection.yml` to `.github/branch-protection.yml` (4 default contexts: `lint`, `Semgrep`, `analyze`, `scan`). The release.yml gate reads this file at tag-push time, so the fail-closed default is satisfiable on day 1 without manual config.
+- **Run `agentlint setup` without third-party packages writing to `~/.config/`** — `setup.sh` now passes `--ignore-scripts` by default to npm/pnpm/yarn/bun installs. The agentlint-managed pieces (husky, lint-staged) are explicitly invoked elsewhere in the setup flow, not via package lifecycle hooks. Opt back in with `--with-scripts` for users who explicitly want lifecycle hooks.
+- **Catch in-tree-vs-template drift before commit** — new `scripts/lib/check-template-sync.sh` runs in pre-commit (informational, never blocks) and warns when `.github/workflows/*.yml` and `templates/universal/*.yml` diverge on security-keyword counts (`merge-base --is-ancestor`, `check-runs`, `set -euo pipefail`, `pull_request.base.sha`, `AGENTLINT_RELEASE_GATE_OPT_OUT`). Generic guard for the regression class that fired three times this week (v1.1.9 / v1.1.10 / v1.1.11).
+
+### Internal
+
+- `.github/branch-protection.yml` realigned with live main protection: `CodeQL` and `check-test-pairing` re-added to the contexts list (parent-SHA fallback in release.yml's required-checks step makes them satisfiable at tag-push time). `setup-branch-protection.sh --verify` now reports clean.
+- `tests/test-setup-workflow-local-actions.sh` content-lock test extended with 4 new assertions (release.yml fail-closed keywords, `branch-protection.yml` emission). Closes the same regression class the test was created for in v1.1.10.
+- `tests/test-surface-sync.js` "CHANGELOG command surface" assertion now does a behavioral subprocess check on top of the existing static grep — spawns `node postinstall.js <token>` for each CHANGELOG-mentioned token under isolated tmp HOME + cleared PATH, asserts known tokens don't print Usage and unknown tokens do. Static grep stays as fast pre-check; subprocess is the real contract.
+- `tests/e2b/orchestrator.py` now logs the npx-only/non-npx skip count when filtering by mode. A 21/23 PASS line no longer leaves the missing 2 unexplained.
+- `~/.claude/standards/lessons.md` (cross-project, not part of this release) gained a "CLI / gh / jq pitfalls" section with 4 lessons learned during today's release work.
+
 ## v1.1.11 (2026-04-26)
 
 Post-release P0 from the same 6-agent production audit that produced v1.1.10. Two user-visible fixes plus a regression guard so the underlying drift class can't reach users again.
