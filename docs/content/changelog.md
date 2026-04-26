@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.1.13 (2026-04-26)
+
+Hotfix: revert v1.1.12 F003 (the branch-protection.yml realignment that re-added `CodeQL` + `check-test-pairing`). The v1.1.12 release.yml run timed out at attempt 20/20 with `Still missing: CodeQL check-test-pairing`, confirming the rationale for re-adding them was wrong.
+
+**Key insight (worth reading)**:
+- `CodeQL` is a **workflow** name. The check-runs API returns **job** names. The CodeQL workflow's only job is `analyze` — that's what lands as a check-run on every commit. Listing `CodeQL` in `contexts:` made it perpetually missing.
+- `check-test-pairing` runs only on `pull_request` events. Squash-merge to main produces a new commit; PR-only workflows never re-run on that commit. Parent-SHA fallback (added in v1.1.8 PR #213) covers squash-merges that didn't fire `push:main`; it does NOT make PR-only check-runs retroactively appear on main commits.
+
+v1.1.8's path (drop both from `branch-protection.yml`, accept the drift between YAML and live main protection) was correct. v1.1.13 restores it. **No other v1.1.12 changes are reverted** — F002 (release.yml fail-closed + branch-protection.yml template + setup wiring), F004 (check-template-sync drift guard), F005 (`--ignore-scripts` default), F006 (behavioral subprocess test), F008 (e2b skipped-scenario logging) all stay. F002's release.yml gate continues to work because the YAML's contexts list is once again only contexts the gate can actually satisfy.
+
+### Internal
+
+- `.github/branch-protection.yml` contexts: revert to the 13-entry list from v1.1.8. Comment block updated to explain why CodeQL + check-test-pairing must NOT be re-added.
+- `tests/test-registry-consistency.js` canonical-required-checks list synced.
+
 ## v1.1.12 (2026-04-26)
 
 Follow-up bundle from the v1.1.11 retro: tightens the release-side gate template, locks fail-closed by default, defaults to safer dependency installs, and adds a generic in-tree-vs-template drift guard.
