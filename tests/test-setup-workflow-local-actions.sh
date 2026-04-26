@@ -154,6 +154,15 @@ test_setup_locks_security_critical_workflow_content() {
       failures+=("$path is missing required marker /$pattern/ — $reason")
     fi
   }
+  check_must_not_contain() {
+    local path="$1" pattern="$2" reason="$3"
+    if [[ ! -f "$path" ]]; then
+      return
+    fi
+    if grep -qE "$pattern" "$path"; then
+      failures+=("$path still contains forbidden marker /$pattern/ — $reason")
+    fi
+  }
 
   # release.yml: P0-2-tag gates from v1.1.8 must be in every generated repo.
   check_must_contain "$repo/.github/workflows/release.yml" \
@@ -163,12 +172,18 @@ test_setup_locks_security_critical_workflow_content() {
     'check-runs' \
     "release.yml must enforce required-checks-API gate (v1.1.8 P0-2-tag)"
 
-  # hygiene.yml must use the PR base SHA composite action, not the
-  # `origin/main..HEAD` author-check that ate git log failures silently
-  # (F003 S1 fail-closed hygiene).
+  # hygiene.yml must use the PR base SHA composite action AND must not
+  # use the `origin/main..HEAD` author-check that ate git log failures
+  # silently (F003 S1 fail-closed hygiene).
   check_must_contain "$repo/.github/workflows/hygiene.yml" \
     'github\.event\.pull_request\.base\.sha' \
     "hygiene.yml must reference PR base SHA explicitly"
+  check_must_not_contain "$repo/.github/workflows/hygiene.yml" \
+    'origin/main\.\.HEAD' \
+    "hygiene.yml must not use origin/main..HEAD (fail-open author check)"
+  check_must_contain "$repo/.github/workflows/hygiene.yml" \
+    'set -euo pipefail' \
+    "hygiene.yml author checks must run under set -euo pipefail (fail-closed)"
 
   if (( ${#failures[@]} > 0 )); then
     TEST_ERROR=$'security-critical template content drifted:\n  '"$(printf '%s\n  ' "${failures[@]}")"
