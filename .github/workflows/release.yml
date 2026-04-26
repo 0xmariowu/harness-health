@@ -84,17 +84,39 @@ jobs:
 
           # Fetch every check-run for this SHA. Pages of 100 are the max
           # GitHub returns; loop until we get a partial page.
-          page=1
-          rows=""
-          while :; do
-            chunk=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100&page=$page" \
-              --jq '.check_runs[] | "\(.name)\t\(.conclusion // "pending")"')
-            [ -z "$chunk" ] && break
-            rows="${rows}${chunk}"$'\n'
-            count=$(printf '%s\n' "$chunk" | wc -l | tr -d ' ')
-            [ "$count" -lt 100 ] && break
-            page=$((page + 1))
-          done
+          # Squash-merges occasionally don't fire `push` events for the
+          # resulting main commit (observed on PRs #211/#212), leaving the
+          # tag SHA with no required check-runs even though the parent
+          # squash-merge commit had a full green CI matrix. Fall back to
+          # the first parent SHA when the tag SHA itself is empty.
+          fetch_runs_for_sha() {
+            local sha="$1"
+            local page=1
+            local rows=""
+            while :; do
+              chunk=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?per_page=100&page=$page" \
+                --jq '.check_runs[] | "\(.name)\t\(.conclusion // "pending")"')
+              [ -z "$chunk" ] && break
+              rows="${rows}${chunk}"$'\n'
+              local count
+              count=$(printf '%s\n' "$chunk" | wc -l | tr -d ' ')
+              [ "$count" -lt 100 ] && break
+              page=$((page + 1))
+            done
+            printf '%s' "$rows"
+          }
+          rows=$(fetch_runs_for_sha "$GITHUB_SHA")
+          # The release workflow itself is always present on $GITHUB_SHA;
+          # if we see ONLY the release line (i.e. no peer CI runs at all),
+          # fall back to first parent.
+          peer_count=$(printf '%s' "$rows" | grep -vE '^(release|)$' | wc -l | tr -d ' ')
+          if [ "$peer_count" -lt 2 ]; then
+            parent=$(git rev-parse "${GITHUB_SHA}^") || parent=""
+            if [ -n "$parent" ]; then
+              echo "::notice::Tag SHA $GITHUB_SHA has no peer check-runs; falling back to parent $parent for required-checks lookup"
+              rows=$(fetch_runs_for_sha "$parent")
+            fi
+          fi
 
           # The same context name can have multiple check-runs (re-runs). Pick
           # the latest one that has a terminal conclusion (i.e. != pending).
