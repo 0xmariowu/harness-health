@@ -949,6 +949,13 @@ function main() {
     // P0-7 (2026-04-26): when invoked in a TTY with no piped scores, fail
     // fast instead of blocking on fs.readFileSync(0) — that read waits for
     // the user to type/Ctrl-D, which looks like an indefinite hang.
+    //
+    // Edge case acknowledged (PR #208 review): some PTY wrappers (e.g.
+    // `script -F`) can present process.stdin.isTTY === true while still
+    // piping real input. Detecting that non-blockingly in Node is messy
+    // (no portable peek on FD 0). For those workflows the user should
+    // pass an explicit scoresFile path; the common interactive case
+    // remains the no-arg-no-pipe one we MUST NOT block on.
     if (process.stdin.isTTY) {
       process.stderr.write('Usage: reporter.js <scores.json> [--before before-scores.json] [--plan plan.json] [--output-dir dir] [--format terminal|md|jsonl|html|sarif|all] [--sarif-include-all] [--fail-below 0-100]\n');
       process.stderr.write('reporter.js: no scores file argument and stdin is a TTY (no piped input). Provide a path or pipe scorer output.\n');

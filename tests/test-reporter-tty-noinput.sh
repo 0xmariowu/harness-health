@@ -3,10 +3,17 @@
 # in a TTY without a scores file argument and without piped stdin. Pre-fix,
 # fs.readFileSync(0) blocked indefinitely waiting for keyboard input.
 #
-# Strategy: use `script -q /dev/null` to attach a pseudo-TTY to the
-# reporter, but pre-close stdin via a wrapper bash that disconnects from
-# the script's controlling terminal after spawn. Verify the process exits
-# within a short bound with non-zero exit code AND prints "Usage:".
+# Strategy:
+#   case 1 — non-TTY no stdin: drive node with </dev/null and confirm fast
+#            exit + Usage banner.
+#   case 2 — simulated TTY: a small node wrapper overrides
+#            process.stdin.isTTY=true via Object.defineProperty and then
+#            requires reporter.js. A perl alarm watchdog catches any hang
+#            regression as exit 142 (since macOS ships no GNU `timeout`).
+#
+# This avoids needing a real PTY (script(1) flag set differs across BSD
+# and GNU and was unreliable in CI), and exercises exactly the conditional
+# branch the production fix added (PR #208 review feedback).
 
 set -eu
 
