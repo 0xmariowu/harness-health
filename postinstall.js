@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-const { execSync } = require("child_process");
+const { execFileSync, execSync } = require("child_process");
 const path = require("path");
 
 const { version: PKG_VERSION } = require("./package.json");
@@ -124,14 +124,16 @@ function main() {
   console.log("Configuring Claude Code plugin...");
   console.log();
 
+  const installPath = path.join(__dirname, "scripts", "install.sh");
+
   try {
-    execSync(`bash "${path.join(__dirname, "scripts", "install.sh")}"`, { stdio: "inherit" });
+    execFileSync("bash", [installPath], { stdio: "inherit" });
   } catch (err) {
     console.error(`\n  Installation failed: ${err.message}`);
     console.error("  npm package installed; CLI works when agentlint is on PATH.");
     console.error("  Claude plugin install failed, so /al is not available yet.");
     console.error("  Manual install:");
-    console.error(`    bash "${path.join(__dirname, "scripts", "install.sh")}"`);
+    console.error(`    bash "${installPath}"`);
     console.error();
     process.exit(1);
   }

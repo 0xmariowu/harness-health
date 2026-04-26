@@ -101,6 +101,21 @@ childProcess.execSync = function mockExecSync(command) {
   throw new Error('unexpected execSync command: ' + command);
 };
 
+childProcess.execFileSync = function mockExecFileSync(file, args) {
+  const mocks = scenario.mocks || {};
+
+  if (file === 'bash' && Array.isArray(args) && args[0] && args[0].endsWith('install.sh')) {
+    if (mocks.installer === 'fail') {
+      const error = new Error('mock installer failed');
+      error.status = 1;
+      throw error;
+    }
+    return Buffer.from('');
+  }
+
+  throw new Error('unexpected execFileSync command: ' + file);
+};
+
 require(process.env.AL_POSTINSTALL);
 `;
 
