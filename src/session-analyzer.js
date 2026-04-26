@@ -60,9 +60,13 @@ function usage() {
     '  --include-global          Emit global (unscoped) findings even when no matching',
     '                            project is found. Default: skip global findings unless a',
     '                            session matches at least one project in --projects-root.',
+    '  --include-unmatched       Carry sessions with no project match through into',
+    '                            project-level aggregation as projectMapping=null. Default:',
+    '                            drop them entirely (P0-8 strict matching, 2026-04-26).',
     '  --include-raw-snippets    Include raw user-prompt fragments in output. Default:',
     '                            redact to a short hash + length + occurrence count, so',
     '                            analysis output is safe to paste into issues / reports.',
+    '                            Even with this flag, unmatched sessions stay redacted.',
   ];
   process.stderr.write(lines.join('\n') + '\n');
 }
@@ -74,6 +78,7 @@ function parseArgs(argv) {
     maxSessions: DEFAULT_MAX_SESSIONS,
     includeGlobal: false,
     includeRawSnippets: false,
+    includeUnmatched: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -117,6 +122,10 @@ function parseArgs(argv) {
       options.includeGlobal = true;
       continue;
     }
+    if (arg === '--include-unmatched') {
+      options.includeUnmatched = true;
+      continue;
+    }
     if (arg === '--include-raw-snippets') {
       options.includeRawSnippets = true;
       continue;
@@ -142,7 +151,14 @@ function redactSnippet(text) {
   return `[redacted ${str.length}ch #${hash}]`;
 }
 
-function displaySnippet(text, includeRaw) {
+// P0-8 (2026-04-26): unmatched sessions are forced through the redactor
+// regardless of --include-raw-snippets. Combined with the default drop in
+// the main loop (above), this keeps cross-project prompt fragments out of
+// reports even when the caller passes both --include-unmatched and
+// --include-raw-snippets together.
+function displaySnippet(text, includeRaw, opts) {
+  const fromUnmatched = !!(opts && opts.fromUnmatched);
+  if (fromUnmatched) return redactSnippet(text);
   return includeRaw ? String(text || '') : redactSnippet(text);
 }
 
@@ -327,27 +343,48 @@ function projectFromSessionDir(filePath, sessionRoot) {
   return segments[0] || 'global';
 }
 
+// Claude encodes project paths in ~/.claude/projects/<encoded>/ by replacing
+// / with -. Decoder reverses this so we can compare canonical filesystem
+// paths instead of substring-matching encoded names.
+function decodeSessionProject(sessionProject) {
+  if (typeof sessionProject !== 'string' || !sessionProject) return '';
+  if (sessionProject.startsWith('-')) {
+    return '/' + sessionProject.slice(1).replace(/-/g, '/');
+  }
+  return sessionProject.replace(/-/g, '/');
+}
+
+function safeRealpath(p) {
+  try { return fs.realpathSync(p); } catch { return p; }
+}
+
+// Match a Claude session's encoded project name against the project catalog.
+// P0-8 (2026-04-26): replaces the previous substring scoring (which let a
+// short project name like "app" be claimed by an unrelated long session
+// like "other-application") with strict identity matching:
+//   1. realpath-canonical equality between the decoded session path and a
+//      catalog entry's directory.
+//   2. exact-equality on the sanitized alias (no .includes() fallback).
+// Returns null when nothing matches; the caller decides whether to drop
+// the session or honor an explicit --include-unmatched opt-in.
 function matchProjectFromCatalog(sessionProject, catalog) {
   const sessionKey = sanitizeKey(sessionProject);
   if (!sessionKey) return null;
 
-  let best = null;
-  let bestScore = 0;
+  const decodedPath = decodeSessionProject(sessionProject);
+  const realDecoded = decodedPath ? safeRealpath(decodedPath) : '';
 
   for (const project of catalog) {
+    const realProject = safeRealpath(project.dir);
+    if (decodedPath && (realProject === realDecoded || project.dir === decodedPath)) {
+      return project;
+    }
     for (const alias of project.aliases) {
-      if (!alias) continue;
-      let score = 0;
-      if (alias === sessionKey) score = alias.length + 3;
-      else if (alias.includes(sessionKey) || sessionKey.includes(alias)) score = Math.min(alias.length, sessionKey.length);
-      if (score > bestScore) {
-        bestScore = score;
-        best = project;
-      }
+      if (alias && alias === sessionKey) return project;
     }
   }
 
-  return best;
+  return null;
 }
 
 function normalizeText(value) {
@@ -653,6 +690,7 @@ function buildS1Findings(sessions, options) {
         text: entry.text,
         project: session.project,
         project_path: session.project_path,
+        unmatched: !!session.unmatched,
       });
     }
   }
@@ -662,7 +700,8 @@ function buildS1Findings(sessions, options) {
 
   const includeRaw = Boolean(options && options.includeRawSnippets);
   return clusters.map((cluster) => {
-    const shown = displaySnippet(cluster.instruction, includeRaw);
+    const fromUnmatched = cluster.records.some((r) => r.unmatched);
+    const shown = displaySnippet(cluster.instruction, includeRaw, { fromUnmatched });
     let project = null;
     let projectPath = null;
 
@@ -714,6 +753,7 @@ function buildS4Findings(sessions, options) {
         project: session.project,
         project_path: session.project_path,
         project_entry: session.project_entry,
+        unmatched: !!session.unmatched,
       });
     }
   }
@@ -723,6 +763,7 @@ function buildS4Findings(sessions, options) {
 
   const includeRaw = Boolean(options && options.includeRawSnippets);
   return clusters.map((cluster) => {
+    const fromUnmatched = cluster.records.some((r) => r.unmatched);
     let project = null;
     let projectPath = null;
 
@@ -751,12 +792,12 @@ function buildS4Findings(sessions, options) {
       check_id: 'SS4',
       name: 'Missing rule suggestions',
       measured_value: {
-        suggested_rule: displaySnippet(cluster.instruction, includeRaw),
+        suggested_rule: displaySnippet(cluster.instruction, includeRaw, { fromUnmatched }),
         count: cluster.count,
         sessions: cluster.sessions,
       },
       score: 0,
-      detail: `Suggested CLAUDE.md rule from repeated instruction ${displaySnippet(cluster.instruction, includeRaw)}`,
+      detail: `Suggested CLAUDE.md rule from repeated instruction ${displaySnippet(cluster.instruction, includeRaw, { fromUnmatched })}`,
       evidence_id: 'SS4',
     };
   });
@@ -912,6 +953,13 @@ async function run() {
     const sessionProject = projectFromSessionDir(filePath, options.sessionRoot);
     const projectMapping = matchProjectFromCatalog(sessionProject, catalog);
     if (projectMapping) matchedAnyProject = true;
+    // P0-8 (2026-04-26): drop sessions that did not match any catalog
+    // project unless the caller explicitly opted in via --include-unmatched.
+    // Without this gate, short project names absorbed unrelated sessions
+    // and leaked their content into the wrong project's report.
+    if (!projectMapping && !options.includeUnmatched) {
+      continue;
+    }
     const friction = entries.reduce((count, entry) => {
       if (entry.role === 'user' && hasCorrection(entry.normalized)) return count + 1;
       return count;
@@ -925,6 +973,7 @@ async function run() {
       project_entry: projectMapping,
       entries,
       friction,
+      unmatched: !projectMapping,
     });
   }
 
