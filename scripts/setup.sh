@@ -403,8 +403,20 @@ copy_workflow() {
 
 # Universal workflows
 for f in "$TEMPLATE_DIR/universal/"*.yml; do
+  [[ "$(basename "$f")" == "branch-protection.yml" ]] && continue
   copy_workflow "$f" ""
 done
+
+# Branch protection contract (NOT a workflow file — goes to .github/, not .github/workflows/).
+# Required by templates/universal/release.yml's fail-closed gate.
+if [[ -f "$TEMPLATE_DIR/universal/branch-protection.yml" ]]; then
+  bp_dest="$PROJECT/.github/branch-protection.yml"
+  if [[ -e "$bp_dest" ]]; then
+    info "skipped branch-protection.yml (exists)"
+  else
+    copy_template "$TEMPLATE_DIR/universal/branch-protection.yml" "$bp_dest" "branch-protection.yml (required-checks contract for release.yml gate)"
+  fi
+fi
 
 # Language-specific workflows (empty directory is fine — e.g., node pack)
 for f in "$TEMPLATE_DIR/$LANG/"*.yml; do
