@@ -27,10 +27,11 @@
 ## Install
 
 ```bash
-npm install -g agentlint-ai
+npm install -g agentlint-ai           # CLI only — no Claude plugin yet
+npx agentlint-ai install              # opt-in: register /al Claude Code plugin
 ```
 
-> Side effects: writes to `~/.claude/` and registers the `/al` Claude Code plugin. Opt-out path in [INSTALL.md](./INSTALL.md#side-effects).
+> The first command installs the `agentlint` CLI on `$PATH` and does **not** touch `~/.claude/`. The second command (one-time, opt-in) detects Claude Code, copies the `/al` slash command into `~/.claude/commands/`, and registers the marketplace plugin. Side-effect details and uninstall path in [INSTALL.md](./INSTALL.md#side-effects).
 
 Then in any git repo:
 
@@ -38,7 +39,7 @@ Then in any git repo:
 agentlint check
 ```
 
-In Claude Code: run `/al` for the interactive scan-fix-report flow.
+In Claude Code (after running `npx agentlint-ai install`): run `/al` for the interactive scan-fix-report flow.
 
 > **Using an AI coding agent?** Point it at [INSTALL.md](./INSTALL.md) — it's written to be read once and acted on.
 
@@ -315,7 +316,7 @@ Deep is the only mode that transmits file contents off your machine, and it only
 <details>
 <summary><strong>Does <code>npm install</code> write outside node_modules?</strong></summary>
 
-**Yes, intentionally.** `npm install -g agentlint-ai` runs a `postinstall` script that registers the `/al` Claude Code plugin in `~/.claude/` when Claude Code is detected. This is a deliberate UX choice — AgentLint is Claude-Code-native and "install = ready to /al" is what users expect.
+**No.** `npm install -g agentlint-ai` only installs the `agentlint` CLI to npm's global prefix (just like any other CLI tool). The Claude Code plugin install is **opt-in**: run `npx agentlint-ai install` (one-time) to detect Claude Code and register the `/al` slash command in `~/.claude/commands/`. The CLI works without that step; the `/al` slash command does not.
 
 Failure-mode fallbacks live in [INSTALL.md](./INSTALL.md).
 </details>
