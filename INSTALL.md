@@ -45,11 +45,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: 0xmariowu/AgentLint@v1
-        with:
-          fail-below: 80
 ```
 
-`@v1` is a moving major-version tag. Pin to a specific release (e.g. `@v1.1.5`) if you need reproducibility. The `actions/checkout@v4` step is required — without it, AgentLint scans an empty workspace.
+`@v1` is a moving major-version tag. Pin to a specific release (e.g. `@v1.1.5`) if you need reproducibility. The `actions/checkout@v4` step is required — without it, AgentLint scans an empty workspace. To gate CI on a minimum score, add `with: { fail-below: 80 }` after you've established a baseline; setting it before knowing your project's natural score will turn green builds red on day one.
 
 ## After install
 
