@@ -38,7 +38,10 @@ jobs:
             echo "Auto-merge already enabled."
             exit 0
           fi
-          required="chatgpt-codex-connector copilot-pull-request-reviewer"
+          # Bot user.login from /pulls/<n>/reviews carries the [bot] suffix
+          # (REST format) — without it the comparison silently never matches and
+          # the gate stays permanently "missing", verified against PR 417 reviews.
+          required="chatgpt-codex-connector[bot] copilot-pull-request-reviewer[bot]"
           missing=()
           for r in $required; do
             n=$(gh api "/repos/$REPO/pulls/$PR/reviews" \
