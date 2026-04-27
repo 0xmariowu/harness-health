@@ -12,7 +12,7 @@
 [![npm](https://img.shields.io/npm/v/agentlint-ai)](https://www.npmjs.com/package/agentlint-ai)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-cc785c)](https://claude.com/download)
 
-<p><a href="#安装">安装</a> · <a href="#效果展示">效果展示</a> · <a href="#harness-问题">Harness 101</a> · <a href="#检查项目">检查项目</a> · <a href="#数据来源">数据来源</a> · <a href="#faq">FAQ</a></p>
+<p><a href="https://www.agentlint.app/zh"><strong>🌐 中文站</strong></a> · <a href="https://www.agentlint.app/zh/blog">博客</a> · <a href="#安装">安装</a> · <a href="#效果展示">效果展示</a> · <a href="#harness-问题">Harness 101</a> · <a href="#检查项目">检查项目</a> · <a href="#数据来源">数据来源</a> · <a href="#faq">FAQ</a></p>
 
 </div>
 
@@ -23,6 +23,8 @@
 > 你的 `AGENTS.md`、`CLAUDE.md`、CI 配置、hooks、`.gitignore` ——这些就是 harness。写错了，Claude Code、Cursor、Codex 交付的是 AI 垃圾。写对了，agent 会越来越强。
 >
 > AgentLint 用 **51 个确定性的核心检查（6 个核心维度）**，再加上 **7 个可选扩展检查**（Deep + Session，靠 AI 子 agent 和 Claude Code 本地日志跑），一共 58 项检查，全部有数据支撑、零主观意见。
+
+> 📚 **完整文档、20+ 篇长文、以及 check 目录都在 [agentlint.app/zh](https://www.agentlint.app/zh)。** 推荐阅读：[写好 CLAUDE.md](https://www.agentlint.app/zh/blog/writing-a-good-claude-md) · [每份 CLAUDE.md 都该通过的 33 项 checks](https://www.agentlint.app/zh/blog/the-33-checks-every-claude-md-should-pass) · [AGENTS.md vs CLAUDE.md](https://www.agentlint.app/zh/blog/agents-md-vs-claude-md) · [English blog](https://www.agentlint.app/blog).
 
 ## 安装
 

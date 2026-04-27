@@ -12,7 +12,7 @@
 [![npm](https://img.shields.io/npm/v/agentlint-ai)](https://www.npmjs.com/package/agentlint-ai)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-cc785c)](https://claude.com/download)
 
-<p><a href="#install">Install</a> · <a href="#what-you-get">Demo</a> · <a href="#the-harness-problem">Harness 101</a> · <a href="#what-it-checks">Checks</a> · <a href="#evidence">Evidence</a> · <a href="#faq">FAQ</a> · <a href="README_CN.md">中文</a></p>
+<p><a href="https://www.agentlint.app"><strong>🌐 Site</strong></a> · <a href="https://www.agentlint.app/blog">Blog</a> · <a href="#install">Install</a> · <a href="#what-you-get">Demo</a> · <a href="#the-harness-problem">Harness 101</a> · <a href="#what-it-checks">Checks</a> · <a href="#evidence">Evidence</a> · <a href="#faq">FAQ</a> · <a href="README_CN.md">中文</a></p>
 
 </div>
 
@@ -23,6 +23,8 @@
 > Your `AGENTS.md`, `CLAUDE.md`, CI config, hooks, and `.gitignore` *are* the harness. When they're wrong, Claude Code, Cursor, and Codex ship AI slop. When they're right, agents compound.
 >
 > AgentLint scores your harness across **51 deterministic checks on 6 core dimensions**, plus **7 opt-in extended checks** (Deep + Session) that use AI sub-agents and local Claude Code session logs when available. Evidence-backed. Zero opinions.
+
+> 📚 **Full docs, 20+ long-form guides, and the complete check catalog live at [agentlint.app](https://www.agentlint.app/).** Highlights: [Writing a Good CLAUDE.md](https://www.agentlint.app/blog/writing-a-good-claude-md) · [The 33 Checks Every CLAUDE.md Should Pass](https://www.agentlint.app/blog/the-33-checks-every-claude-md-should-pass) · [AGENTS.md vs CLAUDE.md](https://www.agentlint.app/blog/agents-md-vs-claude-md) · [中文博客](https://www.agentlint.app/zh/blog).
 
 ## Install
 
