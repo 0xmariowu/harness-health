@@ -24,7 +24,7 @@
 >
 > AgentLint scores your harness across **51 deterministic checks on 6 core dimensions**, plus **7 opt-in extended checks** (Deep + Session) that use AI sub-agents and local Claude Code session logs when available. Evidence-backed. Zero opinions.
 
-> 📚 **Full docs, 20+ long-form guides, and the complete check catalog live at [agentlint.app](https://www.agentlint.app/).** Highlights: [Writing a Good CLAUDE.md](https://www.agentlint.app/blog/writing-a-good-claude-md) · [The 33 Checks Every CLAUDE.md Should Pass](https://www.agentlint.app/blog/the-33-checks-every-claude-md-should-pass) · [AGENTS.md vs CLAUDE.md](https://www.agentlint.app/blog/agents-md-vs-claude-md) · [中文博客](https://www.agentlint.app/zh/blog).
+> 📚 **Full docs, 20+ long-form guides, and the complete check catalog live at [agentlint.app](https://www.agentlint.app/).** Highlights: [Writing a Good CLAUDE.md](https://www.agentlint.app/blog/writing-a-good-claude-md) · [The 33-Check Catalog](https://www.agentlint.app/blog/the-33-checks-every-claude-md-should-pass) · [AGENTS.md vs CLAUDE.md](https://www.agentlint.app/blog/agents-md-vs-claude-md) · [中文博客](https://www.agentlint.app/zh/blog).
 
 ## Install
 

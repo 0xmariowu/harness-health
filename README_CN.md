@@ -24,7 +24,7 @@
 >
 > AgentLint 用 **51 个确定性的核心检查（6 个核心维度）**，再加上 **7 个可选扩展检查**（Deep + Session，靠 AI 子 agent 和 Claude Code 本地日志跑），一共 58 项检查，全部有数据支撑、零主观意见。
 
-> 📚 **完整文档、20+ 篇长文、以及 check 目录都在 [agentlint.app/zh](https://www.agentlint.app/zh)。** 推荐阅读：[写好 CLAUDE.md](https://www.agentlint.app/zh/blog/writing-a-good-claude-md) · [每份 CLAUDE.md 都该通过的 33 项 checks](https://www.agentlint.app/zh/blog/the-33-checks-every-claude-md-should-pass) · [AGENTS.md vs CLAUDE.md](https://www.agentlint.app/zh/blog/agents-md-vs-claude-md) · [English blog](https://www.agentlint.app/blog).
+> 📚 **完整文档、20+ 篇长文、以及 check 目录都在 [agentlint.app/zh](https://www.agentlint.app/zh)。** 推荐阅读：[写好 CLAUDE.md](https://www.agentlint.app/zh/blog/writing-a-good-claude-md) · [33 项 check 目录](https://www.agentlint.app/zh/blog/the-33-checks-every-claude-md-should-pass) · [AGENTS.md vs CLAUDE.md](https://www.agentlint.app/zh/blog/agents-md-vs-claude-md) · [English blog](https://www.agentlint.app/blog).
 
 ## 安装
 
