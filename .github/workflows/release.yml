@@ -208,9 +208,8 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-          REF_NAME: ${{ github.ref_name }}
         run: |
-          if gh release view "$REF_NAME" &>/dev/null; then
+          if gh release view "$GITHUB_REF_NAME" &>/dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -358,9 +357,8 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          REF_NAME: ${{ github.ref_name }}
         run: |
-          TAG="$REF_NAME"
+          TAG="$GITHUB_REF_NAME"
           VERSION="${TAG#v}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "::notice::GitHub Release ${TAG} already exists; editing it instead of creating a duplicate."
@@ -405,9 +403,8 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          REF_NAME: ${{ github.ref_name }}
         run: |
-          TAG="$REF_NAME"
+          TAG="$GITHUB_REF_NAME"
           VERSION="${TAG#v}"
           SAFE_TAG="${VERSION//./\\.}"
 
@@ -456,10 +453,8 @@ jobs:
           done
 
       - name: Summary
-        env:
-          REF_NAME: ${{ github.ref_name }}
         run: |
-          TAG="$REF_NAME"
+          TAG="$GITHUB_REF_NAME"
           VERSION="${TAG#v}"
           {
             echo "## Release ${VERSION}"
