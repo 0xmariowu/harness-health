@@ -1,5 +1,9 @@
 name: E2B Comprehensive Tests
 
+# Trigger: manual only (workflow_dispatch). Previously had a weekly Monday
+# cron, but the repo has no E2B_API_KEY secret configured, so every scheduled
+# run ERRORed on all 21 sandboxes (5+ weeks of failure notifications without
+# protecting anything). Restore the cron once the API key is wired up.
 on:
   workflow_dispatch:
     inputs:
@@ -13,8 +17,6 @@ on:
         description: 'Max parallel sandboxes'
         required: false
         default: '20'
-  schedule:
-    - cron: '0 4 * * 1'  # Monday 4am UTC
 
 permissions:
   contents: read
