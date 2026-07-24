@@ -149,7 +149,7 @@ runs:
 
     - name: Upload SARIF to GitHub Code Scanning
       if: ${{ inputs.sarif-upload == 'true' && always() }}
-      uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e  # v4.35.4
+      uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81  # v4.37.3
       with:
         sarif_file: ${{ runner.temp }}/agent-lint.sarif
         category: agent-lint
